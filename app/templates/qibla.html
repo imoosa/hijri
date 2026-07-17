@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Qibla Direction{% endblock %}
+{% block content %}
+<div class="card center">
+    <h1>Qibla Direction</h1>
+    <p class="sub">{{ location_name }}</p>
+
+    <div class="compass-wrap">
+        <svg viewBox="0 0 200 200" width="220" height="220">
+            <circle cx="100" cy="100" r="95" fill="none" stroke="#333" stroke-width="2"/>
+            <text x="100" y="20" text-anchor="middle" font-size="14">N</text>
+            <text x="180" y="105" text-anchor="middle" font-size="14">E</text>
+            <text x="100" y="190" text-anchor="middle" font-size="14">S</text>
+            <text x="20" y="105" text-anchor="middle" font-size="14">W</text>
+            <g transform="rotate({{ bearing }} 100 100)">
+                <line x1="100" y1="100" x2="100" y2="25" stroke="#b5121b" stroke-width="4" />
+                <polygon points="100,15 92,35 108,35" fill="#b5121b" />
+            </g>
+            <circle cx="100" cy="100" r="4" fill="#333"/>
+        </svg>
+    </div>
+
+    <p class="bearing-value">{{ bearing }}&deg; from North</p>
+    <p class="sub">Distance to Mecca: {{ distance_km }} km</p>
+    <p class="note">Point the red arrow toward North on a real compass to find your qibla direction.
+    This page cannot read your phone's compass sensor directly (that needs a native/JS device API) —
+    it just tells you the bearing to align to.</p>
+</div>
+{% endblock %}

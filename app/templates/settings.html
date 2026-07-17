@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block content %}
+<div class="card">
+    <h1>Location Settings</h1>
+    <form method="post">
+        <label>Location name<input type="text" name="location_name" value="{{ location.name }}" required></label>
+        <label>Latitude<input type="number" step="any" name="lat" value="{{ location.lat }}" required></label>
+        <label>Longitude<input type="number" step="any" name="lng" value="{{ location.lng }}" required></label>
+        <label>Timezone offset from UTC (e.g. 5.5 for India)
+            <input type="number" step="any" name="tz_offset" value="{{ location.tz_offset }}" required></label>
+        <button type="submit">Save</button>
+    </form>
+    <p class="note">This is stored in your browser session only (not a real user account system).
+    Prayer times, qibla direction, and the calendar's location line all use this.</p>
+</div>
+{% endblock %}

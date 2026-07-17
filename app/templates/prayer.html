@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Prayer Times{% endblock %}
+{% block content %}
+<div class="card">
+    <h1>Prayer Times</h1>
+    <p class="sub">{{ location_name }} &middot; {{ date_str }}</p>
+
+    <div class="prayer-list">
+        <div class="prayer-item"><span>Fajr</span><strong>{{ prayer.fajr }}</strong></div>
+        <div class="prayer-item"><span>Sunrise</span><strong>{{ prayer.sunrise }}</strong></div>
+        <div class="prayer-item"><span>Zawal</span><strong>{{ prayer.zawal }}</strong></div>
+        <div class="prayer-item"><span>Zuhr end (Zuhr + Asr window)</span><strong>{{ prayer.zuhr_end }}</strong></div>
+        <div class="prayer-item"><span>Maghrib (Maghrib + Isha window)</span><strong>{{ prayer.maghrib }}</strong></div>
+    </div>
+
+    <p class="note">Bohra convention: Zuhr and Asr are prayed together within the Zuhr window;
+    Maghrib and Isha are prayed together after sunset. Change your location under Settings.</p>
+</div>
+{% endblock %}

@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}{{ month_name }} {{ hijri_year }} - Calendar{% endblock %}
+{% block content %}
+<div class="calendar-card">
+    <div class="calendar-nav">
+        <a href="{{ url_for('calendar_view', y=prev_year, m=prev_month) }}" class="nav-arrow">&lt;</a>
+        <div class="calendar-title">
+            <div class="month-name">{{ month_name }}</div>
+            <div class="year">{{ hijri_year }}</div>
+        </div>
+        <a href="{{ url_for('calendar_view', y=next_year, m=next_month) }}" class="nav-arrow">&gt;</a>
+    </div>
+    <div class="gregorian-subtitle">{{ gregorian_range }}</div>
+
+    <table class="calendar-grid">
+        <thead>
+            <tr>
+                {% for wd in ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"] %}
+                <th>{{ wd }}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for week in weeks %}
+            <tr>
+                {% for day in week %}
+                    {% if day %}
+                    <td class="{{ 'today' if day.is_today else '' }} {{ 'has-event' if day.events else '' }}">
+                        <a href="{{ url_for('calendar_view', y=hijri_year, m=hijri_month, day=day.hijri_day) }}">
+                            <div class="hijri-num {{ 'red' if day.events and day.events[0].color == 'red' else '' }}">{{ day.hijri_num }}</div>
+                            <div class="greg-num">{{ day.greg_day }}</div>
+                        </a>
+                    </td>
+                    {% else %}
+                    <td class="empty"></td>
+                    {% endif %}
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="prayer-strip">
+        <div><span class="label">sunrise</span><span class="value">{{ prayer.sunrise }}</span></div>
+        <div><span class="label">zawal</span><span class="value">{{ prayer.zawal }}</span></div>
+        <div><span class="label">zuhr end</span><span class="value">{{ prayer.zuhr_end }}</span></div>
+        <div><span class="label">sunset</span><span class="value">{{ prayer.sunset }}</span></div>
+    </div>
+    <div class="location-line">{{ location_name }}</div>
+
+    {% if selected_day and selected_day.events %}
+    <div class="events-panel">
+        {% for e in selected_day.events %}
+        <div class="event-row {{ e.color }}">
+            <strong>{{ e.title }}</strong>
+            {% if e.description %}<div class="event-desc">{{ e.description }}</div>{% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% elif selected_day %}
+    <div class="events-panel empty-panel">No events on {{ selected_day.hijri_day }} {{ month_name }}.</div>
+    {% endif %}
+</div>
+{% endblock %}

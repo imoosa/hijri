@@ -1,0 +1,189 @@
+# Bohra Hijri Calendar Events - bulk import format
+# Format: month,day,title,is_holiday,is_fasting,color
+# This is the exact data already baked into app/database.py (SEED_EVENTS).
+# Use this file only if you need to re-import into a fresh/emptied database
+# via the bulk-import box on /events-view.
+
+
+# --- Moharram al-Haraam (1) ---
+1,1,Eid-e-Milad / New Year,yes,no,red
+1,1,Maulai Abdullah RA - Khambat,no,no,black
+1,2,Maulai Raj bin Maulai Hasan AQ - Ahmedabad,no,no,black
+1,2,Syedi Khanji Fir Saheb AQ - Udaipur,no,no,black
+1,7,Syedna Ismail Badruddin RA (38) - Jamnagar,no,no,black
+1,10,Maulai Ahmed RA (obs. on 16th) - Khambat,no,no,black
+1,10,Syedna Zoeb bin Moosa RA (1) - Huas (Yemen),no,no,black
+1,14,Maulai Lookmanji Mulla Alibhai AQ - Wankaner,no,no,black
+1,15,Maulai Nooruddin AQ (obs. on 11 Jamdil-ula) - Dongaon,no,no,black
+1,16,Syedna Hatim Mohiuddin RA (3) - Hutaib,no,no,black
+1,17,Maulai Masood bin Maulai Suleman AQ - Dhrangdhra,no,no,black
+1,17,Syedna Ibrahim Vajihuddin RA (39) - Ujjain,no,no,black
+1,18,Syedi Gani Pir bin Dawoodji Shaheed AQ - Kalavad,no,no,black
+1,23,Fatema Bibi ukhte Syedna Yusuf Najmuddin (24) AQ - Dandigam (Maisaheba),no,no,black
+1,23,Noor Bibi umme Syedna Yusuf Najmuddin (24) AQ - Dandigam (Maisaheba),no,no,black
+1,23,Syedi Hasan Fir Shaheed AQ - Denmal,no,no,black
+1,27,Syedi Fakhruddin Shaheed AQ - Galiakot,no,no,black
+1,28,Syedi Moosanji bin Taj AQ - Baroda,no,no,black
+1,29,Maulai Hasan bin Maulai Adam AQ - Ahmedabad,no,no,black
+
+# --- Safar al-Muzaffar (2) ---
+2,1,Syedna Ali bin Syedna Hussain RA (10) - Sanaa, Yemen,no,no,black
+2,3,Syedna Ali Shamsuddin RA (18) - Shariqa, Yemen,no,no,black
+2,4,Syedna Abdultaiyeb Zakiyuddin RA (41) - Burhanpur,no,no,black
+2,6,Syedi Abdeali Imaduddin bin Shk Jivabhai AQ - Surat,no,no,black
+2,8,Syedna Khattab bin Hasan al-Hamadani RA - Yemen,no,no,black
+2,9,Syedi Taiyeb Bhaisaheb Zainuddin AQ - Surat,no,no,black
+2,12,Syedi Ahmed Hamiduddin AQ - Cairo,no,no,black
+2,13,Maulai Adam bin Sulaiman AQ - Ahmedabad,no,no,black
+2,14,Kaka Akela and Kaki Akela AQ - Khambat,no,no,black
+2,14,Maulai Nooh Saheb AQ - Selavi,no,no,black
+2,15,Syedi Maulai Hamza Bhaisaheb AQ - Surat,no,no,black
+2,17,Shk. Ibrahim, Shk. Abdullah Saheb Shaheed AQ - Chechat,no,no,black
+2,17,Shk. Saheb bin Sulemanji AQ - Chechat,no,no,black
+2,22,Syedna Hussain bin Syedna Ali RA (8) - Yemen,no,no,black
+2,27,Syedna Mohammad Izzuddin RA (23) - Yemen,no,no,black
+
+# --- Rabi al-Awwal (3) ---
+3,1,Syedi Shaikhadam Safiyuddin AQ - Jamnagar,no,no,black
+3,2,Syedna Abdultaiyeb Zakiyuddin RA (29) - Ahmedabad,no,no,black
+3,4,Syedi Habibullah bin M Adamjee bin Syedi Bawa Mulla Khan AQ - Ujjain,no,no,black
+3,7,Syedi Abdeali Bhaisaheb Mohyuddin AQ - Surat,no,no,black
+3,7,Syedi Shaikh Dawoodbhai AQ - Udaipur,no,no,black
+3,10,Syedna Abdullah Badruddin RA (50) - Surat,no,no,black
+3,12,Amtullah Aaisaheba Akilat Syedna Mohammad Burhanuddin AQ - London,no,no,black
+3,12,Syedna Ali bin Hanzalah RA (6) - Yemen,no,no,black
+3,14,Syedi Miyajee Mulla Taj Saheb AQ - Umreth,no,no,black
+3,16,Syedna Mohammad Burhanuddin RA (52) - Mumbai,no,no,black
+3,22,Maulai Dawood bin Raj AQ - Morbi,no,no,black
+3,23,Maulai Raj Saheb AQ - Morbi,no,no,black
+3,23,Syedi Kazikhan bin Ameenshah AQ - Halwad,no,no,black
+3,25,Syedna Ali Shamsuddin bin Maulai Hasan RA (30) - Hisne Afida, Yemen,no,no,black
+3,28,Mohammad bin Hasan AQ - Dhinoj,no,no,black
+
+# --- Rabi al-Aakhar (4) ---
+4,5,Miyasaheb Motabhai bin Mulla Noorbhai AQ - Balasinor,no,no,black
+4,5,Miyasaheb Taiyebji bin Shaikh Shamaskhan AQ - Balasinor,no,no,black
+4,8,Syedi Maulai Raj bin Maulai Adam AQ - Jamnagar,no,no,black
+4,10,Syedi Abdurrasool Shaheed AQ - Banswara,no,no,black
+4,14,Syedi Ismailjee Shaheed AQ - Godhra,no,no,black
+4,16,Syedna Jalal Shamsuddin RA (25) - Ahmedabad,no,no,black
+4,22,Syedi Mulla Habibullah bin Shaikh Sultanali AQ - Bharooch,no,no,black
+4,22,Syedna Abdemoosa Kalimuddin RA (36) - Jamnagar,no,no,black
+4,27,Syedna Dawood bin Ajabshah Burhanuddin RA (26) - Ahmedabad,no,no,black
+4,28,Kakaji Mulla Essabhai AQ - Pratabgarh,no,no,black
+
+# --- Jumada al-Ula (5) ---
+5,1,Syedna Ahmed almukarram al-Sulahi RA - Yemen,no,no,black
+5,3,Syedi Kazikhan bin Ali AQ - Sidhpur,no,no,black
+5,8,Syedi Mulla Wahedbhai Saheb AQ - Surat,no,no,black
+5,11,Maulai Nooruddin Saheb AQ (wafat 15 Moharram) - Dongam,no,no,black
+5,15,Maulai Dawood bin Qazi Ahmed AQ - Ahmedabad,no,no,black
+5,17,Syedi Dawood Bhaisaheb Shihabuddin AQ - Surat,no,no,black
+5,21,Seth Chandabhai ibne Karimbhai AQ - Bombay,no,no,black
+5,23,Mulla Jafferjee Jeevajee AQ - Amreli,no,no,black
+
+# --- Jumada al-Ukhra (6) ---
+6,8,Syedi Luqmanji bin Mulla Habibullah AQ - Surat,no,no,black
+6,12,Mulla Tayyeb Bawa bin Mulla Ibrahimji AQ - Renala,no,no,black
+6,14,Ganj Shahoda AQ - Ahmedabad,no,no,black
+6,15,Maulai Ali Bhai Shaheed AQ - Indor,no,no,black
+6,15,Syedna Dawood Burhanuddin RA (27) - Ahmedabad,no,no,black
+6,18,Maulai Burhanuddin bin Khoj AQ - Pesawara,no,no,black
+6,18,Syedna Yusuf Najmuddin RA (42) - Surat,no,no,black
+6,23,Syedna Ismail Badruddin RA (34) - Jamnagar,no,no,black
+6,27,Syedna Lamak bin Malik Al Hamadi - Lahaab, Yemen,no,no,black
+6,27,Syedna Qutub Khan Qutbuddin Shaheed RA (32) - Ahmedabad,no,no,black
+6,28,Syedna Ahmed bin Mubarak RA (7) - Yemen,no,no,black
+6,28,Syedna Yahya bin Lamak RA - Lahaab, Yemen,no,no,black
+6,29,Bahen Saheb Ajab Boo binte Syedna Qutbuddin Shaheed RA - Ahmedabad,no,no,black
+6,29,Syedna Kazi Nauman bin Mohammad RA - Egypt,no,no,black
+6,29,Syedna Mohammad Badruddin RA (46) - Surat,no,no,black
+
+# --- Rajab al-Asab (7) ---
+7,2,Bhaiji Bhai bin Qadibhai AQ - Karachi,no,no,black
+7,4,Syedi Hasanji Badshah AQ - Ujjain,no,no,black
+7,4,Syedna Nur Mohammad Nuruddin RA (37) - Mandvi,no,no,black
+7,7,Syedna Shaikh Adam Safiuddin RA (28) - Ahmedabad,no,no,black
+7,11,Maulai Raj bin Dawood Saheb AQ - Ahmedabad,no,no,black
+7,12,Syedi Najamkhan bin Syedna Firkhan Shujauddin AQ - Aurangabad,no,no,black
+7,14,Maulai Yaqoob Saheb AQ - Patan,no,no,black
+7,14,Syedna Abdul Muttalib Najmuddin RA (14) - Zamaramar, Yemen,no,no,black
+7,18,Syedna Ali Shamsuddin RA (13) - Zamarmar, Yemen,no,no,black
+7,19,Syedna Abu Mohammad Taher Saifuddin RA (51) - Mumbai,no,no,black
+7,24,Syedi Qamruddin Bhaisaheb AQ - Ujjain,no,no,black
+7,26,Syedna Abdulqadir Najmuddin RA (47) - Ujjain,no,no,black
+7,27,Aminji Shaheed AQ - Pardhari, Kalawar,no,no,black
+7,29,Syedi Luqmanji bin Syedi Dawoodsaheb AQ - Udaipur,no,no,black
+
+# --- Shabaan al-Karim (8) ---
+8,1,Syedna Hebatullah al Moayyed Fiddin RA (40) - Ujjain,no,no,black
+8,15,Syedna Hasan Badruddin RA (20) - Masaar, Yemen,no,no,black
+8,16,Syedna Ibrahim bin Hussain RA (2) - Ghail Bani Hamid, Yemen,no,no,black
+8,19,Syedi Saleh Bhaisaheb Safiuddin AQ - Bombay,no,no,black
+8,22,Maulatuna Hurratul Maleka Arva binte Ahmed AQ - Zi Jibla, Yemen,no,no,black
+8,22,Syedi Shk. Fir bin Dawood Shaheed AQ - Ranpur,no,no,black
+8,22,Syedi Shk. Valibhai AQ (wafat 2 Ramazan) - Malva, Parda,no,no,black
+8,25,Syedi Shamaskhan bin Syedi Yusufji AQ - Surat,no,no,black
+8,27,Syedna Ali bin Mohammad bin Valeed RA (5) - Haraaz, Yemen,no,no,black
+8,29,Syedi Jeevanji bin Shaikh Dawoodbhai AQ - Burhanpur,no,no,black
+
+# --- Ramadaan al-Moazzam (9) ---
+9,1,Ramadan begins,no,yes,red
+9,2,Syedi Shk. Valibhai bin Shk. Habibullah AQ - Malva, Parda,no,no,black
+9,3,Syedi Taiyeb Bhaisaheb Zainuddin AQ - Surat,no,no,black
+9,8,Syedi Fazel Bhaisaheb Qutbuddin AQ - Surat,no,no,black
+9,9,Syedna Abdullah Fakhruddin RA (16) - Zamarmar, Yemen,no,no,black
+9,16,Syedi Hebatullah Jamaluddin AQ - Jamnagar,no,no,black
+9,19,Syedna Mohammad Izzuddin RA (44) - Surat,no,no,black
+
+# --- Shawwal al-Mukarram (10) ---
+10,1,Eid al-Fitr,yes,no,red
+10,4,Shehzadi Sakina Bahensaheba AQ binte Syedna Taher Saifuddin RA - Bombay,no,no,black
+10,4,Syedi Yusufji wa Syedi Taiyebji Shaheed AQ - Ahmedabad,no,no,black
+10,5,Syedi Abdulqader Hakimuddin AQ (urs on 27th) - Burhanpur,no,no,black
+10,6,Syedna Hasan Badruddin RA (17) - Zamarmar, Yemen,no,no,black
+10,7,Syedna Mohammad bin Taher RA - Yemen,no,no,black
+10,8,Syedna Abbas bin Syedna Mohammad RA (15) - Yemen,no,no,black
+10,9,Syedna Qasimkhan Zainuddin RA (31) - Ahmedabad,no,no,black
+10,10,Syedna Hebatullah Moayyed Fiddin al-Shirazi RA - Qahira,no,no,black
+10,10,Syedna Hussain Husamuddin RA (21) - Masaar, Yemen,no,no,black
+10,10,Syedna Ibrahim RA (11) - Hisne Afeda, Yemen,no,no,black
+10,13,Syedi Aminji bin Jalal AQ - Ahmedabad,no,no,black
+10,24,Shk. Qutub Bhai Sulaimanji AQ - Pune,no,no,black
+10,25,Syedi Abdemoosa bin Syedna Badruddin AQ - Jamnagar,no,no,black
+10,27,Miyasaheb Abdulali Shk. Abdulqadir AQ - Javrah,no,no,black
+10,27,Syedi Abdulqadir Hakimuddin AQ - Burhanpur,no,no,black
+10,29,Mulla Salehbhai ibne Najamkhan AQ - Ahmedabad,no,no,black
+10,29,Syedi Bawa Mulla Khan Saheb AQ - Rampura,no,no,black
+10,29,Syedi Qasimkhan b. Syedi Hamzabahai AQ - Surat,no,no,black
+
+# --- Zilqadah al-Haraam (11) ---
+11,4,Aaisaheba Amatullah AQ, Aqilate Syedna Mohammad Burhanuddin AQ,no,no,black
+11,7,Syedi Abdulqadir Hakimuddin AQ - Surat,no,no,black
+11,8,Syedi Shaikhadam Safiuddin AQ - Kachh Mandvi,no,no,black
+11,9,Syedna Feerkhan Shujauddin RA (33) - Ahmedabad,no,no,black
+11,11,Syedi Hasanji bin Nooh Bharuchi AQ - Masaar, Yemen,no,no,black
+11,11,Syedna Ali bin Mohammad Sulehi RA - Yemen,no,no,black
+11,12,Syedna Abdeali Saifuddin RA (43) - Surat,no,no,black
+11,12,Syedna Abdul Taiyeb Zakiyuddin RA (35) - Jamnagar,no,no,black
+11,13,Syedna Ali bin Syedna Hussain RA (9) - Sanaa, Yemen,no,no,black
+11,15,Rani Baisaheba binte Syedna Badruddin AQ - Mundra,no,no,black
+11,15,Syedna Taiyeb Zainuddin RA (45) - Surat,no,no,black
+11,19,Syedna Idris Imaduddin RA (19) - Shibam, Yemen,no,no,black
+11,20,Syedi Mulla Valibhai Shaheed bin Syedi Jivanji AQ - Aurangabad,no,no,black
+11,21,Syedna Ali Shamsuddin RA (22) - Masaar, Yemen,no,no,black
+11,22,Syedi Shaikh Sadiqali AQ - Surat,no,no,black
+11,25,Syedna Ali bin Syedna Hatim RA (4) - Yemen,no,no,black
+11,27,Syedi Yusufkhan bin Syedi Shamskhan AQ - Shahjapur,no,no,black
+
+# --- Zilhaj al-Haraam (12) ---
+12,1,Syedna Mohammad bin Hatim RA (12) - Hisne Afeda, Yemen,no,no,black
+12,6,Syedi Khoj bin Malakshah AQ - Kapadvanj,no,no,black
+12,10,Eid al-Adha,yes,no,red
+12,13,Maulai Firoze bin Ismailji AQ - Ahmedabad,no,no,black
+12,16,Syedi Ishaq Bhaisaheb Jamaluddin AQ - Mumbai,no,no,black
+12,16,Syedna Yusuf Najmuddin bin Sulaiman RA (24) - Taiba, Yemen,no,no,black
+12,18,Eid al-Ghadeer,yes,no,red
+12,27,Ganje Shohda AQ - Ahmednagar,no,no,black
+12,27,Syedna Abdulhusain Husamuddin RA (48) - Ahmedabad,no,no,black
+12,27,Syedna Mohammad Burhanuddin RA (49) - Surat,no,no,black

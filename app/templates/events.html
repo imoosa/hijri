@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Events{% endblock %}
+{% block content %}
+<div class="card">
+    <h1>Events</h1>
+
+    <table class="events-table">
+        <thead><tr><th>Month</th><th>Day</th><th>Title</th><th>Type</th><th></th></tr></thead>
+        <tbody>
+        {% for e in events %}
+            <tr>
+                <td>{{ month_names[e.hijri_month - 1] }}</td>
+                <td>{{ e.hijri_day }}</td>
+                <td>{{ e.title }}</td>
+                <td>{{ 'Holiday' if e.is_holiday else ('Fasting' if e.is_fasting_day else '') }}</td>
+                <td>
+                    <form method="post" action="{{ url_for('delete_event', event_id=e.id) }}" style="display:inline">
+                        <button type="submit" class="link-btn" onclick="return confirm('Delete {{ e.title }}?')">delete</button>
+                    </form>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    <h2>Add one event</h2>
+    <form method="post" action="{{ url_for('events_view') }}">
+        <label>Hijri month
+            <select name="hijri_month">
+            {% for i in range(1, 13) %}
+                <option value="{{ i }}">{{ month_names[i-1] }}</option>
+            {% endfor %}
+            </select>
+        </label>
+        <label>Hijri day<input type="number" name="hijri_day" min="1" max="30" required></label>
+        <label>Title<input type="text" name="title" required></label>
+        <label>Description<input type="text" name="description"></label>
+        <label><input type="checkbox" name="is_holiday"> Holiday</label>
+        <label><input type="checkbox" name="is_fasting_day"> Fasting day</label>
+        <label>Color
+            <select name="color"><option value="black">Black</option><option value="red">Red</option></select>
+        </label>
+        <button type="submit">Add event</button>
+    </form>
+
+    <h2>Bulk import (paste many events at once)</h2>
+    <p class="note">
+        One event per line, comma-separated:<br>
+        <code>month,day,title,is_holiday,is_fasting,color</code><br>
+        Example: <code>12,18,Eid al-Ghadeer,yes,no,red</code><br>
+        <code>is_holiday</code>/<code>is_fasting</code> are <code>yes</code> or <code>no</code>. <code>color</code> is optional (defaults to black).
+    </p>
+    <form method="post" action="{{ url_for('bulk_import_events') }}">
+        <label>Paste events here
+            <textarea name="bulk_text" rows="8" placeholder="1,1,Eid-e-Milad,yes,no,red
+1,10,Ashura,no,yes,red
+12,18,Eid al-Ghadeer,yes,no,red"></textarea>
+        </label>
+        <button type="submit">Import all</button>
+    </form>
+
+    <h2 style="color:#b5121b;">Danger zone</h2>
+    <form method="post" action="{{ url_for('clear_all_events') }}">
+        <button type="submit" class="danger-btn" onclick="return confirm('Delete ALL events? This cannot be undone.')">Delete all events (start fresh)</button>
+    </form>
+    <p class="note">Use this once you're ready to replace the placeholder sample events with your jamaat's real list.</p>
+</div>
+{% endblock %}
+
