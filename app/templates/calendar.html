@@ -1,64 +1,368 @@
 {% extends "base.html" %}
 {% block title %}{{ month_name }} {{ hijri_year }} - Calendar{% endblock %}
-{% block content %}
-<div class="calendar-card">
-    <div class="calendar-nav">
-        <a href="{{ url_for('calendar_view', y=prev_year, m=prev_month) }}" class="nav-arrow">&lt;</a>
-        <div class="calendar-title">
-            <div class="month-name">{{ month_name }}</div>
-            <div class="year">{{ hijri_year }}</div>
-        </div>
-        <a href="{{ url_for('calendar_view', y=next_year, m=next_month) }}" class="nav-arrow">&gt;</a>
-    </div>
-    <div class="gregorian-subtitle">{{ gregorian_range }}</div>
 
-    <table class="calendar-grid">
-        <thead>
-            <tr>
-                {% for wd in ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"] %}
-                <th>{{ wd }}</th>
-                {% endfor %}
-            </tr>
-        </thead>
-        <tbody>
-            {% for week in weeks %}
-            <tr>
-                {% for day in week %}
-                    {% if day %}
-                    <td class="{{ 'today' if day.is_today else '' }} {{ 'has-event' if day.events else '' }}">
-                        <a href="{{ url_for('calendar_view', y=hijri_year, m=hijri_month, day=day.hijri_day) }}">
-                            <div class="hijri-num {{ 'red' if day.events and day.events[0].color == 'red' else '' }}">{{ day.hijri_num }}</div>
-                            <div class="greg-num">{{ day.greg_day }}</div>
-                        </a>
-                    </td>
-                    {% else %}
-                    <td class="empty"></td>
-                    {% endif %}
-                {% endfor %}
-            </tr>
+{% macro filter_qs(prefix) %}{% if filter_active %}{{ prefix }}filtered=1{% for t in traditions_on %}&show={{ t }}{% endfor %}{% endif %}{% endmacro %}
+
+{% block sidebar %}
+<div class="mini-nav">
+    <a href="{{ url_for('calendar_view', y=prev_year, m=prev_month) }}{{ filter_qs('?') }}">&lt;</a>
+    <strong>{{ month_name }} {{ hijri_year }}</strong>
+    <a href="{{ url_for('calendar_view', y=next_year, m=next_month) }}{{ filter_qs('?') }}">&gt;</a>
+</div>
+
+<h3>Communities</h3>
+<form method="get" id="filter-form">
+    <input type="hidden" name="y" value="{{ hijri_year }}">
+    <input type="hidden" name="m" value="{{ hijri_month }}">
+    <input type="hidden" name="filtered" value="1">
+
+    <div class="community-group">
+        <div class="community-row">
+            <label class="chip-check">
+                <input type="checkbox" checked disabled>
+            </label>
+            <span class="tradition-dot dot-bohra"></span>
+            <button type="button" class="community-toggle" data-key="bohra">
+                Bohra <span class="count">({{ community_lists.bohra|length }})</span>
+            </button>
+            <span class="chev">&rsaquo;</span>
+        </div>
+        <div class="community-list" id="list-bohra">
+            {% for e in community_lists.bohra %}
+            <div class="community-list-row"><span class="clr-when">{{ e.when }}</span>{{ e.title }}</div>
+            {% else %}
+            <div class="clr-empty">No Bohra events found.</div>
             {% endfor %}
-        </tbody>
-    </table>
-
-    <div class="prayer-strip">
-        <div><span class="label">sunrise</span><span class="value">{{ prayer.sunrise }}</span></div>
-        <div><span class="label">zawal</span><span class="value">{{ prayer.zawal }}</span></div>
-        <div><span class="label">zuhr end</span><span class="value">{{ prayer.zuhr_end }}</span></div>
-        <div><span class="label">sunset</span><span class="value">{{ prayer.sunset }}</span></div>
-    </div>
-    <div class="location-line">{{ location_name }}</div>
-
-    {% if selected_day and selected_day.events %}
-    <div class="events-panel">
-        {% for e in selected_day.events %}
-        <div class="event-row {{ e.color }}">
-            <strong>{{ e.title }}</strong>
-            {% if e.description %}<div class="event-desc">{{ e.description }}</div>{% endif %}
         </div>
-        {% endfor %}
     </div>
-    {% elif selected_day %}
-    <div class="events-panel empty-panel">No events on {{ selected_day.hijri_day }} {{ month_name }}.</div>
+
+    {% for key, meta in traditions.items() %}
+    <div class="community-group" style="--accent: {{ meta.color }}">
+        <div class="community-row">
+            <label class="chip-check">
+                <input type="checkbox" name="show" value="{{ key }}" onchange="document.getElementById('filter-form').submit()" {{ 'checked' if key in traditions_on else '' }}>
+            </label>
+            <span class="tradition-dot dot-{{ key }}"></span>
+            <button type="button" class="community-toggle" data-key="{{ key }}">
+                {{ meta.label }} <span class="count">({{ community_lists[key]|length if key in community_lists else 0 }})</span>
+            </button>
+            <span class="chev">&rsaquo;</span>
+        </div>
+        <div class="community-list" id="list-{{ key }}">
+            {% for e in community_lists[key] if key in community_lists %}
+            <div class="community-list-row"><span class="clr-when">{{ e.when }}</span>{{ e.title }}</div>
+            {% else %}
+            <div class="clr-empty">No upcoming events found.</div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</form>
+<p class="tab-hint">Checkbox = show on the grid. Tap the name to see that community's full list here.</p>
+
+<h3>Today</h3>
+<div class="sidebar-events">
+    {% if selected_day and selected_day.is_today %}
+        {% if selected_day.events or selected_day.interfaith or selected_day.personal %}
+            {% for e in selected_day.events %}
+            <div class="sidebar-event-row"><div class="t">Bohra</div>{{ e.title }}</div>
+            {% endfor %}
+            {% for e in selected_day.interfaith %}
+            <div class="sidebar-event-row"><div class="t">{{ traditions[e.tradition].label if e.tradition in traditions else e.tradition }}</div>{{ e.title }}</div>
+            {% endfor %}
+            {% for e in selected_day.personal %}
+            <div class="sidebar-event-row"><div class="t">{{ e.category|capitalize }}</div>{{ e.title }}</div>
+            {% endfor %}
+        {% else %}
+        <div class="sidebar-event-row">No events today.</div>
+        {% endif %}
+    {% else %}
+    <div class="sidebar-event-row">Click today's date to see its events here.</div>
     {% endif %}
 </div>
+
+<style>
+  .community-group{
+    border:1px solid #e7e3dd;border-radius:12px;margin-bottom:8px;
+    background:#fff;overflow:hidden;
+    transition:border-color .15s ease, box-shadow .15s ease;
+  }
+  .community-group.open{
+    border-color:var(--accent, #a31f2c);
+    box-shadow:0 4px 16px rgba(0,0,0,.07);
+  }
+  .community-row{
+    display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;
+  }
+  .community-row:hover{background:#faf9f7}
+  .chip-check{display:flex;align-items:center}
+  .chip-check input{width:16px;height:16px;accent-color:#a31f2c;cursor:pointer;margin:0}
+  .community-row .tradition-dot{width:10px;height:10px;flex:none;border-radius:50%}
+  .community-toggle{
+    flex:1;text-align:left;background:none;border:none;padding:2px 0;
+    font-size:13.5px;font-weight:600;color:#1f1f1f;cursor:pointer;
+  }
+  .community-toggle .count{color:#8a8a8a;font-weight:400;font-size:11.5px;margin-left:2px}
+  .community-row .chev{
+    color:#8a8a8a;font-size:18px;line-height:1;transition:transform .2s ease;cursor:pointer;
+  }
+  .community-group.open .chev{transform:rotate(90deg);color:var(--accent, #a31f2c)}
+
+  /* Accordion panel: animated via max-height, generous cap so it reads as a
+     real panel rather than a tiny cramped scrollbox. Own scrollbar only
+     kicks in past that cap, so most communities show their full list. */
+  .community-list{
+    max-height:0;overflow:hidden;
+    margin:0 12px;padding:0 0 0 20px;border-left:2px solid transparent;
+    transition:max-height .28s ease, padding .28s ease, margin .28s ease;
+  }
+  .community-group.open .community-list{
+    max-height:420px;overflow-y:auto;
+    margin:0 12px 12px;padding:8px 0 2px 20px;
+    border-left:2px solid var(--accent, #e7e3dd);
+  }
+  .community-list-row{
+    font-size:12.5px;padding:6px 0;border-bottom:1px dashed #eee;
+    display:flex;flex-direction:column;gap:2px;
+  }
+  .community-list-row:last-child{border-bottom:none}
+  .clr-when{color:#8a8a8a;font-size:11px;font-weight:600;letter-spacing:.02em}
+  .clr-empty{font-size:12px;color:#8a8a8a;padding:8px 0}
+  .tab-hint{font-size:11px;color:#8a8a8a;margin:6px 0 12px;line-height:1.5}
+</style>
+
+<script>
+(function(){
+    // Guard: if this script block ever ends up on the page twice (e.g. from
+    // a partial copy-paste of an earlier version), this stops a second
+    // listener from being attached and fighting with the first one --
+    // that's what causes "click to close does nothing / reopens itself".
+    if (window.__bohraAccordionInit) return;
+    window.__bohraAccordionInit = true;
+
+    document.addEventListener('click', function(e){
+        var trigger = e.target.closest('.community-toggle, .chev');
+        if (!trigger) return;
+
+        var group = trigger.closest('.community-group');
+        if (!group) return;
+
+        var willOpen = !group.classList.contains('open');
+
+        document.querySelectorAll('.community-group.open').forEach(function(g){
+            g.classList.remove('open');
+        });
+
+        if (willOpen) {
+            group.classList.add('open');
+        }
+    });
+})();
+</script>
+{% endblock %}
+
+{% block content %}
+<style>
+  :root{
+    --bohra:#a31f2c;
+    --christian:#2b6cb0;
+    --french:#2d2d2d;
+    --jewish:#7c3aed;
+    --hindu:#d9822b;
+    --personal:#1f9d55;
+    --ink:#1f1f1f;
+    --muted:#6b6b6b;
+    --line:#e7e3dd;
+  }
+
+  .calendar-detail{display:flex;flex-direction:column;gap:16px}
+  .detail-panel{border:1px solid var(--line);border-radius:10px;background:#fff;padding:16px}
+  .detail-panel h3{margin-top:0}
+
+  .my-events-panel h3{display:flex;align-items:center;justify-content:space-between;margin-top:0}
+  .add-event-btn{
+    background:var(--bohra);color:#fff;border:none;border-radius:7px;
+    padding:6px 12px;font-size:13px;cursor:pointer;
+  }
+  .add-event-btn:hover{opacity:.9}
+
+  .user-event-row{
+    display:flex;flex-direction:column;gap:2px;
+    padding:9px 0;border-bottom:1px solid var(--line);font-size:13px;
+  }
+  .user-event-row:last-child{border-bottom:none}
+  .user-event-row .ue-title{font-weight:600}
+  .user-event-row .ue-meta{color:var(--muted);font-size:12px}
+  .empty-panel{color:var(--muted);font-size:13px}
+
+  /* Modal */
+  .modal-overlay{
+    display:none;position:fixed;inset:0;background:rgba(20,18,16,.45);
+    align-items:center;justify-content:center;z-index:100;
+  }
+  .modal-overlay.open{display:flex}
+  .modal-box{
+    background:#fff;border-radius:12px;padding:22px;width:380px;max-width:92vw;
+    box-shadow:0 20px 50px rgba(0,0,0,.2);
+  }
+  .modal-box h3{margin-top:0}
+  .form-row{margin-bottom:12px;display:flex;flex-direction:column;gap:5px}
+  .form-row label{font-size:12px;color:var(--muted)}
+  .form-row input[type="text"],
+  .form-row input[type="date"],
+  .form-row input[type="number"],
+  .form-row select,
+  .form-row textarea{
+    border:1px solid var(--line);border-radius:7px;padding:7px 9px;font-size:13px;font-family:inherit;
+  }
+  .calendar-type-toggle{display:flex;gap:8px}
+  .calendar-type-toggle label{
+    flex:1;border:1px solid var(--line);border-radius:7px;padding:6px 8px;
+    text-align:center;font-size:12px;cursor:pointer;color:var(--ink);
+  }
+  .calendar-type-toggle input{margin-right:5px}
+  .hijri-fields{display:grid;grid-template-columns:1fr 1.6fr;gap:8px}
+  .checkbox-row{display:flex;gap:16px;font-size:12px;color:var(--ink)}
+  .checkbox-row label{display:flex;align-items:center;gap:5px}
+  .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+  .btn-secondary{background:none;border:1px solid var(--line);border-radius:7px;padding:7px 14px;cursor:pointer;font-size:13px}
+  .btn-primary{background:var(--bohra);color:#fff;border:none;border-radius:7px;padding:7px 14px;cursor:pointer;font-size:13px}
+  .pill-personal{background:var(--personal);color:#fff}
+</style>
+
+<div class="calendar-wrap">
+    <div class="calendar-main">
+        <div class="calendar-nav">
+            <a href="{{ url_for('calendar_view', y=prev_year, m=prev_month) }}{{ filter_qs('?') }}" class="nav-arrow">&lt;</a>
+            <div class="calendar-title">
+                <div class="month-name">{{ month_name }}</div>
+                <div class="year">{{ hijri_year }}</div>
+            </div>
+            <a href="{{ url_for('calendar_view', y=next_year, m=next_month) }}{{ filter_qs('?') }}" class="nav-arrow">&gt;</a>
+        </div>
+        <div class="gregorian-subtitle">{{ gregorian_range }}</div>
+
+        <table class="calendar-grid">
+            <thead>
+                <tr>
+                    {% for wd in ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"] %}
+                    <th>{{ wd }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for week in weeks %}
+                <tr>
+                    {% for day in week %}
+                        {% if day %}
+                        <td class="{{ 'today' if day.is_today else '' }} {{ 'has-event' if day.events or day.interfaith or day.personal else '' }}">
+                            <a href="{{ url_for('calendar_view', y=hijri_year, m=hijri_month, day=day.hijri_day) }}{{ filter_qs('&') }}">
+                                <div class="hijri-num {{ 'red' if day.events and day.events[0].color == 'red' else '' }}">{{ day.hijri_num }}</div>
+                                <div class="greg-num">{{ day.greg_day }}</div>
+                                <div class="event-pills">
+                                    {% set combined = [] %}
+                                    {% for e in day.events %}{% set _ = combined.append({'title': e.title, 'cls': 'bohra'}) %}{% endfor %}
+                                    {% for e in day.interfaith %}{% set _ = combined.append({'title': e.title, 'cls': e.tradition}) %}{% endfor %}
+                                    {% for e in day.personal %}{% set _ = combined.append({'title': e.title, 'cls': 'personal'}) %}{% endfor %}
+                                    {% for e in combined[:2] %}
+                                    <span class="pill pill-{{ e.cls }}">{{ e.title }}</span>
+                                    {% endfor %}
+                                    {% if combined|length > 2 %}
+                                    <span class="pill pill-more">+{{ combined|length - 2 }} more</span>
+                                    {% endif %}
+                                </div>
+                            </a>
+                        </td>
+                        {% else %}
+                        <td class="empty"></td>
+                        {% endif %}
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="prayer-strip">
+            <div><span class="label">sunrise</span><span class="value">{{ prayer.sunrise }}</span></div>
+            <div><span class="label">zawal</span><span class="value">{{ prayer.zawal }}</span></div>
+            <div><span class="label">zuhr end</span><span class="value">{{ prayer.zuhr_end }}</span></div>
+            <div><span class="label">sunset</span><span class="value">{{ prayer.sunset }}</span></div>
+        </div>
+        <div class="location-line">
+            {{ location_name }}
+            {% if location_is_default %}
+            &middot; <a href="{{ url_for('settings_view') }}">this is a default -- set your real location</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="calendar-detail">
+
+        <div class="detail-panel" id="day-panel">
+            {% if selected_day %}
+                <h3 style="margin-top:0">{{ selected_day.hijri_day }} {{ month_name }} &middot; {{ selected_day.gregorian.strftime('%d %b %Y') }}</h3>
+                {% if selected_day.events or selected_day.interfaith or selected_day.personal %}
+                <div class="events-panel">
+                    {% for e in selected_day.events %}
+                    <div class="event-row {{ e.color }}">
+                        <strong>{{ e.title }}</strong>
+                        {% if e.description %}<div class="event-desc">{{ e.description }}</div>{% endif %}
+                    </div>
+                    {% endfor %}
+                    {% for e in selected_day.interfaith %}
+                    <div class="event-row">
+                        <strong>{{ e.title }}</strong>
+                        <div class="event-desc">{{ traditions[e.tradition].label if e.tradition in traditions else e.tradition }}</div>
+                    </div>
+                    {% endfor %}
+                    {% for e in selected_day.personal %}
+                    <div class="event-row">
+                        <strong>{{ e.title }}</strong>
+                        <div class="event-desc">{{ e.category|capitalize }}{% if e.description %} &middot; {{ e.description }}{% endif %}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-panel">No events on {{ selected_day.hijri_day }} {{ month_name }}.</div>
+                {% endif %}
+            {% else %}
+                <h3 style="margin-top:0">Select a day</h3>
+                <div class="empty-panel">Click any date in the grid to see its Bohra and interfaith events here.</div>
+            {% endif %}
+        </div>
+
+        <div class="detail-panel my-events-panel">
+            <h3>My events <button type="button" class="add-event-btn" onclick="openAddEventModal()">+ Add event</button></h3>
+            {% if user_events %}
+                {% for e in user_events %}
+                <div class="user-event-row">
+                    <span class="ue-title">{{ e.title }}</span>
+                    <span class="ue-meta">{{ month_names[e.hijri_month - 1] }} {{ e.hijri_day }} (recurs yearly, Hijri)</span>
+                    {% if e.description %}<span class="ue-meta">{{ e.description }}</span>{% endif %}
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-panel">You haven't added any custom Hijri events yet.</div>
+            {% endif %}
+
+            {% if personal_events %}
+                <h3 style="margin-top:18px;font-size:14px;">Personal events</h3>
+                {% for e in personal_events %}
+                <div class="user-event-row">
+                    <span class="ue-title">{{ e.title }}</span>
+                    <span class="ue-meta">
+                        {{ e.anchor_date.strftime('%d %b %Y') }}
+                        ({{ {'never': 'once', 'weekly': 'repeats weekly', 'monthly': 'repeats monthly', 'yearly': 'repeats yearly'}[e.repeat] }})
+                    </span>
+                </div>
+                {% endfor %}
+                <div style="margin-top:8px;"><a href="{{ url_for('events_view', tab='personal') }}" style="font-size:12px;">Manage personal events &rsaquo;</a></div>
+            {% endif %}
+        </div>
+
+    </div>
+</div>
+
+{% set add_event_redirect = 'calendar' %}
+{% include "add_events.html" %}
 {% endblock %}

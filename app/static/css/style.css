@@ -1,152 +1,438 @@
+:root {
+  --bohra-red: #b5121b;
+  --ink: #1f2430;
+  --ink-soft: #5b6270;
+  --line: #e3e6ec;
+  --bg: #f6f7f9;
+  --panel: #ffffff;
+  --today-bg: #fff3e0;
+  --hover: #f0f2f6;
+
+  --c-christian: #4b7bec;
+  --c-french: #2c3e50;
+  --c-jewish: #8e44ad;
+  --c-hindu: #e67e22;
+  --c-bohra: var(--bohra-red);
+
+  --topbar-h: 56px;
+  --sidebar-w: 260px;
+}
+
 * { box-sizing: border-box; }
+
 body {
-    margin: 0;
-    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-    background: #f2f2f2;
-    color: #1a1a1a;
+  margin: 0;
+  font-family: "Segoe UI", Roboto, -apple-system, BlinkMacSystemFont, sans-serif;
+  color: var(--ink);
+  background: var(--bg);
 }
 
-.topbar {
-    background: #111;
-    color: #fff;
+/* ---------- shell ---------- */
+/* Add to style.css */
+.prayer-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 24px;
+    margin: 16px 0;
+}
+
+@media (max-width: 600px) {
+    .prayer-list {
+        grid-template-columns: 1fr;
+    }
+}
+
+.prayer-item {
     display: flex;
-    align-items: center;
     justify-content: space-between;
-    padding: 12px 20px;
+    padding: 8px 0;
+    border-bottom: 1px solid #f0ede8;
 }
-.brand { font-weight: 600; font-size: 18px; }
+
+.prayer-item span {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.prayer-item strong {
+    font-size: 1rem;
+    color: #1f1f1f;
+}
+.topbar {
+  height: var(--topbar-h);
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 0 20px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.brand { font-weight: 700; font-size: 1.05rem; color: var(--bohra-red); white-space: nowrap; }
+
+.menu { display: flex; gap: 4px; flex-wrap: wrap; }
 .menu a {
-    color: #ccc;
-    text-decoration: none;
-    margin-left: 18px;
-    font-size: 14px;
-    padding-bottom: 4px;
+  text-decoration: none;
+  color: var(--ink-soft);
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  transition: background .15s, color .15s;
 }
-.menu a.active, .menu a:hover { color: #fff; border-bottom: 2px solid #b5121b; }
+.menu a:hover { background: var(--hover); color: var(--ink); }
+.menu a.active { background: var(--bohra-red); color: #fff; }
 
-main { max-width: 640px; margin: 24px auto; padding: 0 16px; }
-
-.flash { background: #d4edda; color: #155724; padding: 10px 16px; text-align: center; }
-
-.calendar-card, .card {
-    background: #fff;
-    border-radius: 6px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.12);
-    padding: 16px;
+.menu-toggle-checkbox { display: none; }
+.menu-toggle-label {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  width: 34px; height: 34px;
+  margin-left: auto;
+  cursor: pointer;
+  border-radius: 8px;
 }
-.card.center { text-align: center; }
+.menu-toggle-label:hover { background: var(--hover); }
+.menu-toggle-label span {
+  display: block;
+  width: 20px; height: 2px;
+  background: var(--ink);
+  margin: 0 auto;
+  border-radius: 2px;
+  transition: transform .2s ease, opacity .2s ease;
+}
+
+.app-body {
+  display: flex;
+  align-items: flex-start;
+  min-height: calc(100vh - var(--topbar-h));
+}
+
+.sidebar {
+  width: var(--sidebar-w);
+  flex: 0 0 var(--sidebar-w);
+  padding: 18px 16px;
+  border-right: 1px solid var(--line);
+  background: var(--panel);
+  min-height: calc(100vh - var(--topbar-h));
+}
+
+.sidebar h3 {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--ink-soft);
+  margin: 18px 0 8px;
+}
+.sidebar h3:first-child { margin-top: 0; }
+
+.main-content {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 18px 20px;
+}
+
+.flash {
+  background: #fff8e1;
+  border: 1px solid #ffe08a;
+  padding: 10px 14px;
+  border-radius: 8px;
+  margin: 12px 20px 0;
+  font-size: 0.9rem;
+}
+
+/* ---------- tradition filter chips (sidebar) ---------- */
+
+.tradition-list { display: flex; flex-direction: column; gap: 6px; }
+.tradition-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.88rem;
+  padding: 4px 2px;
+  cursor: pointer;
+  color: var(--ink);
+}
+.tradition-chip input { accent-color: var(--bohra-red); }
+.tradition-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  display: inline-block; flex: 0 0 10px;
+}
+.dot-christian { background: var(--c-christian); }
+.dot-french { background: var(--c-french); }
+.dot-jewish { background: var(--c-jewish); }
+.dot-hindu { background: var(--c-hindu); }
+.dot-bohra { background: var(--c-bohra); }
+
+.mini-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  margin-bottom: 6px;
+}
+.mini-nav a { color: var(--ink-soft); text-decoration: none; padding: 4px 8px; border-radius: 6px; }
+.mini-nav a:hover { background: var(--hover); }
+
+.sidebar-events { display: flex; flex-direction: column; gap: 8px; }
+.sidebar-event-row {
+  border-left: 3px solid var(--line);
+  padding: 4px 0 4px 10px;
+  font-size: 0.85rem;
+}
+.sidebar-event-row .t { color: var(--ink-soft); font-size: 0.75rem; }
+
+/* ---------- calendar layout: grid + side detail panel ---------- */
+
+.calendar-wrap {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.calendar-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.calendar-detail {
+  flex: 0 0 300px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+  position: sticky;
+  top: calc(var(--topbar-h) + 18px);
+  max-height: calc(100vh - var(--topbar-h) - 36px);
+  overflow-y: auto;
+}
 
 .calendar-nav {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: #d9d9d9;
-    padding: 10px 16px;
-    border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--line);
 }
-.nav-arrow { text-decoration: none; color: #333; font-size: 20px; padding: 0 10px; }
 .calendar-title { text-align: center; }
-.month-name { font-size: 17px; font-weight: 600; }
-.year { font-size: 13px; color: #555; }
-.gregorian-subtitle { text-align: center; color: #666; font-size: 13px; margin: 8px 0; }
+.month-name { font-size: 1.15rem; font-weight: 600; }
+.year { color: var(--ink-soft); font-size: 0.85rem; }
+.nav-arrow {
+  text-decoration: none;
+  color: var(--ink);
+  font-size: 1.2rem;
+  width: 34px; height: 34px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+}
+.nav-arrow:hover { background: var(--hover); }
+.gregorian-subtitle { text-align: center; color: var(--ink-soft); font-size: 0.85rem; padding: 4px 0 10px; }
 
-table.calendar-grid { width: 100%; border-collapse: collapse; }
-table.calendar-grid th {
-    color: #555;
-    font-weight: 500;
-    font-size: 13px;
-    padding: 6px 0;
+.calendar-grid { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.calendar-grid th {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
 }
-table.calendar-grid td {
-    border: 1px solid #e2e2e2;
-    text-align: right;
-    padding: 8px 6px;
-    vertical-align: top;
-    height: 52px;
+.calendar-grid td {
+  height: 108px;
+  vertical-align: top;
+  border: 1px solid var(--line);
+  padding: 0;
+  position: relative;
 }
-table.calendar-grid td a { text-decoration: none; color: inherit; display: block; }
-table.calendar-grid td.empty { background: #fafafa; border: none; }
-.hijri-num { font-size: 15px; color: #333; }
-.hijri-num.red { color: #b5121b; }
-.greg-num { font-size: 12px; color: #999; }
-td.today { background: #fff6d6; }
-td.today .greg-num { color: #1a67c9; font-weight: 600; }
-td.has-event { background: #fdf2f2; }
+.calendar-grid td.empty { background: #fafafa; }
+.calendar-grid td a {
+  display: block;
+  height: 100%;
+  padding: 6px 8px;
+  text-decoration: none;
+  color: inherit;
+}
+.calendar-grid td:hover { background: var(--hover); }
+.calendar-grid td.today { background: var(--today-bg); }
+.calendar-grid td.has-event .hijri-num { font-weight: 700; }
+
+.hijri-num { font-size: 0.78rem; color: var(--ink-soft); }
+.hijri-num.red { color: var(--bohra-red); }
+.greg-num { font-size: 1.05rem; font-weight: 500; margin-top: 2px; }
+
+.event-pills { margin-top: 6px; display: flex; flex-direction: column; gap: 2px; }
+.pill {
+  font-size: 0.65rem;
+  padding: 1px 5px;
+  border-radius: 4px;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pill-christian { background: var(--c-christian); }
+.pill-french { background: var(--c-french); }
+.pill-jewish { background: var(--c-jewish); }
+.pill-hindu { background: var(--c-hindu); }
+.pill-bohra { background: var(--c-bohra); }
+.pill-more { color: var(--ink-soft); font-size: 0.65rem; background: none; padding-left: 0; }
 
 .prayer-strip {
-    display: flex;
-    justify-content: space-between;
-    background: #fafafa;
-    margin-top: 12px;
-    padding: 10px 8px;
-    border-radius: 4px;
-    text-align: center;
+  display: flex;
+  justify-content: space-around;
+  padding: 12px 20px;
+  border-top: 1px solid var(--line);
+  font-size: 0.85rem;
 }
-.prayer-strip .label { display: block; font-size: 12px; color: #777; }
-.prayer-strip .value { display: block; font-size: 14px; font-weight: 600; }
-.location-line { color: #666; font-size: 13px; margin-top: 6px; }
+.prayer-strip .label { display: block; color: var(--ink-soft); font-size: 0.7rem; text-transform: uppercase; }
+.prayer-strip .value { font-weight: 600; }
+.location-line { text-align: center; padding: 6px 0 16px; color: var(--ink-soft); font-size: 0.82rem; }
 
-.events-panel { margin-top: 14px; border-top: 1px solid #eee; padding-top: 10px; }
-.events-panel.empty-panel { color: #999; font-size: 13px; }
-.event-row { padding: 6px 0; border-bottom: 1px solid #f2f2f2; }
-.event-row.red strong { color: #b5121b; }
-.event-desc { font-size: 13px; color: #666; }
+.events-panel { display: flex; flex-direction: column; gap: 10px; }
+.event-row { border-left: 3px solid var(--line); padding: 6px 0 6px 10px; }
+.event-row.red { border-left-color: var(--bohra-red); }
+.event-desc { color: var(--ink-soft); font-size: 0.85rem; }
+.empty-panel { color: var(--ink-soft); font-size: 0.88rem; }
 
-.prayer-list { display: flex; flex-direction: column; gap: 8px; margin: 16px 0; }
-.prayer-item { display: flex; justify-content: space-between; padding: 10px 12px; background: #fafafa; border-radius: 4px; }
+/* ---------- generic card pages (prayer/qibla/settings/events) ---------- */
 
-.compass-wrap { margin: 20px 0; }
-.bearing-value { font-size: 22px; font-weight: 600; }
-.sub { color: #666; }
-.note { color: #999; font-size: 12px; margin-top: 16px; }
+.card {
+  max-width: 720px;
+  margin: 0 auto;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 24px 28px;
+}
+.card.center { text-align: center; }
+.card h1 { margin-top: 0; }
+.sub { color: var(--ink-soft); }
+.note { color: var(--ink-soft); font-size: 0.85rem; }
 
-form label { display: block; margin: 10px 0 4px; font-size: 13px; color: #444; }
-form input, form select {
-    width: 100%;
-    padding: 8px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    font-size: 14px;
+.prayer-list { display: flex; flex-direction: column; gap: 10px; margin: 18px 0; }
+.prayer-item {
+  display: flex; justify-content: space-between;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 8px;
+}
+
+.compass-wrap { margin: 18px auto; }
+.bearing-value { font-size: 1.4rem; font-weight: 700; }
+
+form label { display: block; margin-bottom: 14px; font-size: 0.9rem; color: var(--ink-soft); }
+form input, form select, form textarea {
+  display: block; width: 100%; margin-top: 4px;
+  padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px;
+  font-size: 0.95rem; font-family: inherit;
 }
 form button {
-    margin-top: 16px;
-    background: #b5121b;
-    color: #fff;
-    border: none;
-    padding: 10px 18px;
-    border-radius: 4px;
-    font-size: 14px;
-    cursor: pointer;
+  background: var(--bohra-red); color: #fff; border: none;
+  padding: 10px 18px; border-radius: 8px; font-size: 0.9rem; cursor: pointer;
 }
-form button:hover { background: #931017; }
+form button:hover { opacity: 0.9; }
+.link-btn { background: none; border: none; color: var(--ink-soft); cursor: pointer; text-decoration: underline; font-size: 0.85rem; }
+.danger-btn { background: #b5121b; }
 
-table.events-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-table.events-table th, table.events-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #eee; font-size: 13px; }
+.events-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
+.events-table th, .events-table td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); font-size: 0.9rem; }
 
-form textarea {
-    width: 100%;
-    padding: 8px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    font-size: 13px;
-    font-family: monospace;
+.menu-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+  color: var(--ink-soft);
+  padding: 7px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  font-size: 0.85rem;
 }
-.link-btn {
-    background: none;
-    border: none;
-    color: #b5121b;
-    cursor: pointer;
-    font-size: 12px;
-    text-decoration: underline;
+.menu-tab:hover { background: var(--hover); }
+.menu-tab.active-tab { background: var(--bohra-red); color: #fff; border-color: var(--bohra-red); }
+.menu-tab.active-tab .tradition-dot { outline: 2px solid rgba(255,255,255,.6); }
+
+/* ---------- mobile sidebar collapse (checkbox-driven, no JS) ---------- */
+
+.sidebar-toggle-checkbox { display: none; }
+.sidebar-toggle-label { display: none; }
+
+/* ---------- responsive: calendar-first stacked mobile layout ---------- */
+
+@media (max-width: 900px) {
+  .app-body { flex-direction: column; }
+
+  .sidebar {
+    width: 100%; flex: none; border-right: none;
+    border-bottom: 1px solid var(--line); min-height: auto;
     padding: 0;
+  }
+
+  /* Sidebar starts collapsed to a slim tappable bar so the grid is what
+     you land on, not a wall of filters/community lists above the fold. */
+  .sidebar-toggle-label {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; font-size: 0.88rem; font-weight: 600;
+    color: var(--ink); cursor: pointer; user-select: none;
+  }
+  .toggle-arrow { transition: transform .2s ease; color: var(--ink-soft); }
+  .sidebar-toggle-checkbox:checked ~ .sidebar-toggle-label .toggle-arrow { transform: rotate(180deg); }
+
+  .sidebar-inner {
+    max-height: 0; overflow: hidden; padding: 0 16px;
+    transition: max-height .25s ease, padding .25s ease;
+  }
+  .sidebar-toggle-checkbox:checked ~ .sidebar-inner {
+    max-height: 1400px; overflow-y: auto; padding: 0 16px 16px;
+  }
+
+  .calendar-wrap { flex-direction: column; }
+  .calendar-detail { position: static; max-height: none; width: 100%; flex-basis: auto; }
+
+  /* tighter grid so more of the month is visible without scrolling */
+  .calendar-nav { padding: 10px 12px; }
+  .gregorian-subtitle { padding: 2px 0 6px; font-size: 0.78rem; }
+  .calendar-grid td { height: 60px; }
+  .greg-num { font-size: 0.92rem; margin-top: 0; }
+  .hijri-num { font-size: 0.68rem; }
+
+  /* full-text pills don't fit at this width -- collapse each to a small
+     colour-coded dot so the day still visibly has events, tap for detail */
+  .event-pills { display: flex; flex-direction: row; flex-wrap: wrap; gap: 3px; margin-top: 3px; }
+  .pill {
+    width: 6px; height: 6px; padding: 0; border-radius: 50%;
+    font-size: 0; line-height: 0; overflow: hidden;
+  }
+  .pill-more { display: none; }
+
+  .topbar { gap: 10px; padding: 0 12px; position: relative; }
+  .brand { font-size: 0.92rem; }
+
+  .menu-toggle-label { display: flex; }
+  .menu-toggle-checkbox:checked ~ .menu-toggle-label span:nth-child(1) { transform: translateY(6px) rotate(45deg); }
+  .menu-toggle-checkbox:checked ~ .menu-toggle-label span:nth-child(2) { opacity: 0; }
+  .menu-toggle-checkbox:checked ~ .menu-toggle-label span:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
+
+  .menu {
+    display: none;
+    flex-direction: column;
+    gap: 2px;
+    position: absolute;
+    top: 100%; left: 0; right: 0;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+    box-shadow: 0 8px 16px rgba(0,0,0,.08);
+    padding: 8px 12px 12px;
+    z-index: 30;
+  }
+  .menu-toggle-checkbox:checked ~ .menu { display: flex; }
+  .menu a { padding: 10px 12px; font-size: 0.92rem; }
+
+  .main-content { padding: 12px 12px; }
 }
-.danger-btn {
-    background: #fff;
-    color: #b5121b;
-    border: 1px solid #b5121b;
-    padding: 8px 16px;
-    border-radius: 4px;
-    cursor: pointer;
-}
-.danger-btn:hover { background: #b5121b; color: #fff; }
-code { background: #f2f2f2; padding: 1px 5px; border-radius: 3px; }

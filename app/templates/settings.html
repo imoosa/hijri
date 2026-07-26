@@ -3,15 +3,202 @@
 {% block content %}
 <div class="card">
     <h1>Location Settings</h1>
+
+    <button type="button" id="use-my-location" class="link-btn" style="margin-bottom:14px;display:inline-flex;align-items:center;gap:6px;font-size:0.9rem;text-decoration:none;border:1px solid var(--line);padding:8px 14px;border-radius:8px;color:var(--ink);">
+        <span aria-hidden="true">&#128205;</span> Use my current location
+    </button>
+    <div id="geo-status" class="note" style="display:none;margin-bottom:14px;"></div>
+
     <form method="post">
-        <label>Location name<input type="text" name="location_name" value="{{ location.name }}" required></label>
-        <label>Latitude<input type="number" step="any" name="lat" value="{{ location.lat }}" required></label>
-        <label>Longitude<input type="number" step="any" name="lng" value="{{ location.lng }}" required></label>
+        <label>
+            Location name
+            <div style="display:flex;gap:8px;align-items:flex-start;">
+                <input type="text" name="location_name" id="f-location-name" value="{{ location.name }}" required style="flex:1;">
+                <button type="button" id="lookup-location" style="flex:0 0 auto;background:none;border:1px solid var(--line);border-radius:8px;padding:8px 14px;font-size:0.85rem;cursor:pointer;color:var(--ink);white-space:nowrap;">Find</button>
+            </div>
+        </label>
+        <div id="lookup-status" class="note" style="display:none;margin:-8px 0 14px;"></div>
+
+        <label>Latitude<input type="number" step="any" name="lat" id="f-lat" value="{{ location.lat }}" required></label>
+        <label>Longitude<input type="number" step="any" name="lng" id="f-lng" value="{{ location.lng }}" required></label>
         <label>Timezone offset from UTC (e.g. 5.5 for India)
-            <input type="number" step="any" name="tz_offset" value="{{ location.tz_offset }}" required></label>
+            <input type="number" step="any" name="tz_offset" id="f-tz" value="{{ location.tz_offset }}" required></label>
         <button type="submit">Save</button>
     </form>
     <p class="note">This is stored in your browser session only (not a real user account system).
     Prayer times, qibla direction, and the calendar's location line all use this.</p>
+    <p class="note">Type a place name and hit <strong>Find</strong> (or press Enter in that field) to
+    look it up -- it fills in coordinates and expands the name to "City, State, Country" using
+    OpenStreetMap. "Use my current location" does the same via your device's GPS instead. Neither
+    submits automatically -- review the fields, then hit Save. Timezone is looked up from the real
+    timezone boundary for that location (correct for non-standard offsets like India's UTC+5:30), not
+    guessed from longitude -- but it's still worth a glance before saving.</p>
 </div>
+
+<script>
+(function(){
+    var geoBtn = document.getElementById('use-my-location');
+    var geoStatus = document.getElementById('geo-status');
+    var lookupBtn = document.getElementById('lookup-location');
+    var lookupStatus = document.getElementById('lookup-status');
+    var nameField = document.getElementById('f-location-name');
+    var latField = document.getElementById('f-lat');
+    var lngField = document.getElementById('f-lng');
+    var tzField = document.getElementById('f-tz');
+
+    function setMsg(el, msg, isError){
+        el.style.display = 'block';
+        el.textContent = msg;
+        el.style.color = isError ? '#b5121b' : 'var(--ink-soft)';
+    }
+
+    // Rough timezone estimate from longitude (15deg per hour), rounded to the
+    // nearest half hour. ONLY used as a last-resort fallback if the server's
+    // real timezone lookup (below) is unreachable -- this formula is wrong
+    // for any country whose civil offset doesn't sit on a meridian boundary
+    // (India is +5:30 but this rounds most of the country to +5:00 or +6:00).
+    function estimateTzOffsetFallback(lng){
+        return Math.round((lng / 15) * 2) / 2;
+    }
+
+    // Real timezone lookup: asks the server, which resolves the actual IANA
+    // timezone polygon containing (lat,lng) and returns its true UTC offset
+    // for today's date (so DST-observing zones are also handled correctly).
+    // Falls back to the rough longitude estimate only if that call fails.
+    function resolveTzOffset(lat, lng, fallback){
+        return fetch('/api/tz-offset?lat=' + lat + '&lng=' + lng)
+            .then(function(r){ return r.json(); })
+            .then(function(data){
+                return (data && typeof data.offset === 'number') ? data.offset : fallback;
+            })
+            .catch(function(){ return fallback; });
+    }
+
+    function formatPlaceName(addr, fallback){
+        if (!addr) return fallback;
+        var norm = function(s){ return (s || '').trim().toLowerCase(); };
+
+        var place = addr.city || addr.town || addr.village || addr.county || addr.municipality;
+        var state = addr.state || addr.region;
+        var country = addr.country;
+
+        // Single-emirate / city-state cases (Dubai, Abu Dhabi, Singapore...):
+        // Nominatim has no separate "city" field there, only "state" -- so
+        // without this, the place name gets dropped entirely and you're
+        // left with just the country. Treat state as the place instead.
+        if (!place && state) {
+            place = state;
+            state = null;
+        }
+
+        var parts = [];
+        if (place) parts.push(place);
+        // Only keep state if it's a genuinely distinct admin level -- not a
+        // duplicate of the place or the country under a different casing/
+        // whitespace (the old check was case-sensitive exact-match only,
+        // which is why "Dubai" + "dubai " or similar wouldn't dedup).
+        if (state && norm(state) !== norm(place) && norm(state) !== norm(country)) {
+            parts.push(state);
+        }
+        if (country && norm(country) !== norm(place)) parts.push(country);
+        return parts.length ? parts.join(', ') : fallback;
+    }
+
+    // ---------- GPS: "Use my current location" ----------
+    geoBtn.addEventListener('click', function(){
+        if (!('geolocation' in navigator)) {
+            setMsg(geoStatus, 'Your browser does not support location detection -- enter details manually.', true);
+            return;
+        }
+        setMsg(geoStatus, 'Getting your location...', false);
+        geoBtn.disabled = true;
+
+        navigator.geolocation.getCurrentPosition(function(pos){
+            var lat = pos.coords.latitude, lng = pos.coords.longitude;
+            latField.value = lat.toFixed(6);
+            lngField.value = lng.toFixed(6);
+            // Device clock as an instant placeholder -- overwritten just
+            // below by the real timezone lookup, which stays correct even
+            // if the device's system timezone doesn't match where it
+            // physically is right now (e.g. a phone still set to home time
+            // while traveling).
+            var deviceOffset = -(new Date().getTimezoneOffset()) / 60;
+            tzField.value = deviceOffset;
+            setMsg(geoStatus, 'Location filled in. Confirming timezone and looking up a place name...', false);
+
+            resolveTzOffset(lat, lng, deviceOffset).then(function(offset){
+                tzField.value = offset;
+            });
+
+            fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=' + lat + '&lon=' + lng + '&zoom=10')
+                .then(function(r){ return r.json(); })
+                .then(function(data){
+                    var name = formatPlaceName(data.address, null);
+                    if (name) {
+                        nameField.value = name;
+                        setMsg(geoStatus, 'Filled in: ' + name + '. Review and hit Save.', false);
+                    } else {
+                        setMsg(geoStatus, 'Coordinates filled in, but no place name found -- type one in and hit Save.', false);
+                    }
+                })
+                .catch(function(){
+                    setMsg(geoStatus, 'Coordinates filled in (place-name lookup failed) -- type a name in and hit Save.', false);
+                })
+                .finally(function(){ geoBtn.disabled = false; });
+        }, function(err){
+            geoBtn.disabled = false;
+            if (err.code === err.PERMISSION_DENIED) {
+                setMsg(geoStatus, 'Location permission denied -- enter details manually below.', true);
+            } else {
+                setMsg(geoStatus, 'Could not get your location (' + err.message + ') -- enter details manually.', true);
+            }
+        }, { enableHighAccuracy: false, timeout: 10000 });
+    });
+
+    // ---------- Typed name: "Find" ----------
+    function lookupTypedLocation(){
+        var query = nameField.value.trim();
+        if (!query) {
+            setMsg(lookupStatus, 'Type a place name first.', true);
+            return;
+        }
+        setMsg(lookupStatus, 'Looking up "' + query + '"...', false);
+        lookupBtn.disabled = true;
+
+        fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=1&q=' + encodeURIComponent(query))
+            .then(function(r){ return r.json(); })
+            .then(function(results){
+                if (!results || !results.length) {
+                    setMsg(lookupStatus, 'No match found for "' + query + '" -- try a more specific name, or enter coordinates manually.', true);
+                    return;
+                }
+                var r = results[0];
+                var lat = parseFloat(r.lat), lng = parseFloat(r.lon);
+                latField.value = lat.toFixed(6);
+                lngField.value = lng.toFixed(6);
+                var fullName = formatPlaceName(r.address, r.display_name);
+                nameField.value = fullName;
+                setMsg(lookupStatus, 'Found: ' + fullName + '. Looking up timezone...', false);
+
+                return resolveTzOffset(lat, lng, estimateTzOffsetFallback(lng)).then(function(offset){
+                    tzField.value = offset;
+                    var sign = offset >= 0 ? '+' : '';
+                    setMsg(lookupStatus, 'Found: ' + fullName + ' (UTC' + sign + offset + '). Review and hit Save.', false);
+                });
+            })
+            .catch(function(){
+                setMsg(lookupStatus, 'Lookup failed (network or rate limit) -- try again, or enter coordinates manually.', true);
+            })
+            .finally(function(){ lookupBtn.disabled = false; });
+    }
+
+    lookupBtn.addEventListener('click', lookupTypedLocation);
+    nameField.addEventListener('keydown', function(e){
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            lookupTypedLocation();
+        }
+    });
+})();
+</script>
 {% endblock %}

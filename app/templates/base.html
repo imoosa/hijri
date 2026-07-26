@@ -9,6 +9,10 @@
 <body>
     <header class="topbar">
         <div class="brand">Bohra Calendar</div>
+        <input type="checkbox" id="menu-toggle" class="menu-toggle-checkbox">
+        <label for="menu-toggle" class="menu-toggle-label" aria-label="Menu">
+            <span></span><span></span><span></span>
+        </label>
         <nav class="menu">
             <a href="{{ url_for('calendar_view') }}" class="{{ 'active' if active == 'calendar' else '' }}">Calendar</a>
             <a href="{{ url_for('prayer_view') }}" class="{{ 'active' if active == 'prayer' else '' }}">Prayer Times</a>
@@ -26,8 +30,23 @@
       {% endif %}
     {% endwith %}
 
-    <main>
-        {% block content %}{% endblock %}
-    </main>
+    {% set sidebar_content %}{% block sidebar %}{% endblock %}{% endset %}
+
+    <div class="app-body">
+        {% if sidebar_content|trim %}
+        <aside class="sidebar">
+            <input type="checkbox" id="sidebar-toggle" class="sidebar-toggle-checkbox">
+            <label for="sidebar-toggle" class="sidebar-toggle-label">
+                Filters &amp; events <span class="toggle-arrow">&#9662;</span>
+            </label>
+            <div class="sidebar-inner">
+                {{ sidebar_content }}
+            </div>
+        </aside>
+        {% endif %}
+        <main class="main-content">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
 </body>
 </html>

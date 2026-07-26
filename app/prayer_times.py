@@ -1,104 +1,140 @@
+# prayer_times.py
 """
-Prayer time calculation using standard solar astronomy.
-
-Bohra (Dawoodi Bohra / Mustaali Shia) practice combines prayers:
-  - Zuhr + Asr prayed together in the Zuhr window ("Zuhrayn")
-  - Maghrib + Isha prayed together in the Maghrib window ("Maghribayn")
-
-So the times that matter and are commonly displayed (matching your
-screenshot: sunrise / zawal / zuhr end / sunset) are:
-  - Fajr (dawn)
-  - Sunrise
-  - Zawal (solar noon - start of Zuhr window)
-  - Zuhr end (end of the recommended combined Zuhr+Asr window)
-  - Maghrib (sunset - start of Maghrib+Isha window)
-  - Nisful Layl / midnight (end of Isha window), optional
-
-[likely] "Zuhr end" in these apps is typically defined as a fixed offset
-after zawal (commonly used convention: ~1.5-2 hours, or "before sunset"),
-rather than a shadow-length calc like Sunni Asr. This module gives you a
-configurable offset (ZUHR_WINDOW_MINUTES) -- verify the exact convention
-your jamaat's calendar uses and adjust.
+Prayer time calculation using the prayer-times-calculator library.
+This provides accurate times based on standard Islamic calculation methods.
 """
 
-import math
-from datetime import datetime, timedelta, date, timezone
+from datetime import date, datetime, timedelta
+from typing import Dict, Any, Optional
 
-ZUHR_WINDOW_MINUTES = 150  # [guessing - verify] gap between zawal and "zuhr end"
-FAJR_ANGLE = 18.0          # degrees below horizon, commonly used
-ISHA_ANGLE = 18.0          # degrees below horizon (if computing standalone Isha)
-
-
-def _julian_day(d: date) -> float:
-    a = (14 - d.month) // 12
-    y = d.year + 4800 - a
-    m = d.month + 12 * a - 3
-    return d.day + (153 * m + 2) // 5 + 365 * y + y // 4 - y // 100 + y // 400 - 32045
+# Use the prayer-times-calculator library
+try:
+    from prayer_times_calculator import PrayerTimesCalculator
+    HAS_LIBRARY = True
+except ImportError:
+    HAS_LIBRARY = False
+    print("WARNING: prayer-times-calculator not installed. Run: pip install prayer-times-calculator")
 
 
-def _sun_position(jd: float):
-    D = jd - 2451545.0
-    g = math.radians((357.529 + 0.98560028 * D) % 360)
-    q = (280.459 + 0.98564736 * D) % 360
-    L = math.radians((q + 1.915 * math.sin(g) + 0.020 * math.sin(2 * g)) % 360)
-    e = math.radians(23.439 - 0.00000036 * D)
-    dec = math.asin(math.sin(e) * math.sin(L))
-    RA = math.degrees(math.atan2(math.cos(e) * math.sin(L), math.cos(L))) / 15.0
-    RA = RA % 24
-    eqt = q / 15.0 - RA
-    if eqt > 12:
-        eqt -= 24
-    if eqt < -12:
-        eqt += 24
-    return math.degrees(dec), eqt
+# Bohra-specific settings
+# For Bohra practice, we use:
+# - Fajr angle: 18 degrees (standard)
+# - Isha angle: 18 degrees (standard) 
+# - Asr method: Shafi'i (shadow = 1x object height)
+# - Maghrib: Sunset (0.833 degrees below horizon)
+CALCULATION_METHOD = "MWL"  # Muslim World League - uses 18° for Fajr and Isha
+ASR_METHOD = "Shafi"  # Standard for Bohra
+ADJUST_HIGH_LATITUDES = "NightMiddle"  # For locations above 48° latitude
 
 
-def _time_for_angle(jd, lat, lng, angle_deg, before_noon, eqt, noon_utc):
-    lat_r = math.radians(lat)
-    dec, _ = _sun_position(jd)
-    dec_r = math.radians(dec)
-    try:
-        cosH = (math.sin(math.radians(-angle_deg)) - math.sin(lat_r) * math.sin(dec_r)) / (
-            math.cos(lat_r) * math.cos(dec_r)
-        )
-        cosH = max(-1, min(1, cosH))
-        H = math.degrees(math.acos(cosH)) / 15.0
-    except ValueError:
-        H = 6.0  # polar edge-case fallback
-    return noon_utc - H if before_noon else noon_utc + H
-
-
-def calculate(lat: float, lng: float, d: date, tz_offset_hours: float):
+def calculate(lat: float, lng: float, d: date, tz_offset_hours: float) -> Dict[str, Any]:
     """
-    Returns dict of prayer-relevant times (local, tz_offset_hours from UTC),
-    matching the Bohra combined-prayer display convention.
+    Calculate all prayer times for a given location and date.
+    
+    Args:
+        lat: Latitude in decimal degrees
+        lng: Longitude in decimal degrees
+        d: Date to calculate for
+        tz_offset_hours: Timezone offset from UTC (e.g., 5.5 for India)
+    
+    Returns:
+        Dict with prayer times as strings in HH:MM format
     """
-    jd = _julian_day(d)
-    dec, eqt = _sun_position(jd)
-    noon_utc = 12.0 - lng / 15.0 - eqt
+    if not HAS_LIBRARY:
+        # Fallback to approximate calculation if library not available
+        return _calculate_approximate(lat, lng, d, tz_offset_hours)
+    
+    # Create calculator instance
+    calculator = PrayerTimesCalculator(
+        latitude=lat,
+        longitude=lng,
+        calculation_method=CALCULATION_METHOD,
+        asr_method=ASR_METHOD,
+        adjust_high_latitudes=ADJUST_HIGH_LATITUDES,
+        timezone=tz_offset_hours
+    )
+    
+    # Calculate times for the given date
+    times = calculator.calc(date=d)
+    
+    # Extract times - the library returns datetime objects
+    def format_time(dt):
+        if dt is None:
+            return "--:--"
+        return dt.strftime("%H:%M")
+    
+    return {
+        "date": d.isoformat(),
+        "fajr": format_time(times["fajr"]),
+        "sunrise": format_time(times["sunrise"]),
+        "dhuhr": format_time(times["dhuhr"]),  # Zawal / Zuhr begins
+        "asr": format_time(times["asr"]),
+        "maghrib": format_time(times["maghrib"]),
+        "isha": format_time(times["isha"]),
+        "zuhr_end": format_time(times["asr"]),  # In Bohra practice, Zuhr window ends at Asr
+        "zawal": format_time(times["dhuhr"]),   # Same as Dhuhr
+        "sunset": format_time(times["maghrib"]), # Same as Maghrib
+    }
 
-    sunrise_utc = _time_for_angle(jd, lat, lng, 0.833, True, eqt, noon_utc)
-    sunset_utc = _time_for_angle(jd, lat, lng, 0.833, False, eqt, noon_utc)
-    fajr_utc = _time_for_angle(jd, lat, lng, FAJR_ANGLE, True, eqt, noon_utc)
 
-    def to_local(hours_utc):
-        h = (hours_utc + tz_offset_hours) % 24
+def _calculate_approximate(lat: float, lng: float, d: date, tz_offset_hours: float) -> Dict[str, Any]:
+    """
+    Fallback approximate calculation when the library is not installed.
+    This is less accurate but provides reasonable estimates.
+    """
+    import math
+    
+    # Simplified calculation - for demonstration only
+    # Real calculations require proper solar position algorithms
+    
+    # Estimate based on latitude and date
+    day_of_year = d.timetuple().tm_yday
+    
+    # Rough sunrise/sunset times (very approximate)
+    # For Kolkata (~22°N)
+    lat_rad = math.radians(lat)
+    declination = 23.44 * math.sin(math.radians(360/365 * (day_of_year - 81)))
+    decl_rad = math.radians(declination)
+    
+    # Hour angle for sunrise/sunset
+    cos_hour_angle = -math.tan(lat_rad) * math.tan(decl_rad)
+    cos_hour_angle = max(-1, min(1, cos_hour_angle))
+    hour_angle = math.degrees(math.acos(cos_hour_angle)) / 15
+    
+    # Solar noon (LST)
+    noon_lst = 12.0 - (lng / 15.0)
+    
+    sunrise = noon_lst - hour_angle
+    sunset = noon_lst + hour_angle
+    
+    def to_local(utc_hours):
+        h = (utc_hours + tz_offset_hours) % 24
         hh = int(h)
-        mm = int(round((h - hh) * 60))
+        mm = int((h - hh) * 60)
         if mm == 60:
             mm = 0
             hh = (hh + 1) % 24
         return f"{hh:02d}:{mm:02d}"
-
-    zawal_local = to_local(noon_utc)
-    zuhr_end_local = to_local(noon_utc + ZUHR_WINDOW_MINUTES / 60.0)
-
+    
+    # Rough estimates
+    fajr_offset = 1.5  # hours before sunrise (varies by location)
+    fajr = sunrise - fajr_offset
+    
+    # Asr: about 2 hours before sunset (very rough)
+    asr = sunset - 1.5
+    
+    # Isha: about 1.5 hours after sunset
+    isha = sunset + 1.5
+    
     return {
         "date": d.isoformat(),
-        "fajr": to_local(fajr_utc),
-        "sunrise": to_local(sunrise_utc),
-        "zawal": zawal_local,
-        "zuhr_end": zuhr_end_local,
-        "maghrib": to_local(sunset_utc),
-        "sunset": to_local(sunset_utc),
+        "fajr": to_local(fajr),
+        "sunrise": to_local(sunrise),
+        "dhuhr": to_local(noon_lst),
+        "asr": to_local(asr),
+        "maghrib": to_local(sunset),
+        "isha": to_local(isha),
+        "zawal": to_local(noon_lst),
+        "zuhr_end": to_local(asr),
+        "sunset": to_local(sunset),
     }

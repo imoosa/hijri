@@ -3,6 +3,12 @@
 {% block content %}
 <div class="card center">
     <h1>Qibla Direction</h1>
+    {% if location_is_default %}
+    <p class="note" style="background:#fff8e1;border:1px solid #ffe08a;padding:10px 14px;border-radius:8px;text-align:left;">
+        This bearing is for <strong>{{ location_name }}</strong> (default) -- it may not be your
+        location. <a href="{{ url_for('settings_view') }}">Set your location</a> for an accurate direction.
+    </p>
+    {% endif %}
     <p class="sub">{{ location_name }}</p>
 
     <div class="compass-wrap">

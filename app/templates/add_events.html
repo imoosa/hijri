@@ -1,0 +1,173 @@
+<!-- add_events.html
+     Shared "Add personal event" modal, included from both calendar.html and
+     events.html so there's one form/JS to maintain instead of two.
+
+     Optional context variable:
+       add_event_redirect -- set this (e.g. to "calendar") in the including
+       template before including this file, if the form should send the
+       user back to that page after saving. If not set, the backend's
+       default (back to the personal events tab) is used.
+-->
+<div class="modal-overlay" id="add-event-overlay">
+    <div class="modal-box">
+        <div class="modal-head">
+            <div>
+                <h2>Add event</h2>
+                <div class="modal-sub">Birthdays, anniversaries, or anything else you want tracked and repeated.</div>
+            </div>
+            <button type="button" class="modal-close-btn" onclick="closeAddEventModal()">&times;</button>
+        </div>
+
+        <form method="post" action="{{ url_for('events_view', tab='personal') }}" id="add-event-form">
+            {% if add_event_redirect is defined %}
+            <input type="hidden" name="redirect_to" value="{{ add_event_redirect }}">
+            {% endif %}
+
+            <label>Title<input type="text" name="title" required placeholder="e.g. Amma's birthday"></label>
+
+            <label>Category
+                <select name="category">
+                    <option value="birthday">Birthday</option>
+                    <option value="anniversary" selected>Anniversary</option>
+                    <option value="other">Other</option>
+                </select>
+            </label>
+
+            <label>Gregorian date<input type="date" name="anchor_date" required></label>
+
+            <div class="field-row">
+                <label>Hijri month (optional)
+                    <select name="hijri_month" id="ae-hijri-month">
+                        <option value="">--</option>
+                        {% for name in month_names %}
+                        <option value="{{ loop.index }}">{{ name }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label>Hijri day<input type="number" name="hijri_day" id="ae-hijri-day" min="1" max="30"></label>
+            </div>
+            <p class="modal-approx-note">
+                Add the Hijri date too if you'd like the option to recur this event by the Hijri
+                calendar instead of the Gregorian one.
+            </p>
+
+            <label>Repeat</label>
+            <div class="cal-toggle" id="ae-repeat-toggle">
+                <button type="button" class="active" data-repeat="never">Only once</button>
+                <button type="button" data-repeat="weekly">Weekly</button>
+                <button type="button" data-repeat="monthly">Monthly</button>
+                <button type="button" data-repeat="yearly">Yearly</button>
+            </div>
+            <input type="hidden" name="repeat" id="ae-repeat" value="never">
+
+            <div id="ae-recur-block" style="display:none;">
+                <label>Recur by</label>
+                <div class="cal-toggle" id="ae-recur-toggle">
+                    <button type="button" class="active" data-recur="gregorian">Gregorian date</button>
+                    <button type="button" data-recur="hijri">Hijri date</button>
+                </div>
+                <input type="hidden" name="recur_calendar" id="ae-recur-calendar" value="gregorian">
+                <p class="modal-approx-note">
+                    Gregorian and Hijri years drift apart by about 11 days each year -- pick which
+                    date this event should actually repeat on. The other date is kept as a label only.
+                </p>
+            </div>
+            <p class="modal-approx-note">A leap-day (Feb 29) date shows on Feb 28 in non-leap years.</p>
+
+            <label>Description (optional)<input type="text" name="description"></label>
+
+            <div class="modal-actions">
+                <button type="button" class="btn-secondary" onclick="closeAddEventModal()">Cancel</button>
+                <button type="submit" class="add-event-btn">Add event</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .modal-overlay{display:none;position:fixed;inset:0;background:rgba(20,15,12,.5);
+        align-items:center;justify-content:center;z-index:100;padding:16px;}
+    .modal-overlay.open{display:flex;}
+    .modal-box{background:#fff;border-radius:10px;width:100%;max-width:460px;max-height:90vh;
+        overflow-y:auto;padding:24px;position:relative;}
+    .modal-box h2{margin-top:0;margin-bottom:4px;}
+    .modal-sub{font-size:13px;color:#888;margin-bottom:18px;}
+    .modal-head{display:flex;align-items:flex-start;justify-content:space-between;}
+    .modal-close-btn{border:none;background:none;font-size:20px;line-height:1;cursor:pointer;
+        color:#999;padding:0 0 0 12px;}
+    .cal-toggle{display:flex;border:1px solid #ddd;border-radius:6px;overflow:hidden;margin-bottom:16px;}
+    .cal-toggle button{flex:1;padding:8px;border:none;background:#fff;cursor:pointer;font-size:13px;
+        font-weight:600;color:#666;}
+    .cal-toggle button.active{background:#b5121b;color:#fff;}
+    .modal-box form label{display:block;margin-bottom:12px;font-size:13px;color:#444;}
+    .modal-box form input, .modal-box form select, .modal-box form textarea{width:100%;margin-top:4px;
+        padding:8px;border:1px solid #ddd;border-radius:6px;font-size:14px;box-sizing:border-box;}
+    .field-row{display:flex;gap:10px;}
+    .field-row > label{flex:1;}
+    .modal-approx-note{font-size:11px;color:#999;margin:-6px 0 14px;}
+    .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:8px;}
+    .btn-secondary{background:#f4f1ea;color:#555;border:none;padding:9px 16px;border-radius:6px;
+        cursor:pointer;font-size:14px;}
+    .add-event-btn{background:#b5121b;color:#fff;border:none;padding:10px 18px;border-radius:6px;
+        font-size:14px;font-weight:600;cursor:pointer;}
+    .add-event-btn:hover{background:#8f0e15;}
+</style>
+
+<script>
+function openAddEventModal(){ document.getElementById('add-event-overlay').classList.add('open'); }
+function closeAddEventModal(){ document.getElementById('add-event-overlay').classList.remove('open'); }
+
+(function(){
+    var overlay = document.getElementById('add-event-overlay');
+    overlay.addEventListener('click', function(e){
+        if (e.target === overlay) closeAddEventModal();
+    });
+
+    var repeatBtns = document.querySelectorAll('#ae-repeat-toggle button');
+    var repeatHidden = document.getElementById('ae-repeat');
+    var recurBlock = document.getElementById('ae-recur-block');
+    var recurBtns = document.querySelectorAll('#ae-recur-toggle button');
+    var recurHidden = document.getElementById('ae-recur-calendar');
+    var hijriMonth = document.getElementById('ae-hijri-month');
+    var hijriDay = document.getElementById('ae-hijri-day');
+
+    function updateRecurVisibility(){
+        var isYearly = repeatHidden.value === 'yearly';
+        recurBlock.style.display = isYearly ? 'block' : 'none';
+        if (!isYearly) {
+            recurHidden.value = 'gregorian';
+            recurBtns.forEach(function(b){ b.classList.toggle('active', b.dataset.recur === 'gregorian'); });
+        }
+    }
+
+    repeatBtns.forEach(function(btn){
+        btn.addEventListener('click', function(){
+            repeatBtns.forEach(function(b){ b.classList.remove('active'); });
+            btn.classList.add('active');
+            repeatHidden.value = btn.dataset.repeat;
+            updateRecurVisibility();
+        });
+    });
+
+    recurBtns.forEach(function(btn){
+        btn.addEventListener('click', function(){
+            recurBtns.forEach(function(b){ b.classList.remove('active'); });
+            btn.classList.add('active');
+            recurHidden.value = btn.dataset.recur;
+        });
+    });
+
+    document.getElementById('add-event-form').addEventListener('submit', function(e){
+        var hasMonth = !!hijriMonth.value, hasDay = !!hijriDay.value;
+        if (hasMonth !== hasDay) {
+            e.preventDefault();
+            alert('Fill in both the Hijri month and day, or leave both blank.');
+            return;
+        }
+        if (recurHidden.value === 'hijri' && !hasMonth) {
+            e.preventDefault();
+            alert('Add a Hijri date before choosing to recur by it.');
+        }
+    });
+})();
+</script>

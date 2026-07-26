@@ -5,10 +5,18 @@ from flask_cors import CORS
 
 from . import hijri_calendar as hc
 from . import prayer_times as pt
+from . import prayer_times_accurate as pt
 from . import qibla as qb
-from .database import get_session, init_db, seed_if_empty, HijriEvent
+from . import interfaith_calendar as ic
+from . import tz_lookup as tzl
+from . import personal_events as pe
+from .database import (
+    get_session, init_db, seed_if_empty, HijriEvent,
+    InterfaithEvent, PersonalEvent, refresh_interfaith_events,
+)
 
 DEFAULT_LOCATION = {"name": "Mumbai, Maharashtra", "lat": 19.076, "lng": 72.877, "tz_offset": 5.5}
+ALL_TRADITIONS = set(ic.TRADITIONS.keys())  # {'christian','french','jewish','hindu'}
 
 
 def create_app():
@@ -18,16 +26,86 @@ def create_app():
 
     init_db()
     seed_if_empty()
+    # Rolling window so the calendar always has interfaith dates a couple
+    # years out. Regenerates on every restart -- cheap (a few hundred rows).
+    this_year = date.today().year
+    refresh_interfaith_events(this_year - 1, this_year + 3)
 
     # ---------- shared helpers ----------
 
     def current_location():
         return session.get("location", DEFAULT_LOCATION)
 
-    def get_events_for_month(hijri_month):
+    def location_is_default():
+        return "location" not in session
+
+    def selected_traditions():
+        # Checkboxes with name="show" submit as repeated ?show=a&show=b params,
+        # NOT a single comma-joined value -- must use getlist, not get().
+        if "filtered" not in request.args:
+            # first page load, no filter form submitted yet -> show everything
+            return set(ALL_TRADITIONS)
+        chosen = set(request.args.getlist("show"))
+        return chosen & ALL_TRADITIONS
+
+    def get_interfaith_by_date(start_g, end_g, traditions):
+        if not traditions:
+            return {}
         db = get_session()
         try:
-            events = db.query(HijriEvent).filter(HijriEvent.hijri_month == hijri_month).all()
+            rows = db.query(InterfaithEvent).filter(
+                InterfaithEvent.event_date >= start_g,
+                InterfaithEvent.event_date <= end_g,
+                InterfaithEvent.tradition.in_(traditions),
+            ).all()
+            by_date = {}
+            for r in rows:
+                by_date.setdefault(r.event_date, []).append({
+                    "title": r.title, "tradition": r.tradition,
+                    "is_holiday": r.is_holiday, "color": r.color,
+                })
+            return by_date
+        finally:
+            db.close()
+
+    def get_personal_by_date(start_g, end_g):
+        db = get_session()
+        try:
+            rows = db.query(PersonalEvent).all()
+            by_date = {}
+            for r in rows:
+                for occ in pe.event_occurrences_in_range(r, start_g, end_g):
+                    by_date.setdefault(occ, []).append({
+                        "id": r.id, "title": r.title, "category": r.category,
+                        "description": r.description, "color": r.color,
+                    })
+            return by_date
+        finally:
+            db.close()
+
+    def get_personal_events_list():
+        db = get_session()
+        try:
+            return (
+                db.query(PersonalEvent)
+                .order_by(PersonalEvent.anchor_date)
+                .all()
+            )
+        finally:
+            db.close()
+
+    def get_events_for_month(hijri_month, hijri_year=None):
+        db = get_session()
+        try:
+            events = (
+                db.query(HijriEvent)
+                .filter(HijriEvent.hijri_month == hijri_month)
+                .filter(
+                    (HijriEvent.repeat != "once")
+                    | (HijriEvent.hijri_year == hijri_year)
+                )
+                .all()
+            )
             by_day = {}
             for e in events:
                 by_day.setdefault(e.hijri_day, []).append({
@@ -36,6 +114,40 @@ def create_app():
                     "color": e.color,
                 })
             return by_day
+        finally:
+            db.close()
+
+    def get_community_lists():
+        """Full event list per community, for the inline sidebar accordion.
+        Bohra events are recurring (month/day only, no year). Interfaith
+        events carry a real date -- only upcoming ones (>= today) are shown
+        so the list doesn't include years of past festival dates."""
+        db = get_session()
+        try:
+            bohra_rows = (
+                db.query(HijriEvent)
+                .order_by(HijriEvent.hijri_month, HijriEvent.hijri_day)
+                .all()
+            )
+            lists = {
+                "bohra": [
+                    {"title": e.title, "when": f"{hc.hijri_month_name(e.hijri_month)} {e.hijri_day}"}
+                    for e in bohra_rows
+                ]
+            }
+            today_g = date.today()
+            for key in ALL_TRADITIONS:
+                rows = (
+                    db.query(InterfaithEvent)
+                    .filter(InterfaithEvent.tradition == key, InterfaithEvent.event_date >= today_g)
+                    .order_by(InterfaithEvent.event_date)
+                    .all()
+                )
+                lists[key] = [
+                    {"title": e.title, "when": e.event_date.strftime("%d %b %Y")}
+                    for e in rows
+                ]
+            return lists
         finally:
             db.close()
 
@@ -62,7 +174,12 @@ def create_app():
             hijri_year += 1
 
         days_raw = hc.month_grid(hijri_year, hijri_month)
-        events_by_day = get_events_for_month(hijri_month)
+        events_by_day = get_events_for_month(hijri_month, hijri_year)
+
+        traditions_on = selected_traditions()
+        greg_days = [date.fromisoformat(d["gregorian"]) for d in days_raw]
+        interfaith_by_date = get_interfaith_by_date(min(greg_days), max(greg_days), traditions_on)
+        personal_by_date = get_personal_by_date(min(greg_days), max(greg_days))
 
         days = []
         for d in days_raw:
@@ -74,6 +191,8 @@ def create_app():
                 "gregorian": g,
                 "is_today": (hijri_year == ty and hijri_month == tm and d["hijri_day"] == td),
                 "events": events_by_day.get(d["hijri_day"], []),
+                "interfaith": interfaith_by_date.get(g, []),
+                "personal": personal_by_date.get(g, []),
             })
 
         # build Sunday-first week grid
@@ -95,23 +214,42 @@ def create_app():
         else:
             gregorian_range = f"{greg_start.strftime('%B')}/{greg_end.strftime('%B %Y')}"
 
-        loc = current_location()
-        prayer = pt.calculate(loc["lat"], loc["lng"], today_g, loc["tz_offset"])
-
         selected_day = None
         if selected_day_num:
             selected_day = next((d for d in days if d["hijri_day"] == selected_day_num), None)
+
+        loc = current_location()
+        prayer_date = selected_day["gregorian"] if selected_day else today_g
+        prayer = pt.calculate(loc["lat"], loc["lng"], prayer_date, loc["tz_offset"])
+
+        db = get_session()
+        try:
+            user_events = (
+                db.query(HijriEvent)
+                .filter(HijriEvent.is_custom == True)  # noqa: E712
+                .order_by(HijriEvent.hijri_month, HijriEvent.hijri_day)
+                .all()
+            )
+        finally:
+            db.close()
 
         return render_template(
             "calendar.html", active="calendar",
             hijri_year=hijri_year, hijri_month=hijri_month,
             month_name=hc.hijri_month_name(hijri_month),
+            month_names=hc.MONTH_NAMES,
             prev_year=hijri_year if hijri_month > 1 else hijri_year - 1,
             prev_month=hijri_month - 1 if hijri_month > 1 else 12,
             next_year=hijri_year if hijri_month < 12 else hijri_year + 1,
             next_month=hijri_month + 1 if hijri_month < 12 else 1,
             gregorian_range=gregorian_range, weeks=weeks,
             prayer=prayer, location_name=loc["name"], selected_day=selected_day,
+            traditions=ic.TRADITIONS, traditions_on=traditions_on,
+            filter_active=("filtered" in request.args),
+            user_events=user_events,
+            personal_events=get_personal_events_list(),
+            community_lists=get_community_lists(),
+            location_is_default=location_is_default(),
         )
 
     @app.get("/prayer-times-view")
@@ -120,7 +258,8 @@ def create_app():
         d = date.today()
         prayer = pt.calculate(loc["lat"], loc["lng"], d, loc["tz_offset"])
         return render_template("prayer.html", active="prayer", prayer=prayer,
-                                location_name=loc["name"], date_str=d.strftime("%d %B %Y"))
+                                location_name=loc["name"], date_str=d.strftime("%d %B %Y"),
+                                location_is_default=location_is_default())
 
     @app.get("/qibla-view")
     def qibla_view():
@@ -128,7 +267,8 @@ def create_app():
         bearing = round(qb.bearing_to_kaaba(loc["lat"], loc["lng"]), 1)
         distance = round(qb.distance_km(loc["lat"], loc["lng"]), 1)
         return render_template("qibla.html", active="qibla", bearing=bearing,
-                                distance_km=distance, location_name=loc["name"])
+                                distance_km=distance, location_name=loc["name"],
+                                location_is_default=location_is_default())
 
     @app.route("/settings", methods=["GET", "POST"])
     def settings_view():
@@ -150,26 +290,139 @@ def create_app():
 
     @app.route("/events-view", methods=["GET", "POST"])
     def events_view():
+        tab = request.args.get("tab", "bohra")
+        if tab not in ({"bohra", "personal"} | ALL_TRADITIONS):
+            tab = "bohra"
+
         db = get_session()
         try:
             if request.method == "POST":
+                if tab == "personal":
+                    raw_date = request.form.get("anchor_date")
+                    if not raw_date:
+                        raise ValueError("Please pick a date.")
+                    repeat = request.form.get("repeat", "yearly")
+                    if repeat not in pe.VALID_REPEATS:
+                        raise ValueError("repeat must be one of: never, weekly, monthly, yearly")
+
+                    # Optional companion Hijri date (both fields must be present
+                    # together, or neither -- a lone month or lone day is
+                    # treated as "not provided" rather than guessed at).
+                    raw_hm = request.form.get("hijri_month")
+                    raw_hd = request.form.get("hijri_day")
+                    hijri_month = int(raw_hm) if raw_hm else None
+                    hijri_day = int(raw_hd) if raw_hd else None
+                    if (hijri_month is None) != (hijri_day is None):
+                        raise ValueError("Provide both a Hijri month and day, or leave both blank.")
+                    if hijri_month is not None and not (1 <= hijri_month <= 12):
+                        raise ValueError("Hijri month must be between 1 and 12.")
+                    if hijri_day is not None and not (1 <= hijri_day <= 30):
+                        raise ValueError("Hijri day must be between 1 and 30.")
+
+                    recur_calendar = request.form.get("recur_calendar", "gregorian")
+                    if recur_calendar not in pe.VALID_RECUR_CALENDARS:
+                        raise ValueError("recur_calendar must be 'gregorian' or 'hijri'")
+                    if recur_calendar == "hijri" and hijri_month is None:
+                        raise ValueError("Add a Hijri date before choosing to recur by it.")
+
+                    p = PersonalEvent(
+                        title=request.form["title"],
+                        description=request.form.get("description") or None,
+                        category=request.form.get("category", "other"),
+                        anchor_date=date.fromisoformat(raw_date),
+                        repeat=repeat,
+                        color=request.form.get("color", "personal"),
+                        hijri_month=hijri_month,
+                        hijri_day=hijri_day,
+                        recur_calendar=recur_calendar,
+                    )
+                    db.add(p)
+                    db.commit()
+                    flash(f"Added: {p.title}")
+                    if request.form.get("redirect_to") == "calendar":
+                        return redirect(url_for("calendar_view"))
+                    return redirect(url_for("events_view", tab="personal"))
+
+                repeat = request.form.get("repeat", "yearly")
+                if repeat not in {"yearly", "once"}:
+                    raise ValueError("repeat must be 'yearly' or 'once'")
+
+                raw_hm = request.form.get("hijri_month")
+                raw_hd = request.form.get("hijri_day")
+                raw_gd = request.form.get("gregorian_date")
+
+                g = date.fromisoformat(raw_gd) if raw_gd else None
+                derived = hc.gregorian_to_hijri(g) if g else None  # (year, month, day)
+
+                hijri_month = int(raw_hm) if raw_hm else (derived[1] if derived else None)
+                hijri_day = int(raw_hd) if raw_hd else (derived[2] if derived else None)
+                if hijri_month is None or hijri_day is None:
+                    raise ValueError("Enter a Hijri month/day, a Gregorian date, or both.")
+                if not (1 <= hijri_month <= 12):
+                    raise ValueError("hijri_month must be 1-12")
+                if not (1 <= hijri_day <= 30):
+                    raise ValueError("hijri_day must be 1-30")
+
+                hijri_year = None
+                if repeat == "once":
+                    raw_hy = request.form.get("hijri_year")
+                    if raw_hy:
+                        hijri_year = int(raw_hy)
+                    elif derived:
+                        hijri_year = derived[0]
+                    else:
+                        raise ValueError("A one-time event needs a Gregorian date or a Hijri year.")
+
                 e = HijriEvent(
-                    hijri_month=int(request.form["hijri_month"]),
-                    hijri_day=int(request.form["hijri_day"]),
+                    hijri_month=hijri_month,
+                    hijri_day=hijri_day,
                     title=request.form["title"],
                     description=request.form.get("description") or None,
-                    is_holiday=bool(request.form.get("is_holiday")),
-                    is_fasting_day=bool(request.form.get("is_fasting_day")),
+                    is_holiday=False,
+                    is_fasting_day=False,
                     color=request.form.get("color", "black"),
+                    is_custom=True,
+                    repeat=repeat,
+                    hijri_year=hijri_year,
+                    gregorian_date=g,
                 )
                 db.add(e)
                 db.commit()
                 flash(f"Added: {e.title}")
-                return redirect(url_for("events_view"))
+                if request.form.get("redirect_to") == "calendar":
+                    return redirect(url_for("calendar_view"))
+                return redirect(url_for("events_view", tab="bohra"))
 
             events = db.query(HijriEvent).order_by(HijriEvent.hijri_month, HijriEvent.hijri_day).all()
-            return render_template("events.html", active="events", events=events,
-                                    month_names=hc.MONTH_NAMES)
+            # Seeded/global events (is_custom == False) are shared, default data everyone
+            # sees on the calendar and in the full Bohra list above -- they are NOT "your"
+            # events. Only ones added through the Add Event form belong in that panel.
+            custom_events = [e for e in events if e.is_custom]
+
+            interfaith_events = []
+            if tab != "bohra" and tab != "personal":
+                interfaith_events = (
+                    db.query(InterfaithEvent)
+                    .filter(InterfaithEvent.tradition == tab)
+                    .order_by(InterfaithEvent.event_date)
+                    .all()
+                )
+
+            personal_events = []
+            if tab == "personal":
+                personal_events = (
+                    db.query(PersonalEvent)
+                    .order_by(PersonalEvent.anchor_date)
+                    .all()
+                )
+
+            return render_template(
+                "events.html", active="events", events=events, custom_events=custom_events,
+                month_names=hc.MONTH_NAMES, tab=tab, traditions=ic.TRADITIONS,
+                interfaith_events=interfaith_events,
+                personal_events=personal_events,
+                repeat_options=sorted(pe.VALID_REPEATS, key=["never", "weekly", "monthly", "yearly"].index),
+            )
         finally:
             db.close()
 
@@ -184,7 +437,20 @@ def create_app():
                 flash(f"Deleted: {e.title}")
         finally:
             db.close()
-        return redirect(url_for("events_view"))
+        return redirect(url_for("events_view", tab="bohra"))
+
+    @app.post("/personal-events/<int:event_id>/delete")
+    def delete_personal_event(event_id):
+        db = get_session()
+        try:
+            e = db.query(PersonalEvent).filter(PersonalEvent.id == event_id).first()
+            if e:
+                db.delete(e)
+                db.commit()
+                flash(f"Deleted: {e.title}")
+        finally:
+            db.close()
+        return redirect(url_for("events_view", tab="personal"))
 
     @app.post("/events-view/bulk-import")
     def bulk_import_events():
@@ -224,7 +490,7 @@ def create_app():
             flash(f"Imported {added} event(s).")
         if errors:
             flash("Skipped: " + "; ".join(errors[:5]) + ("..." if len(errors) > 5 else ""))
-        return redirect(url_for("events_view"))
+        return redirect(url_for("events_view", tab="bohra"))
 
     @app.post("/events-view/clear-all")
     def clear_all_events():
@@ -235,7 +501,7 @@ def create_app():
         finally:
             db.close()
         flash(f"Deleted all {count} event(s).")
-        return redirect(url_for("events_view"))
+        return redirect(url_for("events_view", tab="bohra"))
 
     # ==================== JSON API (unchanged, under /api) ====================
 
@@ -269,7 +535,7 @@ def create_app():
         if not (1 <= hijri_month <= 12):
             raise ValueError("hijri_month must be 1-12")
         days = hc.month_grid(hijri_year, hijri_month)
-        events_by_day = get_events_for_month(hijri_month)
+        events_by_day = get_events_for_month(hijri_month, hijri_year)
         for d in days:
             d["events"] = events_by_day.get(d["hijri_day"], [])
         return jsonify({"hijri_year": hijri_year, "hijri_month": hijri_month,
@@ -283,6 +549,26 @@ def create_app():
         for_date = request.args.get("for_date")
         d = date.fromisoformat(for_date) if for_date else date.today()
         return jsonify(pt.calculate(lat, lng, d, tz_offset))
+
+    @app.get("/api/tz-offset")
+    def api_tz_offset():
+        """Real UTC offset for a lat/lng, via IANA timezone lookup -- not a
+        longitude estimate. Fixes locations like India where the political
+        offset (+5:30) doesn't match the meridian math (+6:00 for eastern
+        India, +5:00 for western India)."""
+        lat = parse_float("lat")
+        lng = parse_float("lng")
+        for_date_str = request.args.get("for_date")
+        for_date = date.fromisoformat(for_date_str) if for_date_str else None
+
+        offset = tzl.utc_offset_hours(lat, lng, for_date)
+        if offset is None:
+            return jsonify({
+                "offset": None,
+                "tz_name": None,
+                "error": "timezone lookup unavailable -- is timezonefinder installed?",
+            }), 200
+        return jsonify({"offset": offset, "tz_name": tzl.tz_name_at(lat, lng)})
 
     @app.get("/api/qibla")
     def api_qibla():

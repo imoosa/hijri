@@ -1,6 +1,6 @@
 """SQLite storage for Bohra calendar events (misaqs, urs, eids, etc.)."""
 
-from sqlalchemy import create_engine, Column, Integer, String, Boolean
+from sqlalchemy import create_engine, Column, Integer, String, Boolean, Date
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 DATABASE_URL = "sqlite:///./bohra_calendar.db"
@@ -21,10 +21,104 @@ class HijriEvent(Base):
     is_fasting_day = Column(Boolean, default=False)
     is_holiday = Column(Boolean, default=False)
     color = Column(String, default="black")      # matches red/black marking in your screenshot
+    is_custom = Column(Boolean, default=False)   # True = added by a user via the Add Event form,
+                                                  # False = seeded reference Urs/Eid data
+
+    # 'yearly' (default): recurs on this Hijri month/day every Hijri year,
+    # forever -- this is the original/only behaviour before this field existed.
+    # 'once': only appears in the single Hijri year given by hijri_year below.
+    repeat = Column(String, default="yearly")
+    hijri_year = Column(Integer, nullable=True)   # only used when repeat == 'once'
+
+    # Optional companion Gregorian date, entered alongside the Hijri
+    # month/day (not instead of it). Only meaningful as a fixed point in
+    # time for repeat == 'once' events -- for 'yearly' events the mapped
+    # Gregorian date shifts every year, so this is just a reference note.
+    gregorian_date = Column(Date, nullable=True)
+
+
+class InterfaithEvent(Base):
+    """Auto-generated festival dates for non-Bohra traditions (Christian, French
+    civil, Jewish, Hindu). Regenerated on startup for a rolling year window --
+    do not hand-edit rows here, edit interfaith_calendar.py instead.
+    See that module's docstring for accuracy caveats per tradition."""
+    __tablename__ = "interfaith_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    event_date = Column(Date, index=True)
+    title = Column(String, nullable=False)
+    tradition = Column(String, index=True)   # 'christian' | 'french' | 'jewish' | 'hindu'
+    is_holiday = Column(Boolean, default=False)
+    color = Column(String, default="black")
+
+
+class PersonalEvent(Base):
+    """User's own recurring personal dates -- birthdays, anniversaries, and
+    anything else that isn't a Bohra or interfaith date. Stored as a single
+    Gregorian anchor date plus a repeat rule; individual occurrences are
+    computed on the fly by personal_events.py rather than one row per year,
+    so "repeat every year forever" doesn't need pre-generated rows."""
+    __tablename__ = "personal_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, nullable=False)
+    description = Column(String, nullable=True)
+    category = Column(String, default="other")     # 'birthday' | 'anniversary' | 'other'
+    anchor_date = Column(Date, nullable=False)      # the Gregorian first/reference occurrence
+    repeat = Column(String, default="yearly")       # 'never' | 'weekly' | 'monthly' | 'yearly'
+    color = Column(String, default="personal")
+
+    # Optional companion Hijri date for the same event (e.g. an anniversary
+    # you want to track on both calendars). Independent of anchor_date --
+    # neither is derived from the other, both are entered by the user.
+    hijri_month = Column(Integer, nullable=True)    # 1-12
+    hijri_day = Column(Integer, nullable=True)      # 1-30
+
+    # Which calendar actually drives "repeat" when repeat == 'yearly' and a
+    # Hijri date is present. Gregorian and Hijri years are different lengths
+    # (~11 days apart per year), so a yearly-recurring anniversary can only
+    # correctly track ONE of them -- this field says which. Ignored for
+    # 'never'/'weekly'/'monthly' repeat, and irrelevant if hijri_month/day
+    # aren't set (there's nothing to choose between).
+    recur_calendar = Column(String, default="gregorian")  # 'gregorian' | 'hijri'
 
 
 def init_db():
     Base.metadata.create_all(bind=engine)
+    _migrate_missing_columns()
+
+
+def _migrate_missing_columns():
+    """SQLAlchemy's create_all() only creates tables that don't exist yet --
+    it never alters an existing table to add a newly-defined column. Since
+    this app is under active development and columns get added to the
+    models over time (e.g. is_custom on HijriEvent), check for and add any
+    columns that are missing from the actual on-disk schema so a pre-existing
+    bohra_calendar.db doesn't crash with 'no such column' on the next run."""
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(engine)
+    for table in Base.metadata.tables.values():
+        if table.name not in inspector.get_table_names():
+            continue  # brand new table, create_all already handled it
+        existing_cols = {c["name"] for c in inspector.get_columns(table.name)}
+        for col in table.columns:
+            if col.name in existing_cols:
+                continue
+            col_type = col.type.compile(engine.dialect)
+            default_clause = ""
+            if col.default is not None and col.default.is_scalar:
+                default_val = col.default.arg
+                if isinstance(default_val, bool):
+                    default_val = int(default_val)
+                if isinstance(default_val, (int, float)):
+                    default_clause = f" DEFAULT {default_val}"
+                elif isinstance(default_val, str):
+                    default_clause = f" DEFAULT '{default_val}'"
+            with engine.begin() as conn:
+                conn.execute(text(
+                    f"ALTER TABLE {table.name} ADD COLUMN {col.name} {col_type}{default_clause}"
+                ))
 
 
 def get_db():
@@ -234,6 +328,31 @@ URS_EVENTS = [
 ]
 
 SEED_EVENTS = EID_AND_FASTING_EVENTS + URS_EVENTS
+
+
+def refresh_interfaith_events(start_year: int, end_year: int):
+    """Regenerate InterfaithEvent rows for [start_year, end_year] inclusive.
+    Safe to call repeatedly (e.g. on every app startup) -- it wipes and
+    rebuilds just that year range so edits to interfaith_calendar.py take
+    effect on next restart without manual DB migration."""
+    from . import interfaith_calendar as ic
+
+    db = SessionLocal()
+    try:
+        db.query(InterfaithEvent).filter(
+            InterfaithEvent.event_date >= f"{start_year}-01-01",
+            InterfaithEvent.event_date <= f"{end_year}-12-31",
+        ).delete(synchronize_session=False)
+        for year in range(start_year, end_year + 1):
+            for e in ic.get_interfaith_events(year):
+                db.add(InterfaithEvent(
+                    event_date=e["date"], title=e["title"],
+                    tradition=e["tradition"], is_holiday=e.get("is_holiday", False),
+                    color=e.get("color", "black"),
+                ))
+        db.commit()
+    finally:
+        db.close()
 
 
 def seed_if_empty():
