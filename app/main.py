@@ -1,9 +1,12 @@
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from flask import Flask, request, jsonify, render_template, session, redirect, url_for, flash
 from flask_cors import CORS
 
 from . import hijri_calendar as hc
+from . import hebrew_calendar as heb
+from . import parsi_calendar as pc
+from . import hindu_calendar as hindu
 from . import prayer_times as pt
 from . import prayer_times_accurate as pt
 from . import qibla as qb
@@ -15,8 +18,86 @@ from .database import (
     InterfaithEvent, PersonalEvent, refresh_interfaith_events,
 )
 
+import calendar as _pycal
+
 DEFAULT_LOCATION = {"name": "Mumbai, Maharashtra", "lat": 19.076, "lng": 72.877, "tz_offset": 5.5}
-ALL_TRADITIONS = set(ic.TRADITIONS.keys())  # {'christian','french','jewish','hindu'}
+ALL_TRADITIONS = set(ic.TRADITIONS.keys())  # {'christian','french','jewish','hindu','parsi'}
+
+# Which calendar the main /calendar grid is currently paging through. Every
+# entry needs: grid(year, month) -> [(gregorian_date, native_day), ...],
+# month_name(year, month) -> str, native_of(gregorian_date) -> (year, month, day),
+# next/prev(year, month) -> (year, month), and native_label(day) -> str (for
+# display -- e.g. Arabic-Indic numerals for Hijri, plain digits elsewhere).
+
+
+def _grid_hijri(year, month):
+    return [(date.fromisoformat(d["gregorian"]), d["hijri_day"]) for d in hc.month_grid(year, month)]
+
+
+def _grid_gregorian(year, month):
+    n = _pycal.monthrange(year, month)[1]
+    return [(date(year, month, d), d) for d in range(1, n + 1)]
+
+
+def _grid_hebrew(year, month):
+    return [(date.fromisoformat(d["gregorian"]), d["day"]) for d in heb.month_grid(year, month)]
+
+
+def _grid_parsi(year, month):
+    return [(date.fromisoformat(d["gregorian"]), d["day"]) for d in pc.month_grid(year, month)]
+
+
+def _grid_hindu(year, month):
+    return [(date.fromisoformat(d["gregorian"]), d["day"]) for d in hindu.month_grid(year, month)]
+
+
+CALENDARS = {
+    "hijri": {
+        "label": "Hijri",
+        "grid": _grid_hijri,
+        "month_name": lambda y, m: hc.hijri_month_name(m),
+        "native_of": lambda g: hc.gregorian_to_hijri(g),
+        "next": lambda y, m: (y, m + 1) if m < 12 else (y + 1, 1),
+        "prev": lambda y, m: (y, m - 1) if m > 1 else (y - 1, 12),
+        "native_label": hc.to_arabic_indic_numerals,
+    },
+    "gregorian": {
+        "label": "Gregorian",
+        "grid": _grid_gregorian,
+        "month_name": lambda y, m: date(y, m, 1).strftime("%B"),
+        "native_of": lambda g: (g.year, g.month, g.day),
+        "next": lambda y, m: (y, m + 1) if m < 12 else (y + 1, 1),
+        "prev": lambda y, m: (y, m - 1) if m > 1 else (y - 1, 12),
+        "native_label": str,
+    },
+    "hebrew": {
+        "label": "Hebrew",
+        "grid": _grid_hebrew,
+        "month_name": lambda y, m: heb.month_name(m),
+        "native_of": lambda g: heb.gregorian_to_hebrew(g),
+        "next": heb.next_month,
+        "prev": heb.prev_month,
+        "native_label": str,
+    },
+    "parsi": {
+        "label": "Parsi",
+        "grid": _grid_parsi,
+        "month_name": lambda y, m: pc.month_name(m),
+        "native_of": lambda g: pc.gregorian_to_parsi(g),
+        "next": pc.next_month,
+        "prev": pc.prev_month,
+        "native_label": str,
+    },
+    "hindu": {
+        "label": "Hindu",
+        "grid": _grid_hindu,
+        "month_name": hindu.month_name,
+        "native_of": hindu.gregorian_to_hindu,
+        "next": hindu.next_month,
+        "prev": hindu.prev_month,
+        "native_label": hindu.native_label,
+    },
+}
 
 
 def create_app():
@@ -94,6 +175,38 @@ def create_app():
         finally:
             db.close()
 
+    def get_hijri_events_for_gregorian_range(start_g, end_g):
+        """Same HijriEvent data as get_events_for_month, but keyed by Gregorian
+        date over an arbitrary range -- needed because the calendar grid can
+        now be primary in Hijri, Gregorian, Hebrew, or Parsi, so we can no
+        longer assume the visible days all fall within one Hijri month."""
+        db = get_session()
+        try:
+            all_events = db.query(HijriEvent).all()
+        finally:
+            db.close()
+
+        yearly, once = {}, {}
+        for e in all_events:
+            if e.repeat == "once":
+                once.setdefault((e.hijri_month, e.hijri_day, e.hijri_year), []).append(e)
+            else:
+                yearly.setdefault((e.hijri_month, e.hijri_day), []).append(e)
+
+        by_greg = {}
+        d = start_g
+        while d <= end_g:
+            hy, hm, hd = hc.gregorian_to_hijri(d)
+            matches = yearly.get((hm, hd), []) + once.get((hm, hd, hy), [])
+            if matches:
+                by_greg[d] = [{
+                    "title": e.title, "description": e.description,
+                    "is_fasting_day": e.is_fasting_day, "is_holiday": e.is_holiday,
+                    "color": e.color,
+                } for e in matches]
+            d += timedelta(days=1)
+        return by_greg
+
     def get_events_for_month(hijri_month, hijri_year=None):
         db = get_session()
         try:
@@ -160,37 +273,39 @@ def create_app():
     @app.get("/calendar")
     def calendar_view():
         today_g = date.today()
-        ty, tm, td = hc.gregorian_to_hijri(today_g)
 
-        hijri_year = request.args.get("y", type=int) or ty
-        hijri_month = request.args.get("m", type=int) or tm
+        cal_key = request.args.get("cal", "hijri")
+        if cal_key not in CALENDARS:
+            cal_key = "hijri"
+        cal = CALENDARS[cal_key]
+
+        ty, tm, td = cal["native_of"](today_g)
+
+        cal_year = request.args.get("y", type=int) or ty
+        cal_month = request.args.get("m", type=int) or tm
         selected_day_num = request.args.get("day", type=int)
 
-        if hijri_month < 1:
-            hijri_month = 12
-            hijri_year -= 1
-        elif hijri_month > 12:
-            hijri_month = 1
-            hijri_year += 1
+        grid = cal["grid"](cal_year, cal_month)  # [(gregorian_date, native_day), ...]
 
-        days_raw = hc.month_grid(hijri_year, hijri_month)
-        events_by_day = get_events_for_month(hijri_month, hijri_year)
+        greg_days = [g for g, _ in grid]
+        # Bohra events are always tracked by their true Hijri date regardless
+        # of which calendar is primary on screen -- this maps every visible
+        # Gregorian day to its Hijri month/day and looks up matches that way.
+        hijri_events_by_day = get_hijri_events_for_gregorian_range(min(greg_days), max(greg_days))
 
         traditions_on = selected_traditions()
-        greg_days = [date.fromisoformat(d["gregorian"]) for d in days_raw]
         interfaith_by_date = get_interfaith_by_date(min(greg_days), max(greg_days), traditions_on)
         personal_by_date = get_personal_by_date(min(greg_days), max(greg_days))
 
         days = []
-        for d in days_raw:
-            g = date.fromisoformat(d["gregorian"])
+        for g, native_day in grid:
             days.append({
-                "hijri_day": d["hijri_day"],
-                "hijri_num": hc.to_arabic_indic_numerals(d["hijri_day"]),
+                "hijri_day": native_day,
+                "hijri_num": cal["native_label"](native_day),
                 "greg_day": g.day,
                 "gregorian": g,
-                "is_today": (hijri_year == ty and hijri_month == tm and d["hijri_day"] == td),
-                "events": events_by_day.get(d["hijri_day"], []),
+                "is_today": (g == today_g),
+                "events": hijri_events_by_day.get(g, []),
                 "interfaith": interfaith_by_date.get(g, []),
                 "personal": personal_by_date.get(g, []),
             })
@@ -233,15 +348,17 @@ def create_app():
         finally:
             db.close()
 
+        prev_year, prev_month = cal["prev"](cal_year, cal_month)
+        next_year, next_month = cal["next"](cal_year, cal_month)
+
         return render_template(
             "calendar.html", active="calendar",
-            hijri_year=hijri_year, hijri_month=hijri_month,
-            month_name=hc.hijri_month_name(hijri_month),
+            cal=cal_key, calendars=CALENDARS,
+            hijri_year=cal_year, hijri_month=cal_month,
+            month_name=cal["month_name"](cal_year, cal_month),
             month_names=hc.MONTH_NAMES,
-            prev_year=hijri_year if hijri_month > 1 else hijri_year - 1,
-            prev_month=hijri_month - 1 if hijri_month > 1 else 12,
-            next_year=hijri_year if hijri_month < 12 else hijri_year + 1,
-            next_month=hijri_month + 1 if hijri_month < 12 else 1,
+            prev_year=prev_year, prev_month=prev_month,
+            next_year=next_year, next_month=next_month,
             gregorian_range=gregorian_range, weeks=weeks,
             prayer=prayer, location_name=loc["name"], selected_day=selected_day,
             traditions=ic.TRADITIONS, traditions_on=traditions_on,

@@ -20,32 +20,56 @@ ACCURACY BY TRADITION -- read this before trusting any single date:
               dates (Rosh Hashanah, Purim, Pesach all matched).
               Requires: pip install convertdate
 
-  HINDU       [guessing] THIS IS A ROUGH APPROXIMATION. Unlike Hijri and
-              Jewish calendars, there is no single agreed civil algorithm for
-              Hindu festival dates -- real Panchangs do precise astronomical
-              (not mean-motion) Sun/Moon position calculations, apply
-              regional Amanta/Purnimanta conventions, and insert leap months
-              (Adhik Maas) roughly every 32-33 months on irregular boundaries.
-              This module uses a MEAN synodic-month model with NO leap-month
-              correction. It was spot-checked against real 2024-2026 dates:
-              most festivals land within 0-2 days of the real date, but in
-              years where a real Adhik Maas falls before a festival, this
-              model can be off by an entire lunar month (~29 days) -- this
-              happened for Raksha Bandhan 2026 in testing (real: Aug 28,
-              this model: Jul 30). DO NOT treat Hindu dates from this module
-              as authoritative. Cross-check against a real Panchang
-              (e.g. drikpanchang.com) before publishing them to users, same
-              as you'd calibrate hijri_calendar.py's CALIBRATION_OFFSET.
+  HINDU       [likely, cross-checked against a small number of published
+              2026 dates, not a full year of Panchang data] Delegates to
+              hindu_calendar.py, which does real sidereal Sun/Moon position
+              calculations (Swiss Ephemeris via pyswisseph, Lahiri ayanamsa)
+              and properly detects Adhik Maas (leap months) via sankranti
+              position -- NOT the mean synodic-month model this module used
+              to use. That old model could be off by an entire lunar month
+              in a leap-month year (it put Raksha Bandhan 2026 on Jul 30;
+              real date is Aug 28 -- the new engine gets Aug 28 exactly).
+              The new engine still has its own documented gaps -- see
+              hindu_calendar.py's module docstring, in particular a known
+              1-day miss on Diwali because it assigns every tithi by
+              sunrise, and real Panchangs assign some festivals (Diwali
+              among them) by evening/Pradosh time instead. Cross-check
+              against a real Panchang (e.g. drikpanchang.com) before
+              publishing these dates to users, same as you'd calibrate
+              hijri_calendar.py's CALIBRATION_OFFSET.
+
+  PARSI       [likely, unverified] Shahenshahi calendar (the one followed by
+              most Indian Parsis) -- NOT the Fasli calendar (aligned to the
+              March equinox) or the Kadmi calendar (one month ahead of
+              Shahenshahi). Unlike every other tradition here, Shahenshahi
+              years are a flat 365 days with NO leap-year correction at all,
+              so there's no lunar/solar position math to get right or wrong
+              -- Navroz just slides later relative to the Gregorian calendar
+              by about a day every 4 years. The only real risk is the
+              calibration anchor (_REF_NAVROZ below): online sources for the
+              2026 Shahenshahi Navroz date disagree by a day or two (16 Aug
+              2026 per most sources used here, some say 15th or 17th).
+              Cross-check against a published Parsi calendar (e.g. the
+              Bombay Parsi Punchayet's) before trusting this for religious
+              observance, and adjust _REF_NAVROZ if it's off.
 """
 
 import math
 from datetime import date, timedelta
+
+from . import parsi_calendar as pc
 
 try:
     from convertdate import hebrew as _hebrew
     _HAS_CONVERTDATE = True
 except ImportError:
     _HAS_CONVERTDATE = False
+
+try:
+    from . import hindu_calendar as _hc
+    _HAS_SWISSEPH = True
+except ImportError:
+    _HAS_SWISSEPH = False
 
 
 # ==================== CHRISTIAN ====================
@@ -169,6 +193,21 @@ def _tithi_after(base: date, n: int) -> date:
 
 
 def hindu_events(year: int):
+    """Real ephemeris-based Hindu festival dates -- see hindu_calendar.py.
+    Falls back to the old mean-synodic-month approximation only if
+    pyswisseph isn't installed; that fallback is a rough guess (see
+    _hindu_events_approx below) -- install pyswisseph rather than
+    relying on it."""
+    if _HAS_SWISSEPH:
+        return _hc.hindu_events(year)
+    return _hindu_events_approx(year)
+
+
+def _hindu_events_approx(year: int):
+    """[guessing] Mean synodic-month approximation, NO leap-month
+    correction. Kept only as a fallback for when pyswisseph isn't
+    installed -- known to drift up to ~29 days in Adhik Maas years (see
+    module docstring). Do not call this directly; use hindu_events()."""
     holi = _first_full_moon_on_or_after(date(year, 2, 20))
     shravan_full = _first_full_moon_on_or_after(date(year, 7, 20))       # Raksha Bandhan
     janmashtami = _tithi_after(shravan_full, 8)
@@ -194,6 +233,26 @@ def hindu_events(year: int):
     return events
 
 
+# ==================== PARSI / ZOROASTRIAN (Shahenshahi calendar) -- see module docstring ====================
+# Navroz calibration lives in parsi_calendar.py (single source of truth --
+# also used to build the full Parsi month-grid view, not just this festival
+# list). See that module and the accuracy note above for the caveat.
+
+
+def parsi_events(year: int):
+    navroz = pc.shahenshahi_navroz(year)
+    events = [
+        {"date": navroz - timedelta(days=1), "title": "Pateti (day of repentance)", "is_holiday": False},
+        {"date": navroz, "title": "Navroz (Jamshedi Navroz) -- Parsi New Year", "is_holiday": True},
+        {"date": navroz + timedelta(days=5), "title": "Khordad Sal (Zarathustra's birthday)", "is_holiday": True},
+    ]
+    for e in events:
+        e["tradition"] = "parsi"
+        e["color"] = "parsi"
+    return events
+
+
+
 # ==================== combined ====================
 
 TRADITIONS = {
@@ -201,6 +260,7 @@ TRADITIONS = {
     "french": {"label": "French civil", "color": "#2c3e50"},
     "jewish": {"label": "Jewish", "color": "#8e44ad"},
     "hindu": {"label": "Hindu (approximate)", "color": "#e67e22"},
+    "parsi": {"label": "Parsi (Shahenshahi)", "color": "#16a085"},
 }
 
 
@@ -211,4 +271,5 @@ def get_interfaith_events(year: int):
         + french_events(year)
         + jewish_events(year)
         + hindu_events(year)
+        + parsi_events(year)
     )
