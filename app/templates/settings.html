@@ -1,116 +1,266 @@
 {% extends "base.html" %}
 {% block title %}Settings{% endblock %}
 {% block content %}
+<style>
+  :root{
+    --bohra:#a31f2c;
+    --sunni:#1d6fa5;
+    --shia:#7c3aed;
+    --christian:#2b6cb0;
+    --jewish:#8e44ad;
+    --hindu:#e67e22;
+    --parsi:#16a085;
+    --french:#2c3e50;
+    --personal:#1f9d55;
+    --ink:#1f1f1f;
+    --muted:#6b6b6b;
+    --line:#e7e3dd;
+  }
+
+  .settings-section{
+    border:1px solid var(--line);border-radius:12px;background:#fff;
+    padding:20px 22px;margin-bottom:18px;
+  }
+  .settings-section h2{font-size:15px;margin:0 0 4px;color:var(--ink)}
+  .settings-section .section-hint{font-size:12.5px;color:var(--muted);margin:0 0 16px;line-height:1.5}
+
+  .field-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media (max-width:560px){.field-grid{grid-template-columns:1fr}}
+  .field{display:flex;flex-direction:column;gap:6px}
+  .field label{font-size:12.5px;font-weight:600;color:var(--ink)}
+  .field select, .field input[type="text"], .field input[type="number"]{
+    border:1px solid var(--line);border-radius:8px;padding:9px 10px;font-size:13.5px;
+    font-family:inherit;color:var(--ink);background:#fff;
+  }
+  .field select:focus, .field input:focus{outline:2px solid var(--bohra);outline-offset:1px}
+
+  /* Event visibility -- grouped toggle switches instead of a bare checkbox grid */
+  .visibility-group{margin-bottom:18px}
+  .visibility-group:last-child{margin-bottom:0}
+  .visibility-group h3{
+    font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;
+    color:var(--muted);margin:0 0 8px;font-weight:700;
+  }
+  .toggle-row{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:10px 4px;border-bottom:1px solid var(--line);
+  }
+  .toggle-row:last-child{border-bottom:none}
+  .toggle-label{display:flex;align-items:center;gap:10px;font-size:13.5px;color:var(--ink)}
+  .toggle-dot{width:10px;height:10px;border-radius:50%;flex:none}
+  .dot-bohra{background:var(--bohra)}
+  .dot-sunni{background:var(--sunni)}
+  .dot-shia{background:var(--shia)}
+  .dot-christian{background:var(--christian)}
+  .dot-jewish{background:var(--jewish)}
+  .dot-hindu{background:var(--hindu)}
+  .dot-parsi{background:var(--parsi)}
+  .dot-french{background:var(--french)}
+  .dot-personal{background:var(--personal)}
+
+  /* Switch control */
+  .switch{position:relative;display:inline-block;width:38px;height:22px;flex:none}
+  .switch input{opacity:0;width:0;height:0}
+  .switch .slider{
+    position:absolute;cursor:pointer;inset:0;background:#ddd8cf;border-radius:22px;
+    transition:background .15s ease;
+  }
+  .switch .slider::before{
+    content:"";position:absolute;height:16px;width:16px;left:3px;top:3px;
+    background:#fff;border-radius:50%;transition:transform .15s ease;
+    box-shadow:0 1px 2px rgba(0,0,0,.25);
+  }
+  .switch input:checked + .slider{background:var(--bohra)}
+  .switch input:checked + .slider::before{transform:translateX(16px)}
+  .switch input:focus-visible + .slider{outline:2px solid var(--bohra);outline-offset:2px}
+
+  .location-btn-row{margin-bottom:14px}
+  .use-location-btn{
+    display:inline-flex;align-items:center;gap:6px;font-size:0.9rem;text-decoration:none;
+    border:1px solid var(--line);padding:8px 14px;border-radius:8px;color:var(--ink);
+    background:#fff;cursor:pointer;
+  }
+  .use-location-btn:hover{border-color:var(--bohra)}
+  .lookup-row{display:flex;gap:8px;align-items:flex-start}
+  .lookup-row input{flex:1}
+  .lookup-btn{
+    flex:0 0 auto;background:none;border:1px solid var(--line);border-radius:8px;padding:9px 14px;
+    font-size:0.85rem;cursor:pointer;color:var(--ink);white-space:nowrap;
+  }
+  .lookup-btn:hover{border-color:var(--bohra)}
+
+  .settings-actions{display:flex;gap:12px;margin-top:4px}
+  .btn-save{
+    background:var(--bohra);color:#fff;border:none;padding:10px 24px;border-radius:8px;
+    font-size:14px;font-weight:600;cursor:pointer;
+  }
+  .btn-save:hover{opacity:.92}
+  .btn-cancel{
+    background:#f4f1ea;color:#555;border:none;padding:10px 24px;border-radius:8px;
+    font-size:14px;cursor:pointer;
+  }
+</style>
+
 <div class="card">
     <h1>Settings</h1>
 
-    <div style="margin-bottom:24px;">
-        <h2 style="font-size:16px;margin:0 0 12px;">Your Preferences</h2>
-        
-        <form method="post">
-            <label>
-                Default Calendar
-                <select name="default_calendar">
-                    <option value="hijri" {{ 'selected' if prefs.default_calendar == 'hijri' else '' }}>Bohra (Fatimid) Hijri</option>
-                    <option value="sunni" {{ 'selected' if prefs.default_calendar == 'sunni' else '' }}>Sunni (Umm al-Qura) Hijri</option>
-                    <option value="shia" {{ 'selected' if prefs.default_calendar == 'shia' else '' }}>Shia (Jafari) Hijri</option>
-                    <option value="gregorian" {{ 'selected' if prefs.default_calendar == 'gregorian' else '' }}>Gregorian</option>
-                    <option value="hebrew" {{ 'selected' if prefs.default_calendar == 'hebrew' else '' }}>Hebrew</option>
-                    <option value="parsi" {{ 'selected' if prefs.default_calendar == 'parsi' else '' }}>Parsi (Shahenshahi)</option>
-                    <option value="hindu" {{ 'selected' if prefs.default_calendar == 'hindu' else '' }}>Hindu (Lunar)</option>
-                </select>
-            </label>
-            <p style="font-size:11px;color:#999;margin:-8px 0 14px;">This calendar will show when you open the app.</p>
+    <form method="post">
 
-            <label>
-                Secondary Calendar
-                <select name="secondary_calendar">
-                    <option value="">None</option>
-                    <option value="hijri" {{ 'selected' if prefs.secondary_calendar == 'hijri' else '' }}>Bohra (Fatimid) Hijri</option>
-                    <option value="sunni" {{ 'selected' if prefs.secondary_calendar == 'sunni' else '' }}>Sunni (Umm al-Qura) Hijri</option>
-                    <option value="shia" {{ 'selected' if prefs.secondary_calendar == 'shia' else '' }}>Shia (Jafari) Hijri</option>
-                    <option value="gregorian" {{ 'selected' if prefs.secondary_calendar == 'gregorian' else '' }}>Gregorian</option>
-                    <option value="hebrew" {{ 'selected' if prefs.secondary_calendar == 'hebrew' else '' }}>Hebrew</option>
-                    <option value="parsi" {{ 'selected' if prefs.secondary_calendar == 'parsi' else '' }}>Parsi (Shahenshahi)</option>
-                    <option value="hindu" {{ 'selected' if prefs.secondary_calendar == 'hindu' else '' }}>Hindu (Lunar)</option>
-                </select>
-            </label>
-            <p style="font-size:11px;color:#999;margin:-8px 0 14px;">Show this calendar alongside the default in the switcher.</p>
-
-            <h3 style="font-size:14px;margin:18px 0 12px;">Event Visibility</h3>
-            
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;">
-                <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
-                    <input type="checkbox" name="show_bohra" value="yes" {{ 'checked' if prefs.show_bohra else '' }}>
-                    Bohra events
-                </label>
-                <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
-                    <input type="checkbox" name="show_sunni" value="yes" {{ 'checked' if prefs.show_sunni else '' }}>
-                    Sunni events
-                </label>
-                <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
-                    <input type="checkbox" name="show_shia" value="yes" {{ 'checked' if prefs.show_shia else '' }}>
-                    Shia events
-                </label>
-                <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
-                    <input type="checkbox" name="show_christian" value="yes" {{ 'checked' if prefs.show_christian else '' }}>
-                    Christian events
-                </label>
-                <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
-                    <input type="checkbox" name="show_jewish" value="yes" {{ 'checked' if prefs.show_jewish else '' }}>
-                    Jewish events
-                </label>
-                <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
-                    <input type="checkbox" name="show_hindu" value="yes" {{ 'checked' if prefs.show_hindu else '' }}>
-                    Hindu events
-                </label>
-                <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
-                    <input type="checkbox" name="show_parsi" value="yes" {{ 'checked' if prefs.show_parsi else '' }}>
-                    Parsi events
-                </label>
-                <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
-                    <input type="checkbox" name="show_french" value="yes" {{ 'checked' if prefs.show_french else '' }}>
-                    French civil events
-                </label>
-                <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
-                    <input type="checkbox" name="show_personal" value="yes" {{ 'checked' if prefs.show_personal else '' }}>
-                    My personal events
-                </label>
-            </div>
-            <p style="font-size:11px;color:#999;margin:-8px 0 14px;">Uncheck events you don't want to see on the calendar.</p>
-
-            <hr style="border:none;border-top:1px solid #eee;margin:20px 0;">
-
-            <h2 style="font-size:16px;margin:0 0 12px;">Location</h2>
-
-            <button type="button" id="use-my-location" class="link-btn" style="margin-bottom:14px;display:inline-flex;align-items:center;gap:6px;font-size:0.9rem;text-decoration:none;border:1px solid var(--line);padding:8px 14px;border-radius:8px;color:var(--ink);">
-                <span aria-hidden="true">&#128205;</span> Use my current location
-            </button>
-            <div id="geo-status" class="note" style="display:none;margin-bottom:14px;"></div>
-
-            <label>
-                Location name
-                <div style="display:flex;gap:8px;align-items:flex-start;">
-                    <input type="text" name="location_name" id="f-location-name" value="{{ location.name }}" required style="flex:1;">
-                    <button type="button" id="lookup-location" style="flex:0 0 auto;background:none;border:1px solid var(--line);border-radius:8px;padding:8px 14px;font-size:0.85rem;cursor:pointer;color:var(--ink);white-space:nowrap;">Find</button>
+        <div class="settings-section">
+            <h2>Calendars</h2>
+            <p class="section-hint">Choose the calendar you see by default, and optionally a second one to show alongside it.</p>
+            <div class="field-grid">
+                <div class="field">
+                    <label for="f-default-cal">Default calendar</label>
+                    <select name="default_calendar" id="f-default-cal">
+                        <option value="hijri" {{ 'selected' if prefs.default_calendar == 'hijri' else '' }}>Bohra (Fatimid) Hijri</option>
+                        <option value="sunni" {{ 'selected' if prefs.default_calendar == 'sunni' else '' }}>Sunni (Umm al-Qura) Hijri</option>
+                        <option value="shia" {{ 'selected' if prefs.default_calendar == 'shia' else '' }}>Shia (Jafari) Hijri</option>
+                        <option value="gregorian" {{ 'selected' if prefs.default_calendar == 'gregorian' else '' }}>Gregorian</option>
+                        <option value="hebrew" {{ 'selected' if prefs.default_calendar == 'hebrew' else '' }}>Hebrew</option>
+                        <option value="parsi" {{ 'selected' if prefs.default_calendar == 'parsi' else '' }}>Parsi (Shahenshahi)</option>
+                        <option value="hindu" {{ 'selected' if prefs.default_calendar == 'hindu' else '' }}>Hindu (Lunar)</option>
+                    </select>
                 </div>
-            </label>
-            <div id="lookup-status" class="note" style="display:none;margin:-8px 0 14px;"></div>
-
-            <label>Latitude<input type="number" step="any" name="lat" id="f-lat" value="{{ location.lat }}" required></label>
-            <label>Longitude<input type="number" step="any" name="lng" id="f-lng" value="{{ location.lng }}" required></label>
-            <label>Timezone offset from UTC (e.g. 5.5 for India)
-                <input type="number" step="any" name="tz_offset" id="f-tz" value="{{ location.tz_offset }}" required>
-            </label>
-
-            <div style="display:flex;gap:12px;margin-top:16px;">
-                <button type="submit" style="background:#b5121b;color:#fff;border:none;padding:10px 24px;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;">Save All Settings</button>
-                <button type="button" onclick="window.location.href='{{ url_for('calendar_view') }}'" style="background:#f4f1ea;color:#555;border:none;padding:10px 24px;border-radius:6px;font-size:14px;cursor:pointer;">Cancel</button>
+                <div class="field">
+                    <label for="f-secondary-cal">Secondary calendar</label>
+                    <select name="secondary_calendar" id="f-secondary-cal">
+                        <option value="">None</option>
+                        <option value="hijri" {{ 'selected' if prefs.secondary_calendar == 'hijri' else '' }}>Bohra (Fatimid) Hijri</option>
+                        <option value="sunni" {{ 'selected' if prefs.secondary_calendar == 'sunni' else '' }}>Sunni (Umm al-Qura) Hijri</option>
+                        <option value="shia" {{ 'selected' if prefs.secondary_calendar == 'shia' else '' }}>Shia (Jafari) Hijri</option>
+                        <option value="gregorian" {{ 'selected' if prefs.secondary_calendar == 'gregorian' else '' }}>Gregorian</option>
+                        <option value="hebrew" {{ 'selected' if prefs.secondary_calendar == 'hebrew' else '' }}>Hebrew</option>
+                        <option value="parsi" {{ 'selected' if prefs.secondary_calendar == 'parsi' else '' }}>Parsi (Shahenshahi)</option>
+                        <option value="hindu" {{ 'selected' if prefs.secondary_calendar == 'hindu' else '' }}>Hindu (Lunar)</option>
+                    </select>
+                </div>
             </div>
-        </form>
-    </div>
+        </div>
 
-    <p class="note">Settings are stored in your browser session only (not a real user account system).</p>
+        <div class="settings-section">
+            <h2>Event visibility</h2>
+            <p class="section-hint">Turn off any calendar's events you don't want cluttering your grid.</p>
+
+            <div class="visibility-group">
+                <h3>Islamic communities</h3>
+                <div class="toggle-row">
+                    <span class="toggle-label"><span class="toggle-dot dot-bohra"></span>Bohra events</span>
+                    <label class="switch">
+                        <input type="checkbox" name="show_bohra" value="yes" {{ 'checked' if prefs.show_bohra else '' }}>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="toggle-row">
+                    <span class="toggle-label"><span class="toggle-dot dot-sunni"></span>Sunni events</span>
+                    <label class="switch">
+                        <input type="checkbox" name="show_sunni" value="yes" {{ 'checked' if prefs.show_sunni else '' }}>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="toggle-row">
+                    <span class="toggle-label"><span class="toggle-dot dot-shia"></span>Shia events</span>
+                    <label class="switch">
+                        <input type="checkbox" name="show_shia" value="yes" {{ 'checked' if prefs.show_shia else '' }}>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="visibility-group">
+                <h3>Other traditions &amp; civil</h3>
+                <div class="toggle-row">
+                    <span class="toggle-label"><span class="toggle-dot dot-christian"></span>Christian events</span>
+                    <label class="switch">
+                        <input type="checkbox" name="show_christian" value="yes" {{ 'checked' if prefs.show_christian else '' }}>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="toggle-row">
+                    <span class="toggle-label"><span class="toggle-dot dot-jewish"></span>Jewish events</span>
+                    <label class="switch">
+                        <input type="checkbox" name="show_jewish" value="yes" {{ 'checked' if prefs.show_jewish else '' }}>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="toggle-row">
+                    <span class="toggle-label"><span class="toggle-dot dot-hindu"></span>Hindu events</span>
+                    <label class="switch">
+                        <input type="checkbox" name="show_hindu" value="yes" {{ 'checked' if prefs.show_hindu else '' }}>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="toggle-row">
+                    <span class="toggle-label"><span class="toggle-dot dot-parsi"></span>Parsi events</span>
+                    <label class="switch">
+                        <input type="checkbox" name="show_parsi" value="yes" {{ 'checked' if prefs.show_parsi else '' }}>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="toggle-row">
+                    <span class="toggle-label"><span class="toggle-dot dot-french"></span>French civil events</span>
+                    <label class="switch">
+                        <input type="checkbox" name="show_french" value="yes" {{ 'checked' if prefs.show_french else '' }}>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="visibility-group">
+                <h3>Yours</h3>
+                <div class="toggle-row">
+                    <span class="toggle-label"><span class="toggle-dot dot-personal"></span>My personal events</span>
+                    <label class="switch">
+                        <input type="checkbox" name="show_personal" value="yes" {{ 'checked' if prefs.show_personal else '' }}>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div class="settings-section">
+            <h2>Location</h2>
+            <p class="section-hint">Used to calculate prayer times and qibla direction.</p>
+
+            <div class="location-btn-row">
+                <button type="button" id="use-my-location" class="use-location-btn">
+                    <span aria-hidden="true">&#128205;</span> Use my current location
+                </button>
+                <div id="geo-status" class="note" style="display:none;margin-top:10px;"></div>
+            </div>
+
+            <div class="field" style="margin-bottom:14px;">
+                <label for="f-location-name">Location name</label>
+                <div class="lookup-row">
+                    <input type="text" name="location_name" id="f-location-name" value="{{ location.name }}" required>
+                    <button type="button" id="lookup-location" class="lookup-btn">Find</button>
+                </div>
+                <div id="lookup-status" class="note" style="display:none;"></div>
+            </div>
+
+            <div class="field-grid">
+                <div class="field">
+                    <label for="f-lat">Latitude</label>
+                    <input type="number" step="any" name="lat" id="f-lat" value="{{ location.lat }}" required>
+                </div>
+                <div class="field">
+                    <label for="f-lng">Longitude</label>
+                    <input type="number" step="any" name="lng" id="f-lng" value="{{ location.lng }}" required>
+                </div>
+            </div>
+            <div class="field" style="margin-top:14px;">
+                <label for="f-tz">Timezone offset from UTC (e.g. 5.5 for India)</label>
+                <input type="number" step="any" name="tz_offset" id="f-tz" value="{{ location.tz_offset }}" required>
+            </div>
+        </div>
+
+        <div class="settings-actions">
+            <button type="submit" class="btn-save">Save all settings</button>
+            <button type="button" class="btn-cancel" onclick="window.location.href='{{ url_for('calendar_view') }}'">Cancel</button>
+        </div>
+    </form>
+
+    <p class="note" style="margin-top:16px;">Settings are stored in your browser session only (not a real user account system).</p>
 </div>
 
 <script>

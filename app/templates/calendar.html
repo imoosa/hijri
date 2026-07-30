@@ -1,235 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ month_name }} {{ hijri_year }} - Calendar{% endblock %}
 
-{% macro filter_qs(prefix) %}{% if filter_active %}{{ prefix }}filtered=1{% for t in traditions_on %}&show={{ t }}{% endfor %}{% endif %}{% endmacro %}
-
-{% block sidebar %}
-<!--<div class="cal-switcher">
-    {% for key, meta in calendars.items() %}
-    <a href="{{ url_for('calendar_view', cal=key) }}{{ filter_qs('?') }}"
-       class="{{ 'active' if key == cal else '' }}">{{ meta.label }}</a>
-    {% endfor %}
-</div>-->
-
-<div class="cal-switcher">
-    {% for key, meta in calendars.items() %}
-        {% if key == cal %}
-            <a href="{{ url_for('calendar_view', cal=key) }}{{ filter_qs('?') }}"
-               class="active">{{ meta.label }}</a>
-        {% elif key == secondary_calendar and show_secondary %}
-            <a href="{{ url_for('calendar_view', cal=key) }}{{ filter_qs('?') }}"
-               class="secondary">{{ meta.label }}</a>
-        {% else %}
-            <a href="{{ url_for('calendar_view', cal=key) }}{{ filter_qs('?') }}"
-               class="">{{ meta.label }}</a>
-        {% endif %}
-    {% endfor %}
-</div>
-
-<style>
-    .cal-switcher a.secondary {
-        border-color: #b5121b;
-        background: #fff5f5;
-        border-style: dashed;
-    }
-    .cal-switcher a.secondary:hover {
-        background: #ffebeb;
-    }
-</style>
-
-<div class="mini-nav">
-    <a href="{{ url_for('calendar_view', cal=cal, y=prev_year, m=prev_month) }}{{ filter_qs('?') }}">&lt;</a>
-    <strong>{{ month_name }} {{ hijri_year }}</strong>
-    <a href="{{ url_for('calendar_view', cal=cal, y=next_year, m=next_month) }}{{ filter_qs('?') }}">&gt;</a>
-</div>
-
-<form method="get" action="{{ url_for('calendar_view') }}" class="goto-date-form">
-    <input type="hidden" name="cal" value="{{ cal }}">
-    <label for="goto-date-input" class="goto-date-label">Go to date</label>
-    <div class="goto-date-row">
-        <input type="date" name="goto" id="goto-date-input">
-        <button type="submit">Go</button>
-    </div>
-</form>
-<style>
-  .goto-date-form{margin-bottom:14px}
-  .goto-date-label{display:block;font-size:12px;color:var(--muted,#6b6b6b);margin-bottom:4px}
-  .goto-date-row{display:flex;gap:6px}
-  .goto-date-row input[type="date"]{
-    flex:1;border:1px solid #e7e3dd;border-radius:7px;padding:6px 8px;font-size:13px;
-  }
-  .goto-date-row button{
-    border:none;border-radius:7px;padding:6px 12px;font-size:13px;font-weight:600;
-    background:var(--accent,#a31f2c);color:#fff;cursor:pointer;
-  }
-</style>
-
-<h3>Communities</h3>
-<form method="get" id="filter-form">
-    <input type="hidden" name="cal" value="{{ cal }}">
-    <input type="hidden" name="y" value="{{ hijri_year }}">
-    <input type="hidden" name="m" value="{{ hijri_month }}">
-    <input type="hidden" name="filtered" value="1">
-
-    <div class="community-group">
-        <div class="community-row">
-            <label class="chip-check">
-                <input type="checkbox" checked disabled>
-            </label>
-            <span class="tradition-dot dot-bohra"></span>
-            <button type="button" class="community-toggle" data-key="bohra">
-                Bohra <span class="count">({{ community_lists.bohra|length }})</span>
-            </button>
-            <span class="chev">&rsaquo;</span>
-        </div>
-        <div class="community-list" id="list-bohra">
-            {% for e in community_lists.bohra %}
-            <div class="community-list-row"><span class="clr-when">{{ e.when }}</span>{{ e.title }}</div>
-            {% else %}
-            <div class="clr-empty">No Bohra events found.</div>
-            {% endfor %}
-        </div>
-    </div>
-
-    {% for key, meta in traditions.items() %}
-    <div class="community-group" style="--accent: {{ meta.color }}">
-        <div class="community-row">
-            <label class="chip-check">
-                <input type="checkbox" name="show" value="{{ key }}" onchange="document.getElementById('filter-form').submit()" {{ 'checked' if key in traditions_on else '' }}>
-            </label>
-            <span class="tradition-dot dot-{{ key }}"></span>
-            <button type="button" class="community-toggle" data-key="{{ key }}">
-                {{ meta.label }} <span class="count">({{ community_lists[key]|length if key in community_lists else 0 }})</span>
-            </button>
-            <span class="chev">&rsaquo;</span>
-        </div>
-        <div class="community-list" id="list-{{ key }}">
-            {% for e in community_lists[key] if key in community_lists %}
-            <div class="community-list-row"><span class="clr-when">{{ e.when }}</span>{{ e.title }}</div>
-            {% else %}
-            <div class="clr-empty">No upcoming events found.</div>
-            {% endfor %}
-        </div>
-    </div>
-    {% endfor %}
-</form>
-<p class="tab-hint">Checkbox = show on the grid. Tap the name to see that community's full list here.</p>
-
-<h3>Today</h3>
-<div class="sidebar-events">
-    {% if selected_day and selected_day.is_today %}
-        {% if selected_day.events or selected_day.interfaith or selected_day.personal %}
-            {% for e in selected_day.events %}
-            <div class="sidebar-event-row"><div class="t">Bohra</div>{{ e.title }}</div>
-            {% endfor %}
-            {% for e in selected_day.interfaith %}
-            <div class="sidebar-event-row"><div class="t">{{ traditions[e.tradition].label if e.tradition in traditions else e.tradition }}</div>{{ e.title }}</div>
-            {% endfor %}
-            {% for e in selected_day.personal %}
-            <div class="sidebar-event-row"><div class="t">{{ e.category|capitalize }}</div>{{ e.title }}</div>
-            {% endfor %}
-        {% else %}
-        <div class="sidebar-event-row">No events today.</div>
-        {% endif %}
-    {% else %}
-    <div class="sidebar-event-row">Click today's date to see its events here.</div>
-    {% endif %}
-</div>
-
-<style>
-  .cal-switcher{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
-  .cal-switcher a{
-    flex:1;text-align:center;font-size:12px;padding:6px 8px;border-radius:7px;
-    border:1px solid #e7e3dd;color:var(--ink,#1f1f1f);text-decoration:none;background:#fff;
-  }
-  .cal-switcher a.active{background:var(--accent,#a31f2c);color:#fff;border-color:var(--accent,#a31f2c)}
-  .community-group{
-    border:1px solid #e7e3dd;border-radius:12px;margin-bottom:8px;
-    background:#fff;overflow:hidden;
-    transition:border-color .15s ease, box-shadow .15s ease;
-  }
-  .community-group.open{
-    border-color:var(--accent, #a31f2c);
-    box-shadow:0 4px 16px rgba(0,0,0,.07);
-  }
-  .community-row{
-    display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;
-  }
-  .community-row:hover{background:#faf9f7}
-  .chip-check{display:flex;align-items:center}
-  .chip-check input{width:16px;height:16px;accent-color:#a31f2c;cursor:pointer;margin:0}
-  .community-row .tradition-dot{width:10px;height:10px;flex:none;border-radius:50%}
-  /* Tradition dot colors -- defined here too (not just style.css) so new
-     traditions in interfaith_calendar.py show up with a color immediately. */
-  .dot-bohra{background:#b5121b;}
-  .dot-christian{background:#4b7bec;}
-  .dot-french{background:#2c3e50;}
-  .dot-jewish{background:#8e44ad;}
-  .dot-hindu{background:#e67e22;}
-  .dot-parsi{background:#16a085;}
-  .community-toggle{
-    flex:1;text-align:left;background:none;border:none;padding:2px 0;
-    font-size:13.5px;font-weight:600;color:#1f1f1f;cursor:pointer;
-  }
-  .community-toggle .count{color:#8a8a8a;font-weight:400;font-size:11.5px;margin-left:2px}
-  .community-row .chev{
-    color:#8a8a8a;font-size:18px;line-height:1;transition:transform .2s ease;cursor:pointer;
-  }
-  .community-group.open .chev{transform:rotate(90deg);color:var(--accent, #a31f2c)}
-
-  /* Accordion panel: animated via max-height, generous cap so it reads as a
-     real panel rather than a tiny cramped scrollbox. Own scrollbar only
-     kicks in past that cap, so most communities show their full list. */
-  .community-list{
-    max-height:0;overflow:hidden;
-    margin:0 12px;padding:0 0 0 20px;border-left:2px solid transparent;
-    transition:max-height .28s ease, padding .28s ease, margin .28s ease;
-  }
-  .community-group.open .community-list{
-    max-height:420px;overflow-y:auto;
-    margin:0 12px 12px;padding:8px 0 2px 20px;
-    border-left:2px solid var(--accent, #e7e3dd);
-  }
-  .community-list-row{
-    font-size:12.5px;padding:6px 0;border-bottom:1px dashed #eee;
-    display:flex;flex-direction:column;gap:2px;
-  }
-  .community-list-row:last-child{border-bottom:none}
-  .clr-when{color:#8a8a8a;font-size:11px;font-weight:600;letter-spacing:.02em}
-  .clr-empty{font-size:12px;color:#8a8a8a;padding:8px 0}
-  .tab-hint{font-size:11px;color:#8a8a8a;margin:6px 0 12px;line-height:1.5}
-</style>
-
-<script>
-(function(){
-    // Guard: if this script block ever ends up on the page twice (e.g. from
-    // a partial copy-paste of an earlier version), this stops a second
-    // listener from being attached and fighting with the first one --
-    // that's what causes "click to close does nothing / reopens itself".
-    if (window.__bohraAccordionInit) return;
-    window.__bohraAccordionInit = true;
-
-    document.addEventListener('click', function(e){
-        var trigger = e.target.closest('.community-toggle, .chev');
-        if (!trigger) return;
-
-        var group = trigger.closest('.community-group');
-        if (!group) return;
-
-        var willOpen = !group.classList.contains('open');
-
-        document.querySelectorAll('.community-group.open').forEach(function(g){
-            g.classList.remove('open');
-        });
-
-        if (willOpen) {
-            group.classList.add('open');
-        }
-    });
-})();
-</script>
-{% endblock %}
-
 {% block content %}
 <style>
   :root{
@@ -307,17 +78,47 @@
   .calendar-grid .hijri-num{font-size:16px;font-weight:700;line-height:1.2}
   .calendar-grid .greg-num{font-size:11px;color:var(--muted);line-height:1.2;margin-top:1px}
   .calendar-grid .greg-num.solo-num{font-size:16px;font-weight:700;color:var(--ink);margin-top:0}
+
+  /* Compact header row: month nav + go-to-date, now that the sidebar is gone */
+  .calendar-toolbar{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    flex-wrap:wrap;margin-bottom:4px;
+  }
+  .goto-date-inline{display:flex;align-items:center;gap:6px}
+  .goto-date-inline label{font-size:12px;color:var(--muted)}
+  .goto-date-inline input[type="date"]{
+    border:1px solid var(--line);border-radius:7px;padding:5px 8px;font-size:12.5px;
+  }
+  .goto-date-inline button{
+    border:none;border-radius:7px;padding:5px 12px;font-size:12.5px;font-weight:600;
+    background:var(--bohra);color:#fff;cursor:pointer;
+  }
+  .cal-settings-link{
+    font-size:12px;color:var(--muted);text-decoration:none;border:1px solid var(--line);
+    border-radius:7px;padding:5px 10px;white-space:nowrap;
+  }
+  .cal-settings-link:hover{color:var(--ink);border-color:var(--bohra)}
 </style>
 
 <div class="calendar-wrap">
     <div class="calendar-main">
+        <div class="calendar-toolbar">
+            <form method="get" action="{{ url_for('calendar_view') }}" class="goto-date-inline">
+                <input type="hidden" name="cal" value="{{ cal }}">
+                <label for="goto-date-input">Go to date</label>
+                <input type="date" name="goto" id="goto-date-input">
+                <button type="submit">Go</button>
+            </form>
+            <a href="{{ url_for('settings_view') }}" class="cal-settings-link">Change calendar / event visibility &rsaquo;</a>
+        </div>
+
         <div class="calendar-nav">
-            <a href="{{ url_for('calendar_view', cal=cal, y=prev_year, m=prev_month) }}{{ filter_qs('?') }}" class="nav-arrow">&lt;</a>
+            <a href="{{ url_for('calendar_view', cal=cal, y=prev_year, m=prev_month) }}" class="nav-arrow">&lt;</a>
             <div class="calendar-title">
                 <div class="month-name">{{ month_name }}</div>
                 <div class="year">{{ hijri_year }}</div>
             </div>
-            <a href="{{ url_for('calendar_view', cal=cal, y=next_year, m=next_month) }}{{ filter_qs('?') }}" class="nav-arrow">&gt;</a>
+            <a href="{{ url_for('calendar_view', cal=cal, y=next_year, m=next_month) }}" class="nav-arrow">&gt;</a>
         </div>
         <div class="gregorian-subtitle">{{ gregorian_range }}</div>
         {% if show_secondary %}
@@ -340,7 +141,7 @@
                     {% for day in week %}
                         {% if day %}
                         <td class="{{ 'today' if day.is_today else '' }} {{ 'has-event' if day.events or day.interfaith or day.personal else '' }}">
-                            <a href="{{ url_for('calendar_view', cal=cal, y=hijri_year, m=hijri_month, day=day.hijri_day) }}{{ filter_qs('&') }}">
+                            <a href="{{ url_for('calendar_view', cal=cal, y=hijri_year, m=hijri_month, day=day.hijri_day) }}">
                                 {% if cal == 'gregorian' %}
                                 <div class="greg-num solo-num {{ 'red' if day.events and day.events[0].color == 'red' else '' }}">{{ day.greg_day }}</div>
                                 {% elif show_secondary and day.secondary_num is not none %}
