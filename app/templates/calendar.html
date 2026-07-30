@@ -136,13 +136,12 @@
 
   /* Compact header row: month nav + go-to-date, now that the sidebar is gone */
   .calendar-toolbar{
-    display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);
+    display:flex;align-items:center;justify-content:flex-start;gap:var(--sp-3);
     flex-wrap:wrap;
     padding:var(--sp-4) var(--sp-5) var(--sp-3);
     border-bottom:1px solid var(--line);
   }
-  .goto-date-inline{display:flex;align-items:center;gap:var(--sp-2);flex-wrap:wrap;row-gap:var(--sp-2)}
-  .goto-date-inline label{font-size:12px;color:var(--muted);white-space:nowrap}
+  .goto-date-inline{display:flex;align-items:center;gap:var(--sp-2)}
   .goto-date-inline input[type="date"]{
     border:1px solid var(--line);border-radius:var(--radius-sm);
     padding:var(--sp-2) var(--sp-2);font-size:12.5px;line-height:1.4;
@@ -154,13 +153,6 @@
     transition:opacity .15s ease;
   }
   .goto-date-inline button:hover{opacity:.88}
-  .cal-settings-link{
-    font-size:12px;color:var(--muted);text-decoration:none;border:1px solid var(--line);
-    border-radius:var(--radius-sm);padding:var(--sp-2) var(--sp-3);white-space:nowrap;
-    line-height:1.4;
-    transition:color .15s ease,border-color .15s ease;
-  }
-  .cal-settings-link:hover{color:var(--ink);border-color:var(--bohra)}
 
   /* Layout: main grid + detail column side by side on wide screens,
      stacked on narrow ones. This assumes .calendar-wrap is a flex/grid
@@ -172,7 +164,6 @@
   @media (max-width:640px){
     .modal-box{padding:var(--sp-5)}
     .calendar-toolbar{gap:var(--sp-2);padding:var(--sp-3) var(--sp-4) var(--sp-2);}
-    .cal-settings-link{width:100%;text-align:center}
   }
 </style>
 
@@ -181,11 +172,9 @@
         <div class="calendar-toolbar">
             <form method="get" action="{{ url_for('calendar_view') }}" class="goto-date-inline">
                 <input type="hidden" name="cal" value="{{ cal }}">
-                <label for="goto-date-input">Go to date</label>
-                <input type="date" name="goto" id="goto-date-input">
+                <input type="date" name="goto" id="goto-date-input" aria-label="Go to date">
                 <button type="submit">Go</button>
             </form>
-            <a href="{{ url_for('settings_view') }}" class="cal-settings-link">Change calendar / event visibility &rsaquo;</a>
         </div>
 
         <div class="calendar-nav">
