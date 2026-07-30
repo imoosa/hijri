@@ -272,10 +272,28 @@ def create_app():
             db.close()
 
     def get_hijri_events_for_gregorian_range(start_g, end_g, show_sources=None):
-        """Same as before but with source filtering."""
+        """Same as before but with source filtering.
+
+        IMPORTANT: Bohra uses the tabular Fatimid calendar (hijri_calendar.py);
+        Sunni and Shia both use the Umm al-Qura-based civil calendar
+        (sunni_calendar.py -- Shia delegates to it directly, see
+        shia_calendar.py). These are DIFFERENT calendar systems with
+        different epochs/leap-year rules that can land on different
+        Gregorian dates for "the same" Hijri day. Every source's events
+        must be matched using ITS OWN conversion of the Gregorian date, not
+        one shared conversion -- using Bohra's conversion for Shia/Sunni
+        events (the previous bug here) meant those events almost never
+        matched the right Gregorian day."""
         if show_sources is None:
             show_sources = {'bohra', 'sunni', 'shia'}
-        
+
+        # Which Gregorian->Hijri function applies to each event_source.
+        source_converters = {
+            "bohra": hc.gregorian_to_hijri,
+            "sunni": sc.sunni_gregorian_to_hijri,
+            "shia": sc.sunni_gregorian_to_hijri,  # Shia dates run on the same Umm al-Qura calendar as Sunni
+        }
+
         db = get_session()
         try:
             all_events = db.query(HijriEvent).filter(
@@ -286,16 +304,24 @@ def create_app():
 
         yearly, once = {}, {}
         for e in all_events:
+            key = (e.event_source, e.hijri_month, e.hijri_day)
             if e.repeat == "once":
-                once.setdefault((e.hijri_month, e.hijri_day, e.hijri_year), []).append(e)
+                once.setdefault(key + (e.hijri_year,), []).append(e)
             else:
-                yearly.setdefault((e.hijri_month, e.hijri_day), []).append(e)
+                yearly.setdefault(key, []).append(e)
 
         by_greg = {}
         d = start_g
         while d <= end_g:
-            hy, hm, hd = hc.gregorian_to_hijri(d)
-            matches = yearly.get((hm, hd), []) + once.get((hm, hd, hy), [])
+            matches = []
+            for source in show_sources:
+                converter = source_converters.get(source)
+                if converter is None:
+                    continue
+                hy, hm, hd = converter(d)
+                key = (source, hm, hd)
+                matches += yearly.get(key, [])
+                matches += once.get(key + (hy,), [])
             if matches:
                 by_greg[d] = [{
                     "title": e.title, "description": e.description,
