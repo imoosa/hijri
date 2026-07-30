@@ -4,12 +4,38 @@
 {% macro filter_qs(prefix) %}{% if filter_active %}{{ prefix }}filtered=1{% for t in traditions_on %}&show={{ t }}{% endfor %}{% endif %}{% endmacro %}
 
 {% block sidebar %}
-<div class="cal-switcher">
+<!--<div class="cal-switcher">
     {% for key, meta in calendars.items() %}
     <a href="{{ url_for('calendar_view', cal=key) }}{{ filter_qs('?') }}"
        class="{{ 'active' if key == cal else '' }}">{{ meta.label }}</a>
     {% endfor %}
+</div>-->
+
+<div class="cal-switcher">
+    {% for key, meta in calendars.items() %}
+        {% if key == cal %}
+            <a href="{{ url_for('calendar_view', cal=key) }}{{ filter_qs('?') }}"
+               class="active">{{ meta.label }}</a>
+        {% elif key == secondary_calendar and show_secondary %}
+            <a href="{{ url_for('calendar_view', cal=key) }}{{ filter_qs('?') }}"
+               class="secondary">{{ meta.label }}</a>
+        {% else %}
+            <a href="{{ url_for('calendar_view', cal=key) }}{{ filter_qs('?') }}"
+               class="">{{ meta.label }}</a>
+        {% endif %}
+    {% endfor %}
 </div>
+
+<style>
+    .cal-switcher a.secondary {
+        border-color: #b5121b;
+        background: #fff5f5;
+        border-style: dashed;
+    }
+    .cal-switcher a.secondary:hover {
+        background: #ffebeb;
+    }
+</style>
 
 <div class="mini-nav">
     <a href="{{ url_for('calendar_view', cal=cal, y=prev_year, m=prev_month) }}{{ filter_qs('?') }}">&lt;</a>

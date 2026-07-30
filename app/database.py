@@ -10,31 +10,25 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 Base = declarative_base()
 
 
+# In the HijriEvent class, add this field:
 class HijriEvent(Base):
     __tablename__ = "hijri_events"
-
+    
     id = Column(Integer, primary_key=True, index=True)
-    hijri_month = Column(Integer, index=True)   # 1-12
-    hijri_day = Column(Integer, index=True)      # 1-30
+    hijri_month = Column(Integer, index=True)
+    hijri_day = Column(Integer, index=True)
     title = Column(String, nullable=False)
     description = Column(String, nullable=True)
     is_fasting_day = Column(Boolean, default=False)
     is_holiday = Column(Boolean, default=False)
-    color = Column(String, default="black")      # matches red/black marking in your screenshot
-    is_custom = Column(Boolean, default=False)   # True = added by a user via the Add Event form,
-                                                  # False = seeded reference Urs/Eid data
-
-    # 'yearly' (default): recurs on this Hijri month/day every Hijri year,
-    # forever -- this is the original/only behaviour before this field existed.
-    # 'once': only appears in the single Hijri year given by hijri_year below.
+    color = Column(String, default="black")
+    is_custom = Column(Boolean, default=False)
     repeat = Column(String, default="yearly")
-    hijri_year = Column(Integer, nullable=True)   # only used when repeat == 'once'
-
-    # Optional companion Gregorian date, entered alongside the Hijri
-    # month/day (not instead of it). Only meaningful as a fixed point in
-    # time for repeat == 'once' events -- for 'yearly' events the mapped
-    # Gregorian date shifts every year, so this is just a reference note.
+    hijri_year = Column(Integer, nullable=True)
     gregorian_date = Column(Date, nullable=True)
+    
+    # NEW: Which tradition this event belongs to
+    event_source = Column(String, default="bohra")  # 'bohra', 'sunni', 'shia'
 
 
 class InterfaithEvent(Base):
@@ -325,6 +319,26 @@ URS_EVENTS = [
     {"hijri_month": 12, "hijri_day": 27, "title": "Ganje Shohda AQ - Ahmednagar"},
     {"hijri_month": 12, "hijri_day": 27, "title": "Syedna Abdulhusain Husamuddin RA (48) - Ahmedabad"},
     {"hijri_month": 12, "hijri_day": 27, "title": "Syedna Mohammad Burhanuddin RA (49) - Surat"},
+]
+
+# Sunni events data
+SUNNI_EVENTS = [
+    {"hijri_month": 1, "hijri_day": 1, "title": "Islamic New Year", "is_holiday": True, "color": "green"},
+    {"hijri_month": 1, "hijri_day": 10, "title": "Day of Ashura", "is_fasting_day": True, "color": "green"},
+    {"hijri_month": 9, "hijri_day": 1, "title": "Ramadan begins", "is_fasting_day": True, "color": "green"},
+    {"hijri_month": 10, "hijri_day": 1, "title": "Eid al-Fitr", "is_holiday": True, "color": "green"},
+    {"hijri_month": 12, "hijri_day": 9, "title": "Day of Arafah", "is_fasting_day": True, "color": "green"},
+    {"hijri_month": 12, "hijri_day": 10, "title": "Eid al-Adha", "is_holiday": True, "color": "green"},
+]
+
+SHIA_EVENTS = [
+    {"hijri_month": 1, "hijri_day": 1, "title": "Islamic New Year", "is_holiday": True, "color": "purple"},
+    {"hijri_month": 1, "hijri_day": 9, "title": "Tasu'a", "is_holiday": False, "color": "purple"},
+    {"hijri_month": 1, "hijri_day": 10, "title": "Ashura", "is_holiday": True, "color": "purple"},
+    {"hijri_month": 9, "hijri_day": 1, "title": "Ramadan begins", "is_fasting_day": True, "color": "purple"},
+    {"hijri_month": 10, "hijri_day": 1, "title": "Eid al-Fitr", "is_holiday": True, "color": "purple"},
+    {"hijri_month": 12, "hijri_day": 10, "title": "Eid al-Adha", "is_holiday": True, "color": "purple"},
+    {"hijri_month": 12, "hijri_day": 18, "title": "Eid al-Ghadeer", "is_holiday": True, "color": "purple"},
 ]
 
 SEED_EVENTS = EID_AND_FASTING_EVENTS + URS_EVENTS
