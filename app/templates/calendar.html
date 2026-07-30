@@ -307,6 +307,7 @@
   .calendar-grid .hijri-num{font-size:16px;font-weight:700;line-height:1.2}
   .calendar-grid .greg-num{font-size:11px;color:var(--muted);line-height:1.2;margin-top:1px}
   .calendar-grid .greg-num.solo-num{font-size:16px;font-weight:700;color:var(--ink);margin-top:0}
+  .calendar-grid .secondary-num{font-size:10px;color:var(--bohra,#b5121b);line-height:1.2;margin-top:1px;opacity:0.85}
 </style>
 
 <div class="calendar-wrap">
@@ -320,6 +321,11 @@
             <a href="{{ url_for('calendar_view', cal=cal, y=next_year, m=next_month) }}{{ filter_qs('?') }}" class="nav-arrow">&gt;</a>
         </div>
         <div class="gregorian-subtitle">{{ gregorian_range }}</div>
+        {% if show_secondary %}
+        <div class="gregorian-subtitle" style="margin-top:-6px;color:var(--bohra,#b5121b);">
+            + {{ calendars[secondary_calendar].label }} dates shown below each day
+        </div>
+        {% endif %}
 
         <table class="calendar-grid">
             <thead>
@@ -341,6 +347,9 @@
                                 {% else %}
                                 <div class="hijri-num {{ 'red' if day.events and day.events[0].color == 'red' else '' }}">{{ day.hijri_num }}</div>
                                 <div class="greg-num">{{ day.greg_day }}</div>
+                                {% endif %}
+                                {% if show_secondary and day.secondary_num is not none %}
+                                <div class="secondary-num">{{ day.secondary_num }}</div>
                                 {% endif %}
                                 <div class="event-pills">
                                     {% set combined = [] %}
