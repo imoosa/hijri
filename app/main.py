@@ -583,9 +583,9 @@ def create_app():
             except (KeyError, ValueError):
                 flash("Please fill in all fields with valid numbers.")
                 return redirect(url_for("settings_view"))
-    
-    prefs = get_user_prefs()
-    return render_template("settings.html", active="settings", location=current_location(), prefs=prefs)
+
+        prefs = get_user_prefs()
+        return render_template("settings.html", active="settings", location=current_location(), prefs=prefs)
 
     @app.route("/events-view", methods=["GET", "POST"])
     def events_view():
