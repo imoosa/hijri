@@ -250,6 +250,15 @@
   .btn-secondary{background:none;border:1px solid var(--line);border-radius:7px;padding:7px 14px;cursor:pointer;font-size:13px}
   .btn-primary{background:var(--bohra);color:#fff;border:none;border-radius:7px;padding:7px 14px;cursor:pointer;font-size:13px}
   .pill-personal{background:var(--personal);color:#fff}
+
+  /* Day-cell date sizing: whichever calendar is primary reads as the
+     bigger number. Gregorian is secondary/small when another calendar is
+     selected, and reverts to full size on its own tab (.solo-num), where
+     it's the only date shown at all -- see the {% if cal == 'gregorian' %}
+     branch above that drops the duplicate hijri-num in that case. */
+  .calendar-grid .hijri-num{font-size:16px;font-weight:700;line-height:1.2}
+  .calendar-grid .greg-num{font-size:11px;color:var(--muted);line-height:1.2;margin-top:1px}
+  .calendar-grid .greg-num.solo-num{font-size:16px;font-weight:700;color:var(--ink);margin-top:0}
 </style>
 
 <div class="calendar-wrap">
@@ -279,8 +288,12 @@
                         {% if day %}
                         <td class="{{ 'today' if day.is_today else '' }} {{ 'has-event' if day.events or day.interfaith or day.personal else '' }}">
                             <a href="{{ url_for('calendar_view', cal=cal, y=hijri_year, m=hijri_month, day=day.hijri_day) }}{{ filter_qs('&') }}">
+                                {% if cal == 'gregorian' %}
+                                <div class="greg-num solo-num {{ 'red' if day.events and day.events[0].color == 'red' else '' }}">{{ day.greg_day }}</div>
+                                {% else %}
                                 <div class="hijri-num {{ 'red' if day.events and day.events[0].color == 'red' else '' }}">{{ day.hijri_num }}</div>
                                 <div class="greg-num">{{ day.greg_day }}</div>
+                                {% endif %}
                                 <div class="event-pills">
                                     {% set combined = [] %}
                                     {% for e in day.events %}{% set _ = combined.append({'title': e.title, 'cls': 'bohra'}) %}{% endfor %}
