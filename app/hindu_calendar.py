@@ -209,18 +209,29 @@ def gregorian_to_hindu(g: date):
 
 
 def month_grid(hindu_year: int, month: int):
-    """List of {"gregorian": iso, "tithi": n, "paksha": str, "label": str}
-    for every civil day whose Ujjain sunrise falls in this lunar month."""
+    """List of {"gregorian": iso, "ordinal": n, "tithi": n, "paksha": str,
+    "label": str} for every civil day whose Ujjain sunrise falls in this
+    lunar month.
+
+    `ordinal` is a plain 1-based sequential count through this month's
+    day list -- NOT the tithi. A lunar month has no native "day 1, day
+    2, ..." numbering the way a solar calendar does (a tithi can be
+    skipped or repeated relative to the civil day count), so `ordinal`
+    exists purely to give callers -- URL routing, "which day is
+    selected" -- a stable, round-trippable integer key. Use
+    `tithi`/`paksha`/`label` for anything user-facing."""
     mo = year_months(hindu_year)[month - 1]
     g = _jd_to_date(mo["start_jd"]) - timedelta(days=1)
     end_bound = _jd_to_date(mo["end_jd"]) + timedelta(days=1)
     days = []
+    ordinal = 0
     while g <= end_bound:
         js = _sunrise_jd(g)
         if mo["start_jd"] <= js < mo["end_jd"]:
             t, paksha = tithi_at(js)
-            days.append({"gregorian": g.isoformat(), "tithi": t, "paksha": paksha,
-                         "label": native_label((t, paksha))})
+            ordinal += 1
+            days.append({"gregorian": g.isoformat(), "ordinal": ordinal, "tithi": t,
+                         "paksha": paksha, "label": native_label((t, paksha))})
         g += timedelta(days=1)
     return days
 

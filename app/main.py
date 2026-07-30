@@ -24,31 +24,45 @@ DEFAULT_LOCATION = {"name": "Mumbai, Maharashtra", "lat": 19.076, "lng": 72.877,
 ALL_TRADITIONS = set(ic.TRADITIONS.keys())  # {'christian','french','jewish','hindu','parsi'}
 
 # Which calendar the main /calendar grid is currently paging through. Every
-# entry needs: grid(year, month) -> [(gregorian_date, native_day), ...],
+# entry needs: grid(year, month) -> [(gregorian_date, ordinal, native_label_input), ...],
 # month_name(year, month) -> str, native_of(gregorian_date) -> (year, month, day),
-# next/prev(year, month) -> (year, month), and native_label(day) -> str (for
-# display -- e.g. Arabic-Indic numerals for Hijri, plain digits elsewhere).
+# next/prev(year, month) -> (year, month), and native_label(native_label_input) -> str
+# (for display -- e.g. Arabic-Indic numerals for Hijri, plain digits elsewhere).
+#
+# `ordinal` is a plain sequential integer used as the day's URL/query key and
+# for "is this day selected" comparisons -- it must always be a bare int that
+# survives a round trip through a querystring. `native_label_input` is
+# whatever native_label() itself needs to produce the on-screen label; for
+# most calendars that's the same int as `ordinal`, but for Hindu it's a
+# (tithi, paksha) tuple, since a lunar month has no native sequential day
+# number and the tithi is not a stable/reversible key on its own.
 
 
 def _grid_hijri(year, month):
-    return [(date.fromisoformat(d["gregorian"]), d["hijri_day"]) for d in hc.month_grid(year, month)]
+    return [(date.fromisoformat(d["gregorian"]), d["hijri_day"], d["hijri_day"])
+            for d in hc.month_grid(year, month)]
 
 
 def _grid_gregorian(year, month):
     n = _pycal.monthrange(year, month)[1]
-    return [(date(year, month, d), d) for d in range(1, n + 1)]
+    return [(date(year, month, d), d, d) for d in range(1, n + 1)]
 
 
 def _grid_hebrew(year, month):
-    return [(date.fromisoformat(d["gregorian"]), d["day"]) for d in heb.month_grid(year, month)]
+    return [(date.fromisoformat(d["gregorian"]), d["day"], d["day"])
+            for d in heb.month_grid(year, month)]
 
 
 def _grid_parsi(year, month):
-    return [(date.fromisoformat(d["gregorian"]), d["day"]) for d in pc.month_grid(year, month)]
+    return [(date.fromisoformat(d["gregorian"]), d["day"], d["day"])
+            for d in pc.month_grid(year, month)]
 
 
 def _grid_hindu(year, month):
-    return [(date.fromisoformat(d["gregorian"]), d["day"]) for d in hindu.month_grid(year, month)]
+    # ordinal (int, URL-safe) is separate from the (tithi, paksha) tuple that
+    # native_label() needs to render the on-screen "S5"/"K12"-style label.
+    return [(date.fromisoformat(d["gregorian"]), d["ordinal"], (d["tithi"], d["paksha"]))
+            for d in hindu.month_grid(year, month)]
 
 
 CALENDARS = {
@@ -285,9 +299,9 @@ def create_app():
         cal_month = request.args.get("m", type=int) or tm
         selected_day_num = request.args.get("day", type=int)
 
-        grid = cal["grid"](cal_year, cal_month)  # [(gregorian_date, native_day), ...]
+        grid = cal["grid"](cal_year, cal_month)  # [(gregorian_date, ordinal, native_label_input), ...]
 
-        greg_days = [g for g, _ in grid]
+        greg_days = [g for g, _, _ in grid]
         # Bohra events are always tracked by their true Hijri date regardless
         # of which calendar is primary on screen -- this maps every visible
         # Gregorian day to its Hijri month/day and looks up matches that way.
@@ -298,10 +312,10 @@ def create_app():
         personal_by_date = get_personal_by_date(min(greg_days), max(greg_days))
 
         days = []
-        for g, native_day in grid:
+        for g, ordinal, label_input in grid:
             days.append({
-                "hijri_day": native_day,
-                "hijri_num": cal["native_label"](native_day),
+                "hijri_day": ordinal,
+                "hijri_num": cal["native_label"](label_input),
                 "greg_day": g.day,
                 "gregorian": g,
                 "is_today": (g == today_g),
