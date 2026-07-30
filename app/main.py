@@ -216,9 +216,11 @@ def create_app():
     def selected_traditions():
         # Checkboxes with name="show" submit as repeated ?show=a&show=b params,
         # NOT a single comma-joined value -- must use getlist, not get().
+        # Returns None when no filter form was submitted this request, so
+        # callers can tell "not filtered yet -> fall back to prefs" apart
+        # from "user explicitly submitted zero checked boxes".
         if "filtered" not in request.args:
-            # first page load, no filter form submitted yet -> show everything
-            return set(ALL_TRADITIONS)
+            return None
         chosen = set(request.args.getlist("show"))
         return chosen & ALL_TRADITIONS
 
@@ -411,7 +413,7 @@ def create_app():
         
         # Get visible traditions from user preferences or URL filters
         traditions_on = selected_traditions()
-        if not traditions_on and "filtered" not in request.args:
+        if traditions_on is None:
             traditions_on = get_visible_traditions(prefs)
         
         # Get event sources to show (Bohra, Sunni, Shia)
@@ -438,13 +440,24 @@ def create_app():
             min(greg_days), max(greg_days)
         )
 
+        # Get secondary calendar info -- computed before the days loop below
+        # so each day can carry its secondary-calendar native label.
+        secondary_cal = prefs.get("secondary_calendar", "")
+        show_secondary = bool(secondary_cal and secondary_cal in CALENDARS and secondary_cal != cal_key)
+        secondary_cal_obj = CALENDARS[secondary_cal] if show_secondary else None
+
         days = []
         for g, ordinal, label_input in grid:
             # Filter personal events based on user preference
             personal_events = personal_by_date.get(g, [])
             if not prefs.get("show_personal", True):
                 personal_events = []
-                
+
+            secondary_num = None
+            if secondary_cal_obj:
+                _, _, sec_label_input = secondary_cal_obj["native_of"](g)
+                secondary_num = secondary_cal_obj["native_label"](sec_label_input)
+
             days.append({
                 "hijri_day": ordinal,
                 "hijri_num": cal["native_label"](label_input),
@@ -454,6 +467,7 @@ def create_app():
                 "events": hijri_events_by_day.get(g, []),
                 "interfaith": interfaith_by_date.get(g, []),
                 "personal": personal_events,
+                "secondary_num": secondary_num,
             })
 
         # build Sunday-first week grid
@@ -498,10 +512,6 @@ def create_app():
 
         prev_year, prev_month = cal["prev"](cal_year, cal_month)
         next_year, next_month = cal["next"](cal_year, cal_month)
-        
-        # Get secondary calendar info
-        secondary_cal = prefs.get("secondary_calendar", "")
-        show_secondary = secondary_cal and secondary_cal in CALENDARS
 
         return render_template(
             "calendar.html", 
