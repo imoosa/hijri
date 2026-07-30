@@ -299,6 +299,18 @@ def create_app():
         cal_month = request.args.get("m", type=int) or tm
         selected_day_num = request.args.get("day", type=int)
 
+        # "Goto date" -- explicit navigation, takes priority over y/m if both
+        # are somehow present. Always given as a Gregorian date (the <input
+        # type="date"> the browser renders), converted to whatever calendar
+        # is currently primary so the grid lands on the right native month.
+        goto_str = request.args.get("goto")
+        if goto_str:
+            try:
+                goto_date = date.fromisoformat(goto_str)
+                cal_year, cal_month, _ = cal["native_of"](goto_date)
+            except ValueError:
+                flash("Could not understand that date -- try again.")
+
         grid = cal["grid"](cal_year, cal_month)  # [(gregorian_date, ordinal, native_label_input), ...]
 
         greg_days = [g for g, _, _ in grid]
@@ -509,8 +521,8 @@ def create_app():
                     hijri_day=hijri_day,
                     title=request.form["title"],
                     description=request.form.get("description") or None,
-                    is_holiday=False,
-                    is_fasting_day=False,
+                    is_holiday=request.form.get("is_holiday") == "yes",
+                    is_fasting_day=request.form.get("is_fasting_day") == "yes",
                     color=request.form.get("color", "black"),
                     is_custom=True,
                     repeat=repeat,
@@ -546,6 +558,11 @@ def create_app():
                     .order_by(PersonalEvent.anchor_date)
                     .all()
                 )
+                # Age/years-since only means something for events that recur
+                # yearly on a fixed anniversary -- a 'weekly'/'monthly'/'never'
+                # entry (e.g. a recurring reminder) has no meaningful "age".
+                for pev in personal_events:
+                    pev.age = pe.age_on(pev.anchor_date) if pev.repeat == "yearly" else None
 
             return render_template(
                 "events.html", active="events", events=events, custom_events=custom_events,

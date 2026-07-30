@@ -122,6 +122,20 @@ def hijri_yearly_occurrences_in_range(hijri_month: int, hijri_day: int, anchor: 
     return sorted(results)
 
 
+def age_on(anchor: date, as_of: date = None) -> int:
+    """Whole years elapsed from `anchor` to `as_of` (defaults to today) --
+    the usual birthday/anniversary calculation: the current year doesn't
+    count until the anniversary month/day has actually been reached.
+    Returns 0 if `as_of` is before `anchor` (event hasn't happened yet)."""
+    as_of = as_of or date.today()
+    if as_of < anchor:
+        return 0
+    years = as_of.year - anchor.year
+    if (as_of.month, as_of.day) < (anchor.month, anchor.day):
+        years -= 1
+    return years
+
+
 def event_occurrences_in_range(event, range_start: date, range_end: date) -> List[date]:
     """Dispatcher for a PersonalEvent-like object (needs .anchor_date, .repeat,
     .hijri_month, .hijri_day, .recur_calendar). Routes to the Hijri-yearly

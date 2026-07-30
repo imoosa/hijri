@@ -17,6 +17,27 @@
     <a href="{{ url_for('calendar_view', cal=cal, y=next_year, m=next_month) }}{{ filter_qs('?') }}">&gt;</a>
 </div>
 
+<form method="get" action="{{ url_for('calendar_view') }}" class="goto-date-form">
+    <input type="hidden" name="cal" value="{{ cal }}">
+    <label for="goto-date-input" class="goto-date-label">Go to date</label>
+    <div class="goto-date-row">
+        <input type="date" name="goto" id="goto-date-input">
+        <button type="submit">Go</button>
+    </div>
+</form>
+<style>
+  .goto-date-form{margin-bottom:14px}
+  .goto-date-label{display:block;font-size:12px;color:var(--muted,#6b6b6b);margin-bottom:4px}
+  .goto-date-row{display:flex;gap:6px}
+  .goto-date-row input[type="date"]{
+    flex:1;border:1px solid #e7e3dd;border-radius:7px;padding:6px 8px;font-size:13px;
+  }
+  .goto-date-row button{
+    border:none;border-radius:7px;padding:6px 12px;font-size:13px;font-weight:600;
+    background:var(--accent,#a31f2c);color:#fff;cursor:pointer;
+  }
+</style>
+
 <h3>Communities</h3>
 <form method="get" id="filter-form">
     <input type="hidden" name="cal" value="{{ cal }}">
@@ -297,14 +318,15 @@
                                 {% endif %}
                                 <div class="event-pills">
                                     {% set combined = [] %}
-                                    {% for e in day.events %}{% set _ = combined.append({'title': e.title, 'cls': 'bohra'}) %}{% endfor %}
-                                    {% for e in day.interfaith %}{% set _ = combined.append({'title': e.title, 'cls': e.tradition}) %}{% endfor %}
-                                    {% for e in day.personal %}{% set _ = combined.append({'title': e.title, 'cls': 'personal'}) %}{% endfor %}
+                                    {% for e in day.events %}{% set _ = combined.append({'title': e.title, 'cls': 'bohra', 'color': e.color}) %}{% endfor %}
+                                    {% for e in day.interfaith %}{% set _ = combined.append({'title': e.title, 'cls': e.tradition, 'color': e.color}) %}{% endfor %}
+                                    {% for e in day.personal %}{% set _ = combined.append({'title': e.title, 'cls': 'personal', 'color': e.color}) %}{% endfor %}
                                     {% for e in combined[:2] %}
-                                    <span class="pill pill-{{ e.cls }}">{{ e.title }}</span>
+                                    <span class="pill pill-{{ e.cls }}" title="{{ e.title }}"
+                                          {% if e.color and e.color.startswith('#') %}style="background:{{ e.color }};color:#fff;"{% endif %}>{{ e.title }}</span>
                                     {% endfor %}
                                     {% if combined|length > 2 %}
-                                    <span class="pill pill-more">+{{ combined|length - 2 }} more</span>
+                                    <span class="pill pill-more" title="{{ combined[2:]|map(attribute='title')|join(', ') }}">+{{ combined|length - 2 }} more</span>
                                     {% endif %}
                                 </div>
                             </a>

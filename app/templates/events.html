@@ -90,7 +90,7 @@
 <div class="events-header">
     <h1>Events</h1>
     {% if tab == 'bohra' %}
-    <button type="button" class="add-event-btn" onclick="openAddEventModal()">+ Add Event</button>
+    <button type="button" class="add-event-btn" onclick="openAddBohraEventModal()">+ Add Event</button>
     {% elif tab == 'personal' %}
     <button type="button" class="add-event-btn" onclick="openAddEventModal()">+ Add Event</button>
     {% endif %}
@@ -171,7 +171,7 @@
             <span class="community-count">{{ personal_events|length }}</span>
         </div>
         <table class="events-table">
-            <thead><tr><th>Date</th><th>Title</th><th>Category</th><th>Repeats</th><th></th></tr></thead>
+            <thead><tr><th>Date</th><th>Title</th><th>Category</th><th>Age</th><th>Repeats</th><th></th></tr></thead>
             <tbody>
             {% for e in personal_events %}
                 <tr>
@@ -183,6 +183,7 @@
                     </td>
                     <td>{{ e.title }}</td>
                     <td>{{ e.category|capitalize }}</td>
+                    <td>{{ e.age if e.age is not none else '' }}</td>
                     <td>
                         {{ {'never': 'Only once', 'weekly': 'Every week', 'monthly': 'Every month', 'yearly': 'Every year'}[e.repeat] }}
                         {% if e.repeat == 'yearly' and e.hijri_month and e.hijri_day %}
@@ -196,7 +197,7 @@
                     </td>
                 </tr>
             {% else %}
-                <tr><td colspan="5">No personal events yet. Use "+ Add Event" to add a birthday, anniversary, or anything else you'd like to track.</td></tr>
+                <tr><td colspan="6">No personal events yet. Use "+ Add Event" to add a birthday, anniversary, or anything else you'd like to track.</td></tr>
             {% endfor %}
             </tbody>
         </table>
@@ -258,5 +259,8 @@
 
 <!-- ADD PERSONAL EVENT MODAL (shared with calendar.html) -->
 {% include "add_events.html" %}
+
+<!-- ADD BOHRA EVENT MODAL -->
+{% include "add_bohra_event.html" %}
 
 {% endblock %}
