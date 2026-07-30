@@ -323,22 +323,22 @@ URS_EVENTS = [
 
 # Sunni events data
 SUNNI_EVENTS = [
-    {"hijri_month": 1, "hijri_day": 1, "title": "Islamic New Year", "is_holiday": True, "color": "green"},
-    {"hijri_month": 1, "hijri_day": 10, "title": "Day of Ashura", "is_fasting_day": True, "color": "green"},
-    {"hijri_month": 9, "hijri_day": 1, "title": "Ramadan begins", "is_fasting_day": True, "color": "green"},
-    {"hijri_month": 10, "hijri_day": 1, "title": "Eid al-Fitr", "is_holiday": True, "color": "green"},
-    {"hijri_month": 12, "hijri_day": 9, "title": "Day of Arafah", "is_fasting_day": True, "color": "green"},
-    {"hijri_month": 12, "hijri_day": 10, "title": "Eid al-Adha", "is_holiday": True, "color": "green"},
+    {"hijri_month": 1, "hijri_day": 1, "title": "Islamic New Year", "is_holiday": True, "color": "green", "event_source": "sunni"},
+    {"hijri_month": 1, "hijri_day": 10, "title": "Day of Ashura", "is_fasting_day": True, "color": "green", "event_source": "sunni"},
+    {"hijri_month": 9, "hijri_day": 1, "title": "Ramadan begins", "is_fasting_day": True, "color": "green", "event_source": "sunni"},
+    {"hijri_month": 10, "hijri_day": 1, "title": "Eid al-Fitr", "is_holiday": True, "color": "green", "event_source": "sunni"},
+    {"hijri_month": 12, "hijri_day": 9, "title": "Day of Arafah", "is_fasting_day": True, "color": "green", "event_source": "sunni"},
+    {"hijri_month": 12, "hijri_day": 10, "title": "Eid al-Adha", "is_holiday": True, "color": "green", "event_source": "sunni"},
 ]
 
 SHIA_EVENTS = [
-    {"hijri_month": 1, "hijri_day": 1, "title": "Islamic New Year", "is_holiday": True, "color": "purple"},
-    {"hijri_month": 1, "hijri_day": 9, "title": "Tasu'a", "is_holiday": False, "color": "purple"},
-    {"hijri_month": 1, "hijri_day": 10, "title": "Ashura", "is_holiday": True, "color": "purple"},
-    {"hijri_month": 9, "hijri_day": 1, "title": "Ramadan begins", "is_fasting_day": True, "color": "purple"},
-    {"hijri_month": 10, "hijri_day": 1, "title": "Eid al-Fitr", "is_holiday": True, "color": "purple"},
-    {"hijri_month": 12, "hijri_day": 10, "title": "Eid al-Adha", "is_holiday": True, "color": "purple"},
-    {"hijri_month": 12, "hijri_day": 18, "title": "Eid al-Ghadeer", "is_holiday": True, "color": "purple"},
+    {"hijri_month": 1, "hijri_day": 1, "title": "Islamic New Year", "is_holiday": True, "color": "purple", "event_source": "shia"},
+    {"hijri_month": 1, "hijri_day": 9, "title": "Tasu'a", "is_holiday": False, "color": "purple", "event_source": "shia"},
+    {"hijri_month": 1, "hijri_day": 10, "title": "Ashura", "is_holiday": True, "color": "purple", "event_source": "shia"},
+    {"hijri_month": 9, "hijri_day": 1, "title": "Ramadan begins", "is_fasting_day": True, "color": "purple", "event_source": "shia"},
+    {"hijri_month": 10, "hijri_day": 1, "title": "Eid al-Fitr", "is_holiday": True, "color": "purple", "event_source": "shia"},
+    {"hijri_month": 12, "hijri_day": 10, "title": "Eid al-Adha", "is_holiday": True, "color": "purple", "event_source": "shia"},
+    {"hijri_month": 12, "hijri_day": 18, "title": "Eid al-Ghadeer", "is_holiday": True, "color": "purple", "event_source": "shia"},
 ]
 
 SEED_EVENTS = EID_AND_FASTING_EVENTS + URS_EVENTS
@@ -376,5 +376,29 @@ def seed_if_empty():
             for e in SEED_EVENTS:
                 db.add(HijriEvent(**e))
             db.commit()
+    finally:
+        db.close()
+
+
+def seed_missing_sources():
+    """seed_if_empty() only ever fires once, on a table with zero rows total
+    -- if Bohra events were seeded before Sunni/Shia events existed in this
+    file (as happened here), the table is no longer empty and those two
+    sources never get added, forever. This seeds any event_source
+    (bohra/sunni/shia) that currently has zero rows, independently of the
+    other sources' row counts, so it's safe to call on every startup and
+    won't duplicate rows or touch your existing custom events."""
+    db = SessionLocal()
+    try:
+        for source, events in (("bohra", SEED_EVENTS), ("sunni", SUNNI_EVENTS), ("shia", SHIA_EVENTS)):
+            if not events:
+                continue
+            count = db.query(HijriEvent).filter(HijriEvent.event_source == source).count()
+            if count == 0:
+                for e in events:
+                    data = dict(e)
+                    data.setdefault("event_source", source)
+                    db.add(HijriEvent(**data))
+        db.commit()
     finally:
         db.close()

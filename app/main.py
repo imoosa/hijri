@@ -16,7 +16,7 @@ from . import personal_events as pe
 from . import sunni_calendar as sc
 from . import shia_calendar as shc
 from .database import (
-    get_session, init_db, seed_if_empty, HijriEvent,
+    get_session, init_db, seed_if_empty, seed_missing_sources, HijriEvent,
     InterfaithEvent, PersonalEvent, refresh_interfaith_events,
 )
 
@@ -162,6 +162,7 @@ def create_app():
 
     init_db()
     seed_if_empty()
+    seed_missing_sources()
     # Rolling window so the calendar always has interfaith dates a couple
     # years out. Regenerates on every restart -- cheap (a few hundred rows).
     this_year = date.today().year
