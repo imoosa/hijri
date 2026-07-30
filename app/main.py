@@ -375,163 +375,163 @@ def create_app():
         return redirect(url_for("calendar_view"))
 
     @app.get("/calendar")
-def calendar_view():
-    today_g = date.today()
-    prefs = get_user_prefs()
-    
-    # Use the user's default calendar, or fallback to hijri
-    cal_key = request.args.get("cal")
-    if not cal_key or cal_key not in CALENDARS:
-        cal_key = prefs.get("default_calendar", "hijri")
-    if cal_key not in CALENDARS:
-        cal_key = "hijri"
-    cal = CALENDARS[cal_key]
+    def calendar_view():
+        today_g = date.today()
+        prefs = get_user_prefs()
+        
+        # Use the user's default calendar, or fallback to hijri
+        cal_key = request.args.get("cal")
+        if not cal_key or cal_key not in CALENDARS:
+            cal_key = prefs.get("default_calendar", "hijri")
+        if cal_key not in CALENDARS:
+            cal_key = "hijri"
+        cal = CALENDARS[cal_key]
 
-    ty, tm, td = cal["native_of"](today_g)
+        ty, tm, td = cal["native_of"](today_g)
 
-    cal_year = request.args.get("y", type=int) or ty
-    cal_month = request.args.get("m", type=int) or tm
-    selected_day_num = request.args.get("day", type=int)
+        cal_year = request.args.get("y", type=int) or ty
+        cal_month = request.args.get("m", type=int) or tm
+        selected_day_num = request.args.get("day", type=int)
 
-    # "Goto date" -- explicit navigation, takes priority over y/m if both
-    # are somehow present. Always given as a Gregorian date (the <input
-    # type="date"> the browser renders), converted to whatever calendar
-    # is currently primary so the grid lands on the right native month.
-    goto_str = request.args.get("goto")
-    if goto_str:
-        try:
-            goto_date = date.fromisoformat(goto_str)
-            cal_year, cal_month, _ = cal["native_of"](goto_date)
-        except ValueError:
-            flash("Could not understand that date -- try again.")
+        # "Goto date" -- explicit navigation, takes priority over y/m if both
+        # are somehow present. Always given as a Gregorian date (the <input
+        # type="date"> the browser renders), converted to whatever calendar
+        # is currently primary so the grid lands on the right native month.
+        goto_str = request.args.get("goto")
+        if goto_str:
+            try:
+                goto_date = date.fromisoformat(goto_str)
+                cal_year, cal_month, _ = cal["native_of"](goto_date)
+            except ValueError:
+                flash("Could not understand that date -- try again.")
 
-    grid = cal["grid"](cal_year, cal_month)  # [(gregorian_date, ordinal, native_label_input), ...]
+        grid = cal["grid"](cal_year, cal_month)  # [(gregorian_date, ordinal, native_label_input), ...]
 
-    greg_days = [g for g, _, _ in grid]
-    
-    # Get visible traditions from user preferences or URL filters
-    traditions_on = selected_traditions()
-    if not traditions_on and "filtered" not in request.args:
-        traditions_on = get_visible_traditions(prefs)
-    
-    # Get event sources to show (Bohra, Sunni, Shia)
-    show_sources = set()
-    if prefs.get("show_bohra", True):
-        show_sources.add("bohra")
-    if prefs.get("show_sunni", True):
-        show_sources.add("sunni")
-    if prefs.get("show_shia", True):
-        show_sources.add("shia")
-    
-    # Get Bohra/Sunni/Shia events for the visible range
-    hijri_events_by_day = get_hijri_events_for_gregorian_range(
-        min(greg_days), max(greg_days), show_sources
-    )
-    
-    # Get interfaith events (Christian, Jewish, Hindu, Parsi, French)
-    interfaith_by_date = get_interfaith_by_date(
-        min(greg_days), max(greg_days), traditions_on
-    )
-    
-    # Get personal events
-    personal_by_date = get_personal_by_date(
-        min(greg_days), max(greg_days)
-    )
-
-    days = []
-    for g, ordinal, label_input in grid:
-        # Filter personal events based on user preference
-        personal_events = personal_by_date.get(g, [])
-        if not prefs.get("show_personal", True):
-            personal_events = []
-            
-        days.append({
-            "hijri_day": ordinal,
-            "hijri_num": cal["native_label"](label_input),
-            "greg_day": g.day,
-            "gregorian": g,
-            "is_today": (g == today_g),
-            "events": hijri_events_by_day.get(g, []),
-            "interfaith": interfaith_by_date.get(g, []),
-            "personal": personal_events,
-        })
-
-    # build Sunday-first week grid
-    first_weekday = (days[0]["gregorian"].weekday() + 1) % 7  # Python Mon=0 -> Sun=0
-    weeks = []
-    week = [None] * first_weekday
-    for d in days:
-        week.append(d)
-        if len(week) == 7:
-            weeks.append(week)
-            week = []
-    if week:
-        week += [None] * (7 - len(week))
-        weeks.append(week)
-
-    greg_start, greg_end = days[0]["gregorian"], days[-1]["gregorian"]
-    if greg_start.month == greg_end.month:
-        gregorian_range = greg_start.strftime("%B %Y")
-    else:
-        gregorian_range = f"{greg_start.strftime('%B')}/{greg_end.strftime('%B %Y')}"
-
-    selected_day = None
-    if selected_day_num:
-        selected_day = next((d for d in days if d["hijri_day"] == selected_day_num), None)
-
-    loc = current_location()
-    prayer_date = selected_day["gregorian"] if selected_day else today_g
-    prayer = pt.calculate(loc["lat"], loc["lng"], prayer_date, loc["tz_offset"])
-
-    # Get user's custom events (only Bohra events for now, can extend)
-    db = get_session()
-    try:
-        user_events = (
-            db.query(HijriEvent)
-            .filter(HijriEvent.is_custom == True)  # noqa: E712
-            .filter(HijriEvent.event_source == "bohra")  # Only Bohra custom events
-            .order_by(HijriEvent.hijri_month, HijriEvent.hijri_day)
-            .all()
+        greg_days = [g for g, _, _ in grid]
+        
+        # Get visible traditions from user preferences or URL filters
+        traditions_on = selected_traditions()
+        if not traditions_on and "filtered" not in request.args:
+            traditions_on = get_visible_traditions(prefs)
+        
+        # Get event sources to show (Bohra, Sunni, Shia)
+        show_sources = set()
+        if prefs.get("show_bohra", True):
+            show_sources.add("bohra")
+        if prefs.get("show_sunni", True):
+            show_sources.add("sunni")
+        if prefs.get("show_shia", True):
+            show_sources.add("shia")
+        
+        # Get Bohra/Sunni/Shia events for the visible range
+        hijri_events_by_day = get_hijri_events_for_gregorian_range(
+            min(greg_days), max(greg_days), show_sources
         )
-    finally:
-        db.close()
+        
+        # Get interfaith events (Christian, Jewish, Hindu, Parsi, French)
+        interfaith_by_date = get_interfaith_by_date(
+            min(greg_days), max(greg_days), traditions_on
+        )
+        
+        # Get personal events
+        personal_by_date = get_personal_by_date(
+            min(greg_days), max(greg_days)
+        )
 
-    prev_year, prev_month = cal["prev"](cal_year, cal_month)
-    next_year, next_month = cal["next"](cal_year, cal_month)
-    
-    # Get secondary calendar info
-    secondary_cal = prefs.get("secondary_calendar", "")
-    show_secondary = secondary_cal and secondary_cal in CALENDARS
+        days = []
+        for g, ordinal, label_input in grid:
+            # Filter personal events based on user preference
+            personal_events = personal_by_date.get(g, [])
+            if not prefs.get("show_personal", True):
+                personal_events = []
+                
+            days.append({
+                "hijri_day": ordinal,
+                "hijri_num": cal["native_label"](label_input),
+                "greg_day": g.day,
+                "gregorian": g,
+                "is_today": (g == today_g),
+                "events": hijri_events_by_day.get(g, []),
+                "interfaith": interfaith_by_date.get(g, []),
+                "personal": personal_events,
+            })
 
-    return render_template(
-        "calendar.html", 
-        active="calendar",
-        cal=cal_key, 
-        calendars=CALENDARS,
-        hijri_year=cal_year, 
-        hijri_month=cal_month,
-        month_name=cal["month_name"](cal_year, cal_month),
-        month_names=hc.MONTH_NAMES,
-        prev_year=prev_year, 
-        prev_month=prev_month,
-        next_year=next_year, 
-        next_month=next_month,
-        gregorian_range=gregorian_range, 
-        weeks=weeks,
-        prayer=prayer, 
-        location_name=loc["name"], 
-        selected_day=selected_day,
-        traditions=ic.TRADITIONS, 
-        traditions_on=traditions_on,
-        filter_active=("filtered" in request.args),
-        user_events=user_events,
-        personal_events=get_personal_events_list(),
-        community_lists=get_community_lists(traditions_on, show_sources),
-        location_is_default=location_is_default(),
-        secondary_calendar=secondary_cal,
-        show_secondary=show_secondary,
-        user_prefs=prefs,
-    )
+        # build Sunday-first week grid
+        first_weekday = (days[0]["gregorian"].weekday() + 1) % 7  # Python Mon=0 -> Sun=0
+        weeks = []
+        week = [None] * first_weekday
+        for d in days:
+            week.append(d)
+            if len(week) == 7:
+                weeks.append(week)
+                week = []
+        if week:
+            week += [None] * (7 - len(week))
+            weeks.append(week)
+
+        greg_start, greg_end = days[0]["gregorian"], days[-1]["gregorian"]
+        if greg_start.month == greg_end.month:
+            gregorian_range = greg_start.strftime("%B %Y")
+        else:
+            gregorian_range = f"{greg_start.strftime('%B')}/{greg_end.strftime('%B %Y')}"
+
+        selected_day = None
+        if selected_day_num:
+            selected_day = next((d for d in days if d["hijri_day"] == selected_day_num), None)
+
+        loc = current_location()
+        prayer_date = selected_day["gregorian"] if selected_day else today_g
+        prayer = pt.calculate(loc["lat"], loc["lng"], prayer_date, loc["tz_offset"])
+
+        # Get user's custom events (only Bohra events for now, can extend)
+        db = get_session()
+        try:
+            user_events = (
+                db.query(HijriEvent)
+                .filter(HijriEvent.is_custom == True)  # noqa: E712
+                .filter(HijriEvent.event_source == "bohra")  # Only Bohra custom events
+                .order_by(HijriEvent.hijri_month, HijriEvent.hijri_day)
+                .all()
+            )
+        finally:
+            db.close()
+
+        prev_year, prev_month = cal["prev"](cal_year, cal_month)
+        next_year, next_month = cal["next"](cal_year, cal_month)
+        
+        # Get secondary calendar info
+        secondary_cal = prefs.get("secondary_calendar", "")
+        show_secondary = secondary_cal and secondary_cal in CALENDARS
+
+        return render_template(
+            "calendar.html", 
+            active="calendar",
+            cal=cal_key, 
+            calendars=CALENDARS,
+            hijri_year=cal_year, 
+            hijri_month=cal_month,
+            month_name=cal["month_name"](cal_year, cal_month),
+            month_names=hc.MONTH_NAMES,
+            prev_year=prev_year, 
+            prev_month=prev_month,
+            next_year=next_year, 
+            next_month=next_month,
+            gregorian_range=gregorian_range, 
+            weeks=weeks,
+            prayer=prayer, 
+            location_name=loc["name"], 
+            selected_day=selected_day,
+            traditions=ic.TRADITIONS, 
+            traditions_on=traditions_on,
+            filter_active=("filtered" in request.args),
+            user_events=user_events,
+            personal_events=get_personal_events_list(),
+            community_lists=get_community_lists(traditions_on, show_sources),
+            location_is_default=location_is_default(),
+            secondary_calendar=secondary_cal,
+            show_secondary=show_secondary,
+            user_prefs=prefs,
+        )
 
     @app.get("/prayer-times-view")
     def prayer_view():
