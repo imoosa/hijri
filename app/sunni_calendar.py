@@ -18,7 +18,7 @@ from . import hijri_calendar as hc
 
 # Umm al-Qura uses a different leap year pattern than the Bohra calendar
 # This is the standard Kuwaiti/Umm al-Qura 30-year cycle
-UMM_AL_QURA_LEAP_YEARS = {1, 4, 6, 9, 12, 14, 17, 19, 22, 25, 27, 29}
+UMM_AL_QURA_LEAP_YEARS = {2, 5, 7, 10, 13, 16, 18, 21, 24, 26, 29}
 
 MONTH_NAMES = [
     "Muharram", "Safar", "Rabi' al-Awwal",
