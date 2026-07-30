@@ -137,24 +137,27 @@
   /* Compact header row: month nav + go-to-date, now that the sidebar is gone */
   .calendar-toolbar{
     display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);
-    flex-wrap:wrap;margin-bottom:var(--sp-3);
+    flex-wrap:wrap;
+    padding:var(--sp-4) var(--sp-5) var(--sp-3);
+    border-bottom:1px solid var(--line);
   }
-  .goto-date-inline{display:flex;align-items:center;gap:var(--sp-2)}
+  .goto-date-inline{display:flex;align-items:center;gap:var(--sp-2);flex-wrap:wrap;row-gap:var(--sp-2)}
   .goto-date-inline label{font-size:12px;color:var(--muted);white-space:nowrap}
   .goto-date-inline input[type="date"]{
     border:1px solid var(--line);border-radius:var(--radius-sm);
-    padding:var(--sp-1) var(--sp-2);font-size:12.5px;
+    padding:var(--sp-2) var(--sp-2);font-size:12.5px;line-height:1.4;
   }
   .goto-date-inline button{
-    border:none;border-radius:var(--radius-sm);padding:var(--sp-1) var(--sp-3);
-    font-size:12.5px;font-weight:600;
+    border:none;border-radius:var(--radius-sm);padding:var(--sp-2) var(--sp-3);
+    font-size:12.5px;font-weight:600;line-height:1.4;
     background:var(--bohra);color:#fff;cursor:pointer;
     transition:opacity .15s ease;
   }
   .goto-date-inline button:hover{opacity:.88}
   .cal-settings-link{
     font-size:12px;color:var(--muted);text-decoration:none;border:1px solid var(--line);
-    border-radius:var(--radius-sm);padding:var(--sp-1) var(--sp-3);white-space:nowrap;
+    border-radius:var(--radius-sm);padding:var(--sp-2) var(--sp-3);white-space:nowrap;
+    line-height:1.4;
     transition:color .15s ease,border-color .15s ease;
   }
   .cal-settings-link:hover{color:var(--ink);border-color:var(--bohra)}
@@ -168,7 +171,8 @@
   }
   @media (max-width:640px){
     .modal-box{padding:var(--sp-5)}
-    .calendar-toolbar{gap:var(--sp-2)}
+    .calendar-toolbar{gap:var(--sp-2);padding:var(--sp-3) var(--sp-4) var(--sp-2);}
+    .cal-settings-link{width:100%;text-align:center}
   }
 </style>
 
