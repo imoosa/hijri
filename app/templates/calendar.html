@@ -239,12 +239,14 @@
                 {% endfor %}
             </tbody>
         </table>
-
+            {% if cal in ['hijri', 'sunni', 'shia'] %}
         <div class="prayer-strip">
+            <div><span class="label">Fajr</span><span class="value">{{ prayer.fajr }}</span></div>
             <div><span class="label">sunrise</span><span class="value">{{ prayer.sunrise }}</span></div>
             <div><span class="label">zawal</span><span class="value">{{ prayer.zawal }}</span></div>
             <div><span class="label">zuhr end</span><span class="value">{{ prayer.zuhr_end }}</span></div>
             <div><span class="label">sunset</span><span class="value">{{ prayer.sunset }}</span></div>
+            <div><span class="label">maghrib</span><span class="value">{{ prayer.maghrib }}</span></div>
         </div>
         <div class="location-line">
             {{ location_name }}
@@ -252,8 +254,9 @@
             &middot; <a href="{{ url_for('settings_view') }}">this is a default -- set your real location</a>
             {% endif %}
         </div>
+        {% endif %}
     </div>
-
+    
     <div class="calendar-detail">
 
         <div class="detail-panel" id="day-panel">
