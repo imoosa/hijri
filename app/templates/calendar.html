@@ -132,7 +132,34 @@
   .calendar-grid .hijri-num{font-size:16px;font-weight:700;line-height:1.25}
   .calendar-grid .greg-num{font-size:11px;color:var(--muted);line-height:1.25;margin-top:2px}
   .calendar-grid .greg-num.solo-num{font-size:16px;font-weight:700;color:var(--ink);margin-top:0}
+  .calendar-grid td{position:relative}
   .calendar-grid td > a{display:flex;flex-direction:column;height:100%;padding:var(--sp-2)}
+  .hindu-day-dot{position:absolute;top:4px;right:4px;width:7px;height:7px;border-radius:50%;}
+  .hindu-day-dot.ekadashi{background:#8e44ad;}
+  .hindu-day-dot.purnima{background:#e67e22;}
+
+  /* Hindu daily panel + timeline -- shown below the grid only when cal == 'hindu',
+     same slot the hijri/sunni/shia prayer-strip uses below. */
+  .hindu-daily-panel{display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--sp-4);
+      border:1px solid var(--line);border-radius:var(--radius-md);background:#fff;
+      padding:var(--sp-5);margin-top:var(--sp-4);}
+  @media (max-width:700px){.hindu-daily-panel{grid-template-columns:1fr}}
+  .hindu-daily-panel .label{font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);margin-bottom:3px;}
+  .hindu-daily-panel .value{font-size:19px;font-weight:700;color:var(--ink);}
+  .hindu-daily-panel .sub{font-size:12px;color:var(--muted);margin-top:2px;}
+  #muhurat-countdown{font-variant-numeric:tabular-nums;}
+  .hindu-timeline-card{border:1px solid var(--line);border-radius:var(--radius-md);background:#fff;
+      padding:var(--sp-4) var(--sp-5);margin-top:var(--sp-3);}
+  .hindu-timeline-card h4{margin:0 0 var(--sp-2) 0;font-size:13px;color:var(--muted);font-weight:600;}
+  .hindu-timeline-bar{position:relative;height:30px;background:#f4f1ea;border-radius:5px;overflow:hidden;}
+  .hindu-timeline-segment{position:absolute;top:0;bottom:0;}
+  .hindu-timeline-segment.rahu{background:rgba(213,60,60,.35);border-left:2px solid #d53c3c;border-right:2px solid #d53c3c;}
+  .hindu-timeline-segment.abhijit{background:rgba(46,160,90,.35);border-left:2px solid #2ea05a;border-right:2px solid #2ea05a;}
+  .hindu-timeline-legend{display:flex;gap:var(--sp-4);margin-top:var(--sp-2);font-size:12px;color:var(--muted);flex-wrap:wrap;}
+  .hindu-timeline-legend span{display:inline-flex;align-items:center;gap:5px;}
+  .hindu-legend-dot{width:10px;height:10px;border-radius:2px;display:inline-block;}
+  .hindu-legend-dot.rahu{background:#d53c3c;}
+  .hindu-legend-dot.abhijit{background:#2ea05a;}
 
   /* Compact header row: month nav + go-to-date, now that the sidebar is gone */
   .calendar-toolbar{
@@ -207,6 +234,8 @@
                         {% if day %}
                         <td class="{{ 'today' if day.is_today else '' }} {{ 'has-event' if day.events or day.interfaith or day.personal else '' }}">
                             <a href="{{ url_for('calendar_view', cal=cal, y=hijri_year, m=hijri_month, day=day.hijri_day) }}">
+                                {% if day.is_ekadashi %}<span class="hindu-day-dot ekadashi" title="Ekadashi"></span>{% endif %}
+                                {% if day.is_purnima %}<span class="hindu-day-dot purnima" title="Purnima"></span>{% endif %}
                                 {% if cal == 'gregorian' %}
                                 <div class="greg-num solo-num {{ 'red' if day.events and day.events[0].color == 'red' else '' }}">{{ day.greg_day }}</div>
                                 {% elif show_secondary and day.secondary_num is not none %}
@@ -254,7 +283,78 @@
             &middot; <a href="{{ url_for('settings_view') }}">this is a default -- set your real location</a>
             {% endif %}
         </div>
-        {% endif %}
+            {% elif cal == 'hindu' and hindu_daily %}
+        <div class="hindu-daily-panel">
+            <div>
+                <div class="label">Tithi</div>
+                <div class="value">{{ hindu_daily.tithi }} <span style="font-weight:400;font-size:14px;color:var(--muted);">({{ hindu_daily.paksha }})</span></div>
+            </div>
+            <div>
+                <div class="label">Nakshatra</div>
+                <div class="value">{{ hindu_daily.nakshatra }}</div>
+            </div>
+            <div>
+                <div class="label">Next muhurat boundary</div>
+                <div class="value" id="muhurat-countdown">--:--:--</div>
+                <div class="sub" id="muhurat-countdown-label"></div>
+            </div>
+        </div>
+        <div class="hindu-timeline-card">
+            <h4>Today's timeline &middot; {{ hindu_daily.sunrise }} to {{ hindu_daily.sunset }}</h4>
+            <div class="hindu-timeline-bar">
+                <div class="hindu-timeline-segment rahu"
+                     style="left:{{ hindu_daily.timeline.rahu_kalam_left }}%;width:{{ hindu_daily.timeline.rahu_kalam_width }}%;"
+                     title="Rahu Kalam {{ hindu_daily.rahu_kalam.start }}-{{ hindu_daily.rahu_kalam.end }}"></div>
+                <div class="hindu-timeline-segment abhijit"
+                     style="left:{{ hindu_daily.timeline.abhijit_left }}%;width:{{ hindu_daily.timeline.abhijit_width }}%;"
+                     title="Abhijit Muhurat {{ hindu_daily.abhijit.start }}-{{ hindu_daily.abhijit.end }}"></div>
+            </div>
+            <div class="hindu-timeline-legend">
+                <span><span class="hindu-legend-dot rahu"></span> Rahu Kalam {{ hindu_daily.rahu_kalam.start }}-{{ hindu_daily.rahu_kalam.end }} (avoid starting new things)</span>
+                <span><span class="hindu-legend-dot abhijit"></span> Abhijit Muhurat {{ hindu_daily.abhijit.start }}-{{ hindu_daily.abhijit.end }} (auspicious)</span>
+                <span><span class="hindu-legend-dot" style="background:#8e44ad;"></span> Ekadashi</span>
+                <span><span class="hindu-legend-dot" style="background:#e67e22;"></span> Purnima</span>
+            </div>
+        </div>
+        <script>
+        (function(){
+            var boundaries = [
+                {label: 'Rahu Kalam starts', hhmm: '{{ hindu_daily.rahu_kalam.start }}'},
+                {label: 'Rahu Kalam ends', hhmm: '{{ hindu_daily.rahu_kalam.end }}'},
+                {label: 'Abhijit Muhurat starts', hhmm: '{{ hindu_daily.abhijit.start }}'},
+                {label: 'Abhijit Muhurat ends', hhmm: '{{ hindu_daily.abhijit.end }}'}
+            ];
+            function toToday(hhmm){
+                var p = hhmm.split(':').map(Number);
+                var now = new Date();
+                return new Date(now.getFullYear(), now.getMonth(), now.getDate(), p[0], p[1], 0, 0);
+            }
+            function tick(){
+                var now = new Date();
+                var upcoming = boundaries
+                    .map(function(b){ return {label: b.label, at: toToday(b.hhmm)}; })
+                    .filter(function(b){ return b.at > now; })
+                    .sort(function(a,b){ return a.at - b.at; });
+                var el = document.getElementById('muhurat-countdown');
+                var labelEl = document.getElementById('muhurat-countdown-label');
+                if (!el) return;
+                if (!upcoming.length) {
+                    el.textContent = '--:--:--';
+                    labelEl.textContent = "Today's windows have passed";
+                    return;
+                }
+                var diff = upcoming[0].at - now;
+                var h = Math.floor(diff / 3600000);
+                var m = Math.floor((diff % 3600000) / 60000);
+                var s = Math.floor((diff % 60000) / 1000);
+                el.textContent = (h ? h + 'h ' : '') + String(m).padStart(2,'0') + 'm ' + String(s).padStart(2,'0') + 's';
+                labelEl.textContent = upcoming[0].label;
+            }
+            tick();
+            setInterval(tick, 1000);
+        })();
+        </script>
+            {% endif %}
     </div>
     
     <div class="calendar-detail">

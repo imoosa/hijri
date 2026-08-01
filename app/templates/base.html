@@ -17,7 +17,7 @@
             <a href="{{ url_for('calendar_view') }}" class="{{ 'active' if active == 'calendar' else '' }}">Calendar</a>
             <a href="{{ url_for('prayer_view') }}" class="{{ 'active' if active == 'prayer' else '' }}">Prayer Times</a>
             <a href="{{ url_for('qibla_view') }}" class="{{ 'active' if active == 'qibla' else '' }}">Qibla</a>
-            <a href="{{ url_for('hindu_view') }}" class="{{ 'active' if active == 'hindu' else '' }}">Hindu</a>
+            <a href="{{ url_for('calendar_view', cal='hindu') }}" class="{{ 'active' if active == 'calendar' and cal == 'hindu' else '' }}">Hindu</a>
             <a href="{{ url_for('events_view') }}" class="{{ 'active' if active == 'events' else '' }}">Events</a>
             <a href="{{ url_for('settings_view') }}" class="{{ 'active' if active == 'settings' else '' }}">Settings</a>
         </nav>
