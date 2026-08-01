@@ -39,13 +39,19 @@
             padding:3px 10px;font-size:12.5px;cursor:pointer;color:#444;}
         .notes-toolbar button:hover{background:#f4f1ea;}
         .notes-toolbar button#note-bold-btn{font-weight:700;}
-        .notes-toolbar button#note-bullet-btn{font-size:14px;line-height:1;}
+        .notes-toolbar button#note-italic-btn{font-style:italic;}
+        .notes-toolbar button#note-underline-btn{text-decoration:underline;}
+        .notes-toolbar button#note-bullet-btn,.notes-toolbar button#note-number-btn{font-size:14px;line-height:1;}
         .note-save-status{margin-left:auto;font-size:11px;color:#999;}
         .sticky-note{min-height:170px;background:#fff8d6;border-radius:3px;
             box-shadow:0 1px 4px rgba(0,0,0,.18);padding:14px;font-size:13.5px;
             line-height:1.55;outline:none;white-space:pre-wrap;}
         .sticky-note:empty::before{content:attr(data-placeholder);color:#a89a5c;}
-        .sticky-note ul{margin:4px 0 4px 18px;padding:0;}
+        .sticky-note ul,.sticky-note ol{margin:4px 0 4px 18px;padding:0;}
+
+        .alerts-widget{border-top:1px solid #e5e0da;padding:14px 16px;font-size:12.5px;color:#666;}
+        .alerts-widget label{display:flex;align-items:center;gap:6px;cursor:pointer;}
+        .alerts-widget .alerts-note{margin-top:6px;color:#999;font-size:11px;line-height:1.4;}
     </style>
 
     <div class="app-body">
@@ -63,11 +69,27 @@
             <div class="notes-widget">
                 <div class="notes-toolbar">
                     <button type="button" id="note-bold-btn" title="Bold the selected text">B</button>
+                    <button type="button" id="note-italic-btn" title="Italic the selected text">I</button>
+                    <button type="button" id="note-underline-btn" title="Underline the selected text">U</button>
                     <button type="button" id="note-bullet-btn" title="Bullet list">&bull;&nbsp;List</button>
+                    <button type="button" id="note-number-btn" title="Numbered list">1.&nbsp;List</button>
                     <span id="note-save-status" class="note-save-status"></span>
                 </div>
                 <div id="sticky-note" class="sticky-note" contenteditable="true"
                      data-placeholder="Write something important&hellip;">{{ sidebar_note_content|safe }}</div>
+            </div>
+
+            <div class="alerts-widget">
+                <label>
+                    <input type="checkbox" id="alerts-enabled">
+                    Sound reminders (azaan times, birthdays/anniversaries, today's tradition holidays)
+                </label>
+                <div class="alerts-note">
+                    Only fires while this tab stays open on any page -- switching
+                    pages resets the timers, and closing the tab/browser stops it
+                    entirely. This is a chime + on-screen notification, not the
+                    actual azaan recitation.
+                </div>
             </div>
         </aside>
         <main class="main-content">
@@ -79,8 +101,6 @@
     (function(){
         var note = document.getElementById('sticky-note');
         var status = document.getElementById('note-save-status');
-        var boldBtn = document.getElementById('note-bold-btn');
-        var bulletBtn = document.getElementById('note-bullet-btn');
         var saveTimer = null;
 
         function saveNote(){
@@ -104,16 +124,126 @@
         });
         note.addEventListener('blur', saveNote);
 
-        // execCommand is deprecated but still the only one-line way to do
-        // rich-text bold/list toggling in a contenteditable box without
-        // pulling in a whole editor library -- fine for two buttons.
-        boldBtn.addEventListener('click', function(){
-            document.execCommand('bold');
-            note.focus();
-        });
-        bulletBtn.addEventListener('click', function(){
-            document.execCommand('insertUnorderedList');
-            note.focus();
+        // execCommand is deprecated but still the simplest way to get basic
+        // rich-text toggling in a contenteditable box without pulling in a
+        // whole editor library -- fine for five buttons.
+        function bindCmd(id, cmd){
+            document.getElementById(id).addEventListener('click', function(){
+                document.execCommand(cmd);
+                note.focus();
+            });
+        }
+        bindCmd('note-bold-btn', 'bold');
+        bindCmd('note-italic-btn', 'italic');
+        bindCmd('note-underline-btn', 'underline');
+        bindCmd('note-bullet-btn', 'insertUnorderedList');
+        bindCmd('note-number-btn', 'insertOrderedList');
+    })();
+    </script>
+
+    <script>
+    // ---- sound reminders: azaan times, personal events, tradition holidays ----
+    // Lives only as long as this tab does -- see the caveat text in the
+    // sidebar. No server push involved.
+    (function(){
+        var toggle = document.getElementById('alerts-enabled');
+        var STORAGE_KEY = 'alerts-enabled';
+        var playedKey = 'alerts-played-' + new Date().toISOString().slice(0,10);
+        var played = JSON.parse(localStorage.getItem(playedKey) || '{}');
+
+        function markPlayed(id){
+            played[id] = true;
+            localStorage.setItem(playedKey, JSON.stringify(played));
+        }
+
+        function beep(freqs, gapMs){
+            try{
+                var Ctx = window.AudioContext || window.webkitAudioContext;
+                var ctx = new Ctx();
+                var t = ctx.currentTime;
+                freqs.forEach(function(f, i){
+                    var osc = ctx.createOscillator();
+                    var gain = ctx.createGain();
+                    osc.frequency.value = f;
+                    osc.type = 'sine';
+                    gain.gain.setValueAtTime(0.0001, t);
+                    gain.gain.exponentialRampToValueAtTime(0.25, t + 0.02);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.45);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(t);
+                    osc.stop(t + 0.5);
+                    t += (gapMs || 500) / 1000;
+                });
+            } catch(e){ /* Web Audio unavailable -- silently skip the chime */ }
+        }
+
+        var CHIMES = {
+            azaan: function(){ beep([392, 392], 700); },          // low double tone -- "time for namaz"
+            birthday: function(){ beep([523, 659, 784], 180); },  // bright ascending triad
+            festival: function(){ beep([440, 660], 550); }        // bell-ish two-tone
+        };
+
+        function notify(title, body){
+            if (window.Notification && Notification.permission === 'granted') {
+                new Notification(title, {body: body});
+            }
+        }
+
+        function scheduleAt(hhmm, id, chimeFn, title, body){
+            if (!hhmm || hhmm.indexOf(':') === -1 || played[id]) return;
+            var parts = hhmm.split(':').map(Number);
+            var now = new Date();
+            var target = new Date(now.getFullYear(), now.getMonth(), now.getDate(), parts[0], parts[1], 0, 0);
+            var ms = target.getTime() - now.getTime();
+            if (ms <= 0 || ms > 24*60*60*1000) return; // already past, or bad data
+            setTimeout(function(){
+                chimeFn();
+                notify(title, body);
+                markPlayed(id);
+            }, ms);
+        }
+
+        function loadAndSchedule(){
+            fetch('{{ url_for("api_alerts_today") }}').then(function(r){ return r.json(); }).then(function(data){
+                var pt = data.prayer_times || {};
+                [['fajr','Fajr'], ['zawal','Zuhr'], ['asr','Asr'], ['maghrib','Maghrib'], ['isha','Isha']]
+                    .forEach(function(pair){
+                        scheduleAt(pt[pair[0]], 'azaan-' + pair[0], CHIMES.azaan,
+                                   pair[1] + ' time', pt[pair[0]] + ' -- ' + pair[1]);
+                    });
+
+                (data.personal_events || []).forEach(function(ev, i){
+                    if (!played['bday-' + ev.id]) {
+                        CHIMES.birthday();
+                        notify(ev.title, (ev.category || 'event') + ' today');
+                        markPlayed('bday-' + ev.id);
+                    }
+                });
+
+                (data.interfaith_events || []).forEach(function(ev, i){
+                    var id = 'fest-' + ev.tradition + '-' + ev.title;
+                    if (!played[id]) {
+                        CHIMES.festival();
+                        notify(ev.title, ev.tradition + ' today');
+                        markPlayed(id);
+                    }
+                });
+            }).catch(function(){ /* server unreachable -- skip silently */ });
+        }
+
+        function start(){
+            if (window.Notification && Notification.permission === 'default') {
+                Notification.requestPermission();
+            }
+            loadAndSchedule();
+        }
+
+        toggle.checked = localStorage.getItem(STORAGE_KEY) === '1';
+        if (toggle.checked) start();
+        toggle.addEventListener('change', function(){
+            localStorage.setItem(STORAGE_KEY, toggle.checked ? '1' : '0');
+            if (toggle.checked) start();
         });
     })();
     </script>
