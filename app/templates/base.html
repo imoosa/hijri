@@ -184,13 +184,42 @@
             festival: function(){ beep([440, 660], 550); }        // bell-ish two-tone
         };
 
+        // Optional real audio files, one per category/tradition -- drop
+        // your own licensed recordings in static/sounds/ using these exact
+        // names and the app plays them in full instead of the synthesized
+        // chime. Nothing ships here by default; see static/sounds/README.txt.
+        var SOUND_FILES = {
+            azaan: '/static/sounds/azaan.mp3',
+            birthday: '/static/sounds/birthday.mp3',
+            christian: '/static/sounds/christian.mp3',
+            jewish: '/static/sounds/jewish.mp3',
+            hindu: '/static/sounds/hindu.mp3',
+            parsi: '/static/sounds/parsi.mp3',
+            french: '/static/sounds/french.mp3'
+        };
+
+        function playSound(key, fallbackChime){
+            var path = SOUND_FILES[key];
+            if (path) {
+                var audio = new Audio(path);
+                var played = audio.play();
+                if (played && played.catch) {
+                    // 404 (no file dropped in yet), autoplay-block, or
+                    // unsupported format all land here -- fall back quietly.
+                    played.catch(function(){ fallbackChime(); });
+                }
+                return;
+            }
+            fallbackChime();
+        }
+
         function notify(title, body){
             if (window.Notification && Notification.permission === 'granted') {
                 new Notification(title, {body: body});
             }
         }
 
-        function scheduleAt(hhmm, id, chimeFn, title, body){
+        function scheduleAt(hhmm, id, soundKey, fallbackChime, title, body){
             if (!hhmm || hhmm.indexOf(':') === -1 || played[id]) return;
             var parts = hhmm.split(':').map(Number);
             var now = new Date();
@@ -198,7 +227,7 @@
             var ms = target.getTime() - now.getTime();
             if (ms <= 0 || ms > 24*60*60*1000) return; // already past, or bad data
             setTimeout(function(){
-                chimeFn();
+                playSound(soundKey, fallbackChime);
                 notify(title, body);
                 markPlayed(id);
             }, ms);
@@ -209,13 +238,13 @@
                 var pt = data.prayer_times || {};
                 [['fajr','Fajr'], ['zawal','Zuhr'], ['asr','Asr'], ['maghrib','Maghrib'], ['isha','Isha']]
                     .forEach(function(pair){
-                        scheduleAt(pt[pair[0]], 'azaan-' + pair[0], CHIMES.azaan,
+                        scheduleAt(pt[pair[0]], 'azaan-' + pair[0], 'azaan', CHIMES.azaan,
                                    pair[1] + ' time', pt[pair[0]] + ' -- ' + pair[1]);
                     });
 
                 (data.personal_events || []).forEach(function(ev, i){
                     if (!played['bday-' + ev.id]) {
-                        CHIMES.birthday();
+                        playSound('birthday', CHIMES.birthday);
                         notify(ev.title, (ev.category || 'event') + ' today');
                         markPlayed('bday-' + ev.id);
                     }
@@ -224,7 +253,7 @@
                 (data.interfaith_events || []).forEach(function(ev, i){
                     var id = 'fest-' + ev.tradition + '-' + ev.title;
                     if (!played[id]) {
-                        CHIMES.festival();
+                        playSound(ev.tradition, CHIMES.festival);
                         notify(ev.title, ev.tradition + ' today');
                         markPlayed(id);
                     }
