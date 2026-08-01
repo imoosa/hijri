@@ -625,6 +625,22 @@ def create_app():
         else:
             gregorian_range = f"{greg_start.strftime('%B')}/{greg_end.strftime('%B %Y')}"
 
+        # Small subtitle under the main calendar: shows whichever calendar
+        # is actually set as secondary (Gregorian, Hebrew, Sunni, whatever)
+        # -- computed generically off that calendar's own native_of/
+        # month_name, not hardcoded to Gregorian.
+        if show_secondary:
+            sy1, sm1, _ = secondary_cal_obj["native_of"](greg_start)
+            sy2, sm2, _ = secondary_cal_obj["native_of"](greg_end)
+            name1 = secondary_cal_obj["month_name"](sy1, sm1)
+            if (sy1, sm1) == (sy2, sm2):
+                secondary_month_label = f"{name1} {sy1}"
+            else:
+                name2 = secondary_cal_obj["month_name"](sy2, sm2)
+                secondary_month_label = f"{name1} {sy1} / {name2} {sy2}"
+        else:
+            secondary_month_label = gregorian_range
+
         selected_day = None
         if selected_day_num:
             selected_day = next((d for d in days if d["hijri_day"] == selected_day_num), None)
@@ -707,6 +723,7 @@ def create_app():
             location_is_default=location_is_default(),
             secondary_calendar=secondary_cal,
             show_secondary=show_secondary,
+            secondary_month_label=secondary_month_label,
             user_prefs=prefs,
             hindu_daily=hindu_daily,
         )
