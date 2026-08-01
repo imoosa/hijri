@@ -244,6 +244,29 @@ def create_app():
             db.close()
         return jsonify({"status": "saved"})
 
+    @app.get("/api/alerts/today")
+    def api_alerts_today():
+        """What the sidebar's client-side reminder script should ring for
+        today: azaan times at the user's saved (or default) location,
+        personal events (birthdays/anniversaries) landing today, and any
+        visible interfaith tradition's holiday/event landing today. Reuses
+        the exact same helpers the calendar page itself uses for personal/
+        interfaith lookups, rather than a second copy of that logic --
+        see get_personal_by_date / get_interfaith_by_date below."""
+        today = date.today()
+        prefs = get_user_prefs()
+        traditions = get_visible_traditions(prefs)
+        loc = current_location()
+        prayer = pt.calculate(loc["lat"], loc["lng"], today, loc["tz_offset"])
+        personal_today = get_personal_by_date(today, today).get(today, [])
+        interfaith_today = get_interfaith_by_date(today, today, traditions).get(today, [])
+        return jsonify({
+            "date": today.isoformat(),
+            "prayer_times": prayer,
+            "personal_events": personal_today,
+            "interfaith_events": interfaith_today,
+        })
+
     # ---------- shared helpers ----------
     DEFAULT_PREFS = {
         "default_calendar": "hijri",
