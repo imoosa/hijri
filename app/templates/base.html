@@ -32,9 +32,33 @@
 
     {% set sidebar_content %}{% block sidebar %}{% endblock %}{% endset %}
 
+    <style>
+        .notes-widget{border-top:1px solid #e5e0da;padding:14px 16px;}
+        .notes-widget h3{margin:0 0 10px;font-size:13px;text-transform:uppercase;
+            letter-spacing:.03em;color:#888;}
+        .notes-add-form{display:flex;gap:6px;margin-bottom:10px;}
+        .notes-add-form input[type="text"]{flex:1;padding:7px 9px;font-size:13px;
+            border:1px solid #ddd;border-radius:6px;}
+        .notes-add-form button{border:none;background:#b5121b;color:#fff;border-radius:6px;
+            padding:0 12px;font-size:13px;font-weight:600;cursor:pointer;}
+        .notes-add-form button:hover{background:#8f0e15;}
+        .notes-list{list-style:none;margin:0;padding:0;}
+        .notes-list li{display:flex;align-items:flex-start;gap:8px;padding:6px 0;
+            border-bottom:1px solid #f2efe9;font-size:13.5px;}
+        .notes-list li:last-child{border-bottom:none;}
+        .notes-list .note-text{flex:1;word-break:break-word;}
+        .notes-list .note-text.done{text-decoration:line-through;color:#999;}
+        .notes-list form{display:inline;}
+        .notes-list .note-toggle{background:none;border:none;padding:0;cursor:pointer;
+            font-size:15px;line-height:1.3;color:#666;}
+        .notes-list .note-delete{background:none;border:none;padding:0;cursor:pointer;
+            font-size:12px;color:#b5121b;}
+        .notes-empty{font-size:12.5px;color:#999;}
+    </style>
+
     <div class="app-body">
-        {% if sidebar_content|trim %}
         <aside class="sidebar">
+            {% if sidebar_content|trim %}
             <input type="checkbox" id="sidebar-toggle" class="sidebar-toggle-checkbox">
             <label for="sidebar-toggle" class="sidebar-toggle-label">
                 Filters &amp; events <span class="toggle-arrow">&#9662;</span>
@@ -42,8 +66,33 @@
             <div class="sidebar-inner">
                 {{ sidebar_content }}
             </div>
+            {% endif %}
+
+            <div class="notes-widget">
+                <h3>Notes</h3>
+                <form method="post" action="{{ url_for('add_note') }}" class="notes-add-form">
+                    <input type="text" name="text" placeholder="Write something important&hellip;" maxlength="500">
+                    <button type="submit">Add</button>
+                </form>
+                {% if sidebar_notes %}
+                <ul class="notes-list">
+                    {% for n in sidebar_notes %}
+                    <li>
+                        <form method="post" action="{{ url_for('toggle_note', note_id=n.id) }}">
+                            <button type="submit" class="note-toggle" title="Mark {{ 'not done' if n.is_done else 'done' }}">{{ '☑' if n.is_done else '☐' }}</button>
+                        </form>
+                        <span class="note-text {{ 'done' if n.is_done else '' }}">{{ n.text }}</span>
+                        <form method="post" action="{{ url_for('delete_note', note_id=n.id) }}">
+                            <button type="submit" class="note-delete" onclick="return confirm('Delete this note?')">remove</button>
+                        </form>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <div class="notes-empty">Nothing here yet.</div>
+                {% endif %}
+            </div>
         </aside>
-        {% endif %}
         <main class="main-content">
             {% block content %}{% endblock %}
         </main>
