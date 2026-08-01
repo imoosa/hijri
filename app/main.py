@@ -17,7 +17,7 @@ from . import sunni_calendar as sc
 from . import shia_calendar as shc
 from .database import (
     get_session, init_db, seed_if_empty, seed_missing_sources, HijriEvent,
-    InterfaithEvent, PersonalEvent, refresh_interfaith_events,
+    InterfaithEvent, PersonalEvent, Note, refresh_interfaith_events,
 )
 
 import calendar as _pycal
@@ -167,6 +167,58 @@ def create_app():
     # years out. Regenerates on every restart -- cheap (a few hundred rows).
     this_year = date.today().year
     refresh_interfaith_events(this_year - 1, this_year + 3)
+
+    # ---------- sidebar notes/to-do list (shown on every page) ----------
+    @app.context_processor
+    def inject_sidebar_notes():
+        """Runs before every render_template() call in the app, so base.html
+        can always show the notes list without each view function
+        remembering to pass it in. Costs one extra query per page render --
+        fine at this app's scale; revisit if that ever matters."""
+        db = get_session()
+        try:
+            notes = db.query(Note).order_by(Note.created_at.desc()).all()
+        finally:
+            db.close()
+        return dict(sidebar_notes=notes)
+
+    @app.post("/notes/add")
+    def add_note():
+        text = request.form.get("text", "").strip()
+        if text:
+            db = get_session()
+            try:
+                db.add(Note(text=text))
+                db.commit()
+            finally:
+                db.close()
+        else:
+            flash("Note can't be empty.")
+        return redirect(request.referrer or url_for("calendar_view"))
+
+    @app.post("/notes/<int:note_id>/toggle")
+    def toggle_note(note_id):
+        db = get_session()
+        try:
+            n = db.query(Note).filter(Note.id == note_id).first()
+            if n:
+                n.is_done = not n.is_done
+                db.commit()
+        finally:
+            db.close()
+        return redirect(request.referrer or url_for("calendar_view"))
+
+    @app.post("/notes/<int:note_id>/delete")
+    def delete_note(note_id):
+        db = get_session()
+        try:
+            n = db.query(Note).filter(Note.id == note_id).first()
+            if n:
+                db.delete(n)
+                db.commit()
+        finally:
+            db.close()
+        return redirect(request.referrer or url_for("calendar_view"))
 
     # ---------- shared helpers ----------
     DEFAULT_PREFS = {

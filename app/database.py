@@ -1,6 +1,8 @@
 """SQLite storage for Bohra calendar events (misaqs, urs, eids, etc.)."""
 
-from sqlalchemy import create_engine, Column, Integer, String, Boolean, Date
+from datetime import datetime
+
+from sqlalchemy import create_engine, Column, Integer, String, Boolean, Date, DateTime
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 DATABASE_URL = "sqlite:///./bohra_calendar.db"
@@ -75,6 +77,21 @@ class PersonalEvent(Base):
     # 'never'/'weekly'/'monthly' repeat, and irrelevant if hijri_month/day
     # aren't set (there's nothing to choose between).
     recur_calendar = Column(String, default="gregorian")  # 'gregorian' | 'hijri'
+
+
+class Note(Base):
+    """Freeform scratchpad list shown in the sidebar on every page -- not
+    tied to any Hijri/Gregorian date. Deliberately not per-user (this app
+    has no login, just a Flask session for preferences), so every visitor
+    sharing this deployment sees and edits the same list. Fine for a
+    single-household calendar; would need a user_id column before this
+    could safely serve strangers."""
+    __tablename__ = "notes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    text = Column(String, nullable=False)
+    is_done = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 
 def init_db():
