@@ -17,10 +17,57 @@ from . import sunni_calendar as sc
 from . import shia_calendar as shc
 from .database import (
     get_session, init_db, seed_if_empty, seed_missing_sources, HijriEvent,
-    InterfaithEvent, PersonalEvent, Note, refresh_interfaith_events,
+    InterfaithEvent, PersonalEvent, Note, get_or_create_note, refresh_interfaith_events,
 )
 
 import calendar as _pycal
+from html.parser import HTMLParser
+from html import escape as _escape
+
+# Tags the sticky-note toolbar can actually produce (bold + bullet lists,
+# plus the div/br/p wrapper tags contenteditable inserts on its own).
+# Anything else -- script, style, img, on*-handler-bearing tags, all
+# attributes on every tag -- gets stripped, not escaped-and-kept.
+_NOTE_ALLOWED_TAGS = {"b", "strong", "i", "em", "u", "ul", "ol", "li", "br", "div", "p", "span"}
+_NOTE_MAX_CHARS = 20000  # hard cap so a paste storm can't blow up the row
+
+
+class _NoteSanitizer(HTMLParser):
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.out = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag in _NOTE_ALLOWED_TAGS:
+            self.out.append(f"<{tag}>")
+
+    def handle_startendtag(self, tag, attrs):
+        if tag in _NOTE_ALLOWED_TAGS:
+            self.out.append(f"<{tag}/>")
+
+    def handle_endtag(self, tag):
+        if tag in _NOTE_ALLOWED_TAGS:
+            self.out.append(f"</{tag}>")
+
+    def handle_data(self, data):
+        self.out.append(_escape(data))
+
+
+def sanitize_note_html(raw: str) -> str:
+    """Whitelist-based cleanup for whatever the sticky-note contenteditable
+    box sent back. [likely-sufficient, not audited] -- a stripped-tag
+    allowlist with every attribute dropped closes the obvious script/
+    onerror/href-javascript: holes, but this hasn't been pen-tested. Since
+    this app has no login and the note is shared app-wide, the realistic
+    risk is "whoever can already reach this Flask instance", not a
+    stranger on the internet -- treat that as a real caveat, not a
+    guarantee, if this ever gets deployed somewhere less trusted."""
+    if not raw:
+        return ""
+    parser = _NoteSanitizer()
+    parser.feed(raw[:_NOTE_MAX_CHARS])
+    parser.close()
+    return "".join(parser.out)
 
 DEFAULT_LOCATION = {"name": "Mumbai, Maharashtra", "lat": 19.076, "lng": 72.877, "tz_offset": 5.5}
 ALL_TRADITIONS = set(ic.TRADITIONS.keys())  # {'christian','french','jewish','hindu','parsi'}
@@ -168,57 +215,34 @@ def create_app():
     this_year = date.today().year
     refresh_interfaith_events(this_year - 1, this_year + 3)
 
-    # ---------- sidebar notes/to-do list (shown on every page) ----------
+    # ---------- sidebar sticky note (shown on every page) ----------
     @app.context_processor
-    def inject_sidebar_notes():
-        """Runs before every render_template() call in the app, so base.html
-        can always show the notes list without each view function
-        remembering to pass it in. Costs one extra query per page render --
-        fine at this app's scale; revisit if that ever matters."""
+    def inject_sidebar_note():
+        """Runs before every render_template() call, so base.html can
+        always show the note without each view function remembering to
+        fetch it. content is already sanitized at save time (see
+        sanitize_note_html above), so it's safe to render with |safe."""
         db = get_session()
         try:
-            notes = db.query(Note).order_by(Note.created_at.desc()).all()
+            note = get_or_create_note(db)
+            content = note.content
         finally:
             db.close()
-        return dict(sidebar_notes=notes)
+        return dict(sidebar_note_content=content)
 
-    @app.post("/notes/add")
-    def add_note():
-        text = request.form.get("text", "").strip()
-        if text:
-            db = get_session()
-            try:
-                db.add(Note(text=text))
-                db.commit()
-            finally:
-                db.close()
-        else:
-            flash("Note can't be empty.")
-        return redirect(request.referrer or url_for("calendar_view"))
-
-    @app.post("/notes/<int:note_id>/toggle")
-    def toggle_note(note_id):
+    @app.post("/notes/save")
+    def save_note():
+        """AJAX target for the sticky note -- called on a debounce timer and
+        on blur, not on page submit, so typing doesn't reload the page."""
+        clean = sanitize_note_html(request.form.get("content", ""))
         db = get_session()
         try:
-            n = db.query(Note).filter(Note.id == note_id).first()
-            if n:
-                n.is_done = not n.is_done
-                db.commit()
+            note = get_or_create_note(db)
+            note.content = clean
+            db.commit()
         finally:
             db.close()
-        return redirect(request.referrer or url_for("calendar_view"))
-
-    @app.post("/notes/<int:note_id>/delete")
-    def delete_note(note_id):
-        db = get_session()
-        try:
-            n = db.query(Note).filter(Note.id == note_id).first()
-            if n:
-                db.delete(n)
-                db.commit()
-        finally:
-            db.close()
-        return redirect(request.referrer or url_for("calendar_view"))
+        return jsonify({"status": "saved"})
 
     # ---------- shared helpers ----------
     DEFAULT_PREFS = {

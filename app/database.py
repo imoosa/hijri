@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import create_engine, Column, Integer, String, Boolean, Date, DateTime
+from sqlalchemy import create_engine, Column, Integer, String, Boolean, Date, DateTime, Text
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 DATABASE_URL = "sqlite:///./bohra_calendar.db"
@@ -80,18 +80,30 @@ class PersonalEvent(Base):
 
 
 class Note(Base):
-    """Freeform scratchpad list shown in the sidebar on every page -- not
-    tied to any Hijri/Gregorian date. Deliberately not per-user (this app
-    has no login, just a Flask session for preferences), so every visitor
-    sharing this deployment sees and edits the same list. Fine for a
-    single-household calendar; would need a user_id column before this
-    could safely serve strangers."""
+    """A single freeform sticky-note, shown in the sidebar on every page --
+    not a list of discrete to-do rows, one blob of HTML the user typed
+    directly into a contenteditable box (bold + bullet lists only, from
+    the two toolbar buttons in base.html). Always id=1: there's no login
+    on this app, so it's one shared note for the whole deployment, same
+    as the old version's list was shared. content is sanitized server-side
+    before it's ever written here -- see sanitize_note_html() in main.py --
+    so what's in this column is safe to render with |safe."""
     __tablename__ = "notes"
 
     id = Column(Integer, primary_key=True, index=True)
-    text = Column(String, nullable=False)
-    is_done = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    content = Column(Text, default="")
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+def get_or_create_note(db):
+    """The one sticky-note row (id=1), creating it on first use."""
+    n = db.query(Note).get(1)
+    if not n:
+        n = Note(id=1, content="")
+        db.add(n)
+        db.commit()
+        db.refresh(n)
+    return n
 
 
 def init_db():
