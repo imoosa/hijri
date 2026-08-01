@@ -212,9 +212,7 @@
             </div>
             <a href="{{ url_for('calendar_view', cal=cal, y=next_year, m=next_month) }}" class="nav-arrow">&gt;</a>
         </div>
-        <div class="gregorian-subtitle">
-            {% if show_secondary %}{{ secondary_month_label }}{% else %}{{ gregorian_range }}{% endif %}
-        </div>
+        <div class="gregorian-subtitle">{{ secondary_month_label }}</div>
 
         <table class="calendar-grid">
             <thead>
