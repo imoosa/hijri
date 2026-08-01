@@ -77,7 +77,7 @@ class PersonalEvent(Base):
     recur_calendar = Column(String, default="gregorian")  # 'gregorian' | 'hijri'
 
 
-class SidebarNote(Base):
+class Note(Base):
     """The single shared sticky-note shown in the sidebar (base.html). Not
     per-user -- there's no auth in this app, so this is just one global
     scratch pad, same as the rest of the app's session-based 'preferences'
@@ -86,6 +86,20 @@ class SidebarNote(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     content = Column(String, default="")
+
+
+def get_or_create_note(db):
+    """Fetch the single shared Note row, creating it (empty) on first use.
+    Callers (main.py's inject_sidebar_note / save_note) always go through
+    this rather than querying Note directly, so there's exactly one place
+    that creates row id=1."""
+    note = db.query(Note).first()
+    if note is None:
+        note = Note(content="")
+        db.add(note)
+        db.commit()
+        db.refresh(note)
+    return note
 
 
 def init_db():
