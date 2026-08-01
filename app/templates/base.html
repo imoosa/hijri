@@ -5,10 +5,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Bohra Hijri Calendar{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        /* Liturgical Theme Engine -- today's Christian liturgical season sets
+           this accent, used as a thin app-wide highlight (topbar underline +
+           a small badge) rather than overriding the app's core Bohra maroon
+           branding wholesale. */
+        :root{ --liturgical-accent: {{ liturgical_color_hex }}; }
+        .topbar{ border-bottom: 3px solid var(--liturgical-accent); }
+        .liturgical-badge{
+            display:inline-flex; align-items:center; gap:5px; font-size:11px;
+            color:#666; margin-left:10px; padding:2px 8px; border-radius:10px;
+            background:color-mix(in srgb, var(--liturgical-accent) 12%, transparent);
+        }
+        .liturgical-badge .dot{
+            width:8px; height:8px; border-radius:50%; background:var(--liturgical-accent);
+            display:inline-block;
+        }
+    </style>
 </head>
 <body>
     <header class="topbar">
         <div class="brand">Bohra Calendar</div>
+        <span class="liturgical-badge" title="Christian liturgical season, sets today's accent color"><span class="dot"></span>{{ liturgical_season_name }}</span>
         <input type="checkbox" id="menu-toggle" class="menu-toggle-checkbox">
         <label for="menu-toggle" class="menu-toggle-label" aria-label="Menu">
             <span></span><span></span><span></span>
@@ -17,7 +35,6 @@
             <a href="{{ url_for('calendar_view') }}" class="{{ 'active' if active == 'calendar' else '' }}">Calendar</a>
             <a href="{{ url_for('prayer_view') }}" class="{{ 'active' if active == 'prayer' else '' }}">Prayer Times</a>
             <a href="{{ url_for('qibla_view') }}" class="{{ 'active' if active == 'qibla' else '' }}">Qibla</a>
-            <a href="{{ url_for('calendar_view', cal='hindu') }}" class="{{ 'active' if active == 'calendar' and cal == 'hindu' else '' }}">Hindu</a>
             <a href="{{ url_for('events_view') }}" class="{{ 'active' if active == 'events' else '' }}">Events</a>
             <a href="{{ url_for('settings_view') }}" class="{{ 'active' if active == 'settings' else '' }}">Settings</a>
         </nav>
@@ -182,7 +199,9 @@
         var CHIMES = {
             azaan: function(){ beep([392, 392], 700); },          // low double tone -- "time for namaz"
             birthday: function(){ beep([523, 659, 784], 180); },  // bright ascending triad
-            festival: function(){ beep([440, 660], 550); }        // bell-ish two-tone
+            festival: function(){ beep([440, 660], 550); },       // bell-ish two-tone
+            gah: function(){ beep([349, 440], 400); },            // soft two-tone -- Gah transition
+            shabbat: function(){ beep([494, 587, 659], 260); }    // gentle ascending triad -- candle lighting
         };
 
         // Optional real audio files, one per category/tradition -- drop
@@ -259,6 +278,27 @@
                         markPlayed(id);
                     }
                 });
+
+                // Gah Change Alert (Parsi) -- gah.minutes_to_change tells us
+                // how far off the next transition is; schedule a one-shot
+                // timer for it rather than polling, same pattern as azaan.
+                if (data.gah && data.gah.minutes_to_change != null) {
+                    var gahId = 'gah-' + data.gah.gah + '-' + new Date().toDateString();
+                    if (!played[gahId] && data.gah.minutes_to_change <= 1440) {
+                        setTimeout(function(){
+                            playSound('gah', CHIMES.gah);
+                            notify('Gah changed', 'Now entering the next Gah');
+                            markPlayed(gahId);
+                        }, Math.max(0, data.gah.minutes_to_change * 60000));
+                    }
+                }
+
+                // Shabbat candle-lighting reminder (Friday only).
+                if (data.shabbat && data.shabbat.candle_lighting_iso) {
+                    scheduleAt(data.shabbat.candle_lighting, 'shabbat-candles',
+                               'shabbat', CHIMES.shabbat,
+                               'Candle lighting', data.shabbat.candle_lighting + ' -- Shabbat begins');
+                }
             }).catch(function(){ /* server unreachable -- skip silently */ });
         }
 

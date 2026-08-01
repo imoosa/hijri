@@ -15,7 +15,9 @@ Navroz fell in, which is enough to build a month grid but isn't a
 traditional Parsi year number.
 """
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+
+from . import prayer_times_accurate as _pta
 
 MONTH_NAMES = [
     "Fravardin", "Ardibehesht", "Khordad", "Tir", "Amardad", "Shehrevar",
@@ -114,3 +116,72 @@ def prev_month(year: int, month: int):
     if month == GATHA_MONTH:
         return year, 12
     return year, month - 1
+
+
+# ==================== Gah (5 daily watches) ====================
+# [likely -- simplified] The five Gahs in Zoroastrian practice: Havan
+# (sunrise-noon), Rapithwin (noon-mid-afternoon), Uzerin (mid-afternoon-
+# sunset), Aiwisruthrem (sunset-midnight), Ushahin (midnight-sunrise).
+# Real practice in some traditions suspends Rapithwin in the winter half
+# of the year, merging it into Havan/Uzerin -- that seasonal rule is NOT
+# modelled here; this uses a flat year-round 5-way split anchored to
+# sunrise/noon/+3h/sunset/midnight. Verify against your community's Gah
+# timetable if this matters for religious observance.
+
+GAHS = [
+    {"name": "Havan",        "desc": "Morning watch -- sunrise to noon"},
+    {"name": "Rapithwin",    "desc": "Midday watch -- noon to mid-afternoon"},
+    {"name": "Uzerin",       "desc": "Afternoon watch -- mid-afternoon to sunset"},
+    {"name": "Aiwisruthrem", "desc": "Evening watch -- sunset to midnight"},
+    {"name": "Ushahin",      "desc": "Night watch -- midnight to dawn"},
+]
+
+# 30 Roj (day-name) list for the Shahenshahi calendar. [likely] -- standard
+# published list; spelling/transliteration varies by source.
+ROJ_NAMES = [
+    "Hormazd", "Bahman", "Ardibehesht", "Shehrevar", "Aspandard", "Khordad",
+    "Amardad", "Dae-pa-Adar", "Adar", "Aban", "Khorshed", "Mohor",
+    "Tir", "Gosh", "Dae-pa-Meher", "Meher", "Srosh", "Rashne",
+    "Fravardin", "Behram", "Ram", "Govad", "Dae-pa-Din", "Din",
+    "Ashishvangh", "Ashtad", "Asman", "Zamyad", "Mareshpand", "Aneran",
+]
+
+
+def roj_name(day: int) -> str:
+    """Name of the Roj (1-30) in the Shahenshahi calendar. The 5 Gatha
+    days have no Roj name in this implementation -- [guessing] returns
+    'Gatha' for those rather than inventing one."""
+    if day < 1 or day > 30:
+        return "Gatha"
+    return ROJ_NAMES[day - 1]
+
+
+def gah_now(now_local: datetime, lat: float, lng: float, tz_offset: float) -> dict:
+    """Which Gah it is right now, plus minutes until the next Gah change
+    (for a change-alert trigger). See the accuracy note above GAHS."""
+    g = now_local.date()
+    jd = _pta.julian_day(g)
+    dec, eqt = _pta.sun_position(jd)
+    noon_utc = 12.0 - lng / 15.0 - eqt
+    sunrise_utc = _pta.time_for_angle(jd, lat, lng, _pta.SUNSET_ANGLE, True, eqt, noon_utc)
+    sunset_utc = _pta.time_for_angle(jd, lat, lng, _pta.SUNSET_ANGLE, False, eqt, noon_utc)
+
+    segments = [
+        ("Havan", sunrise_utc, noon_utc),
+        ("Rapithwin", noon_utc, noon_utc + 3.0),
+        ("Uzerin", noon_utc + 3.0, sunset_utc),
+        ("Aiwisruthrem", sunset_utc, 24.0),
+        ("Ushahin", 24.0, 24.0 + sunrise_utc),
+    ]
+
+    now_utc_hours = now_local.hour + now_local.minute / 60 + now_local.second / 3600 - tz_offset
+    if now_utc_hours < sunrise_utc:
+        now_utc_hours += 24  # so "just after local midnight" lands inside Ushahin, not before Havan
+
+    current, next_change_utc = "Ushahin", 24.0 + sunrise_utc
+    for name, start, end in segments:
+        if start <= now_utc_hours < end:
+            current, next_change_utc = name, end
+            break
+
+    return {"gah": current, "minutes_to_change": max(0, round((next_change_utc - now_utc_hours) * 60))}

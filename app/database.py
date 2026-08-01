@@ -1,8 +1,6 @@
 """SQLite storage for Bohra calendar events (misaqs, urs, eids, etc.)."""
 
-from datetime import datetime
-
-from sqlalchemy import create_engine, Column, Integer, String, Boolean, Date, DateTime, Text
+from sqlalchemy import create_engine, Column, Integer, String, Boolean, Date
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 DATABASE_URL = "sqlite:///./bohra_calendar.db"
@@ -79,31 +77,15 @@ class PersonalEvent(Base):
     recur_calendar = Column(String, default="gregorian")  # 'gregorian' | 'hijri'
 
 
-class Note(Base):
-    """A single freeform sticky-note, shown in the sidebar on every page --
-    not a list of discrete to-do rows, one blob of HTML the user typed
-    directly into a contenteditable box (bold + bullet lists only, from
-    the two toolbar buttons in base.html). Always id=1: there's no login
-    on this app, so it's one shared note for the whole deployment, same
-    as the old version's list was shared. content is sanitized server-side
-    before it's ever written here -- see sanitize_note_html() in main.py --
-    so what's in this column is safe to render with |safe."""
-    __tablename__ = "notes"
+class SidebarNote(Base):
+    """The single shared sticky-note shown in the sidebar (base.html). Not
+    per-user -- there's no auth in this app, so this is just one global
+    scratch pad, same as the rest of the app's session-based 'preferences'
+    being effectively single-tenant. Only row id=1 is ever used."""
+    __tablename__ = "sidebar_note"
 
     id = Column(Integer, primary_key=True, index=True)
-    content = Column(Text, default="")
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-
-def get_or_create_note(db):
-    """The one sticky-note row (id=1), creating it on first use."""
-    n = db.query(Note).get(1)
-    if not n:
-        n = Note(id=1, content="")
-        db.add(n)
-        db.commit()
-        db.refresh(n)
-    return n
+    content = Column(String, default="")
 
 
 def init_db():

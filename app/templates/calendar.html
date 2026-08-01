@@ -212,12 +212,9 @@
             </div>
             <a href="{{ url_for('calendar_view', cal=cal, y=next_year, m=next_month) }}" class="nav-arrow">&gt;</a>
         </div>
-        <div class="gregorian-subtitle">{{ gregorian_range }}</div>
-        {% if show_secondary %}
-        <div class="gregorian-subtitle" style="margin-top:-6px;color:var(--bohra,#b5121b);">
-            Showing {{ calendars[secondary_calendar].label }} dates below each day instead of Gregorian
+        <div class="gregorian-subtitle">
+            {% if show_secondary %}{{ secondary_month_label }}{% else %}{{ gregorian_range }}{% endif %}
         </div>
-        {% endif %}
 
         <table class="calendar-grid">
             <thead>
@@ -420,6 +417,92 @@
                 <div style="margin-top:8px;"><a href="{{ url_for('events_view', tab='personal') }}" style="font-size:12px;">Manage personal events &rsaquo;</a></div>
             {% endif %}
         </div>
+
+        {% if today_saint %}
+        <div class="detail-panel saint-of-day-panel" style="border-left:4px solid var(--christian,#2b6cb0);">
+            <h3 style="margin-top:0;">Saint of the Day</h3>
+            <div style="font-size:15px;font-weight:700;">{{ today_saint.name }}</div>
+            <div style="font-size:12px;color:var(--muted,#888);margin-bottom:8px;">{{ today_saint.title }}</div>
+            <div style="font-size:13px;font-style:italic;line-height:1.5;">&ldquo;{{ today_saint.prayer }}&rdquo;</div>
+        </div>
+        {% endif %}
+
+        {% if hebrew_widget %}
+        <div class="detail-panel shabbat-panel" style="border-left:4px solid var(--jewish,#7c3aed);">
+            <h3 style="margin-top:0;">Shabbat Countdown</h3>
+            <div id="shabbat-countdown-label" style="font-size:12px;color:var(--muted,#888);">Candle lighting</div>
+            <div id="shabbat-countdown" style="font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;">--:--:--</div>
+            <div style="font-size:11px;color:var(--muted,#888);margin-top:2px;">
+                Candles {{ hebrew_widget.shabbat.candle_lighting }} &middot; Havdalah {{ hebrew_widget.shabbat.havdalah }}
+            </div>
+
+            <h4 style="margin:14px 0 6px 0;font-size:12px;color:var(--muted,#888);font-weight:600;">Today's Zmanim</h4>
+            <div style="position:relative;height:10px;background:#f4f1ea;border-radius:5px;overflow:hidden;">
+                <div style="position:absolute;left:0;top:0;bottom:0;width:{{ hebrew_widget.zmanim.progress_pct }}%;background:var(--jewish,#7c3aed);opacity:.55;"></div>
+                <div style="position:absolute;left:{{ hebrew_widget.zmanim.tefila_marker_pct }}%;top:0;bottom:0;width:2px;background:#7c3aed;" title="Sof zman tefila -- {{ hebrew_widget.zmanim.sof_zman_tefila }}"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:10.5px;color:var(--muted,#888);margin-top:3px;">
+                <span>Sunrise {{ hebrew_widget.zmanim.sunrise }}</span>
+                <span>Sof zman tefila {{ hebrew_widget.zmanim.sof_zman_tefila }}</span>
+                <span>Sunset {{ hebrew_widget.zmanim.sunset }}</span>
+            </div>
+            <div style="font-size:11px;margin-top:6px;">
+                {% if hebrew_widget.zmanim.shacharit_time_left %}Time remains for Shacharit.{% else %}Sof zman tefila has passed for today.{% endif %}
+                {% if not hebrew_widget.zmanim.mincha_time_left %} Mincha window has closed.{% endif %}
+            </div>
+        </div>
+        <script>
+        (function(){
+            var el = document.getElementById('shabbat-countdown');
+            var label = document.getElementById('shabbat-countdown-label');
+            if (!el) return;
+            var candle = new Date("{{ hebrew_widget.shabbat.candle_lighting_iso }}");
+            var havdalah = new Date("{{ hebrew_widget.shabbat.havdalah_iso }}");
+            function tick(){
+                var now = new Date();
+                var target = now < candle ? candle : (now < havdalah ? havdalah : null);
+                if (!target) { el.textContent = '--:--:--'; label.textContent = 'Shabbat has ended'; return; }
+                label.textContent = now < candle ? 'Until candle lighting' : 'Until Havdalah';
+                var diff = target - now;
+                var h = Math.floor(diff / 3600000);
+                var m = Math.floor((diff % 3600000) / 60000);
+                var s = Math.floor((diff % 60000) / 1000);
+                el.textContent = String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+            }
+            tick();
+            setInterval(tick, 1000);
+        })();
+        </script>
+        {% endif %}
+
+        {% if parsi_widget %}
+        <div class="detail-panel parsi-widget-panel" style="border-left:4px solid var(--parsi,#16a085);">
+            <h3 style="margin-top:0;">Roj &middot; Mah</h3>
+            <div style="font-size:16px;font-weight:700;">{{ parsi_widget.roj }} <span style="font-weight:400;font-size:13px;color:var(--muted,#888);">Roj</span></div>
+            <div style="font-size:14px;">{{ parsi_widget.mah }} <span style="font-weight:400;font-size:12px;color:var(--muted,#888);">Mah</span></div>
+            <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line,#e5e0da);">
+                <div style="font-size:12px;color:var(--muted,#888);">Current Gah</div>
+                <div style="font-size:16px;font-weight:700;">{{ parsi_widget.gah.gah }}</div>
+                <div id="gah-change-countdown" style="font-size:11px;color:var(--muted,#888);" data-minutes="{{ parsi_widget.gah.minutes_to_change }}">
+                    Next Gah in {{ parsi_widget.gah.minutes_to_change }} min
+                </div>
+            </div>
+        </div>
+        <script>
+        (function(){
+            var el = document.getElementById('gah-change-countdown');
+            if (!el) return;
+            var remaining = parseInt(el.getAttribute('data-minutes'), 10) * 60;
+            function tick(){
+                if (remaining <= 0) { el.textContent = 'Gah is changing now'; return; }
+                remaining -= 1;
+                var m = Math.floor(remaining / 60), s = remaining % 60;
+                el.textContent = 'Next Gah in ' + m + 'm ' + String(s).padStart(2,'0') + 's';
+            }
+            setInterval(tick, 1000);
+        })();
+        </script>
+        {% endif %}
 
     </div>
 </div>
