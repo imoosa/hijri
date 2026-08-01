@@ -92,10 +92,26 @@ def _find_new_moon_after(jd_start: float) -> float:
     return (lo + hi) / 2
 
 
-def _sunrise_jd(g: date) -> float:
-    """Julian day (UT) of sunrise at the Ujjain reference point on Gregorian date g."""
+def _sunrise_jd(g: date, lat: float = None, lng: float = None) -> float:
+    """Julian day (UT) of sunrise on Gregorian date g, at (lat, lng) if
+    given, else the Ujjain reference point. Tithi/nakshatra lookups always
+    used Ujjain regardless of where the user actually is -- that's wrong
+    for anyone outside India by more than a rounding error, and wrong for
+    Rahu Kalam/Abhijit even within India, since those need the ACTUAL
+    local sunrise-sunset span, not a fixed reference city's."""
+    lat = REF_LAT if lat is None else lat
+    lng = REF_LNG if lng is None else lng
     jd_midnight_ut = swe.julday(g.year, g.month, g.day, 0) - 5.5 / 24
-    _, times = swe.rise_trans(jd_midnight_ut, swe.SUN, swe.CALC_RISE, (REF_LNG, REF_LAT, 0))
+    _, times = swe.rise_trans(jd_midnight_ut, swe.SUN, swe.CALC_RISE, (lng, lat, 0))
+    return times[0]
+
+
+def _sunset_jd(g: date, lat: float = None, lng: float = None) -> float:
+    """Julian day (UT) of sunset on Gregorian date g, at (lat, lng)."""
+    lat = REF_LAT if lat is None else lat
+    lng = REF_LNG if lng is None else lng
+    jd_midnight_ut = swe.julday(g.year, g.month, g.day, 0) - 5.5 / 24
+    _, times = swe.rise_trans(jd_midnight_ut, swe.SUN, swe.CALC_SET, (lng, lat, 0))
     return times[0]
 
 
@@ -112,9 +128,35 @@ def tithi_at(jd_ut: float):
     return t - 15, PAKSHA_KRISHNA
 
 
-def tithi_on(g: date):
-    """(tithi, paksha) for a Gregorian civil day, per the sunrise rule."""
-    return tithi_at(_sunrise_jd(g))
+def tithi_on(g: date, lat: float = None, lng: float = None):
+    """(tithi, paksha) for a Gregorian civil day, per the sunrise rule, at
+    (lat, lng) if given else Ujjain."""
+    return tithi_at(_sunrise_jd(g, lat, lng))
+
+
+NAKSHATRA_NAMES = [
+    "Ashwini", "Bharani", "Krittika", "Rohini", "Mrigashira", "Ardra",
+    "Punarvasu", "Pushya", "Ashlesha", "Magha", "Purva Phalguni", "Uttara Phalguni",
+    "Hasta", "Chitra", "Swati", "Vishakha", "Anuradha", "Jyeshtha",
+    "Mula", "Purva Ashadha", "Uttara Ashadha", "Shravana", "Dhanishta", "Shatabhisha",
+    "Purva Bhadrapada", "Uttara Bhadrapada", "Revati",
+]
+
+
+def nakshatra_at(jd_ut: float) -> str:
+    """Moon's sidereal nakshatra (1 of 27 equal 360/27-degree divisions) at
+    a given instant -- same sidereal longitude the tithi/masa math already
+    uses, just a different division of the circle (27 slices instead of
+    30-degree rashis)."""
+    lon = _sidereal_lon(jd_ut, swe.MOON)
+    return NAKSHATRA_NAMES[int(lon // (360 / 27))]
+
+
+def nakshatra_on(g: date, lat: float = None, lng: float = None) -> str:
+    """Nakshatra for a Gregorian civil day, at the same sunrise instant
+    tithi_on() uses -- panchang convention is to report both tithi and
+    nakshatra as of sunrise, not as of "now"."""
+    return nakshatra_at(_sunrise_jd(g, lat, lng))
 
 
 def _masa_of(nm_start: float, nm_end: float):
@@ -193,9 +235,10 @@ def prev_month(year: int, month: int):
     return year - 1, len(year_months(year - 1))
 
 
-def gregorian_to_hindu(g: date):
-    """(hindu_year, month_number, (tithi, paksha)) for a Gregorian date."""
-    js = _sunrise_jd(g)
+def gregorian_to_hindu(g: date, lat: float = None, lng: float = None):
+    """(hindu_year, month_number, (tithi, paksha)) for a Gregorian date, at
+    (lat, lng) if given else Ujjain."""
+    js = _sunrise_jd(g, lat, lng)
     # hindu_year is whichever year-table's Chaitra-to-Phalguna span contains js;
     # try g's own year first, then the neighbours, since Chaitra can start
     # anywhere Feb-Apr and a date in Jan/Feb belongs to the PREVIOUS hindu_year.
@@ -208,10 +251,11 @@ def gregorian_to_hindu(g: date):
     raise ValueError(f"could not place {g} in any Hindu year table")
 
 
-def month_grid(hindu_year: int, month: int):
+def month_grid(hindu_year: int, month: int, lat: float = None, lng: float = None):
     """List of {"gregorian": iso, "ordinal": n, "tithi": n, "paksha": str,
-    "label": str} for every civil day whose Ujjain sunrise falls in this
-    lunar month.
+    "label": str, "is_ekadashi": bool, "is_purnima": bool} for every civil
+    day whose local sunrise (at lat/lng, else Ujjain) falls in this lunar
+    month.
 
     `ordinal` is a plain 1-based sequential count through this month's
     day list -- NOT the tithi. A lunar month has no native "day 1, day
@@ -226,12 +270,16 @@ def month_grid(hindu_year: int, month: int):
     days = []
     ordinal = 0
     while g <= end_bound:
-        js = _sunrise_jd(g)
+        js = _sunrise_jd(g, lat, lng)
         if mo["start_jd"] <= js < mo["end_jd"]:
             t, paksha = tithi_at(js)
             ordinal += 1
-            days.append({"gregorian": g.isoformat(), "ordinal": ordinal, "tithi": t,
-                         "paksha": paksha, "label": native_label((t, paksha))})
+            days.append({
+                "gregorian": g.isoformat(), "ordinal": ordinal, "tithi": t,
+                "paksha": paksha, "label": native_label((t, paksha)),
+                "is_ekadashi": t == 11,
+                "is_purnima": t == 15 and paksha == PAKSHA_SHUKLA,
+            })
         g += timedelta(days=1)
     return days
 
@@ -288,3 +336,70 @@ def hindu_events(year: int):
                     })
     events.sort(key=lambda e: e["date"])
     return events
+
+
+# ==================== daily muhurats (Rahu Kalam, Abhijit) ====================
+# Both split the ACTUAL local sunrise-to-sunset span at the user's own
+# lat/lng -- unlike the festival-date math above, these are meaningless if
+# pinned to a reference city someone isn't standing in.
+
+# Rahu Kalam segment (1-8, of 8 equal divisions of sunrise-sunset), keyed
+# by Python's date.weekday() (Monday=0 ... Sunday=6). Standard tabular
+# assignment used across Panchang references.
+_RAHU_KALAM_SEGMENT = {0: 2, 1: 7, 2: 5, 3: 6, 4: 4, 5: 3, 6: 8}
+
+# Abhijit is the 8th of 15 equal muhurtas spanning sunrise-to-sunset --
+# roughly the ~24 minutes either side of local solar noon.
+_ABHIJIT_MUHURTA_INDEX = 7  # 0-based: 8th muhurta
+
+
+def _jd_to_local_hhmm(jd_ut: float, tz_offset: float) -> str:
+    """Same HH:MM-string convention prayer_times_accurate.py already uses,
+    so the frontend can treat Rahu Kalam/Abhijit boundaries exactly like
+    azaan times -- one scheduling code path, not two."""
+    _, _, _, h = swe.revjul(jd_ut)
+    total = (h + tz_offset) % 24
+    hh = int(total)
+    mm = int(round((total - hh) * 60))
+    if mm == 60:
+        mm = 0
+        hh = (hh + 1) % 24
+    return f"{hh:02d}:{mm:02d}"
+
+
+def daily_muhurats(lat: float, lng: float, g: date, tz_offset: float) -> dict:
+    """Sunrise, sunset, Rahu Kalam window, and Abhijit Muhurat window for
+    one civil day at (lat, lng), all as local HH:MM strings.
+
+    [likely] Rahu Kalam's weekday->segment table and Abhijit's "8th of 15
+    muhurtas" rule are the versions most Panchang sources agree on, not
+    independently re-derived here -- cross-check against a published
+    Panchang for your exact location before treating either window as
+    authoritative for something time-sensitive."""
+    sunrise_jd = _sunrise_jd(g, lat, lng)
+    sunset_jd = _sunset_jd(g, lat, lng)
+    day_len = sunset_jd - sunrise_jd
+    if day_len <= 0:
+        raise ValueError(f"sunset before sunrise for {g} at ({lat},{lng}) -- polar location?")
+
+    eighth = day_len / 8
+    rk_idx = _RAHU_KALAM_SEGMENT[g.weekday()] - 1
+    rk_start_jd = sunrise_jd + rk_idx * eighth
+    rk_end_jd = rk_start_jd + eighth
+
+    muhurta = day_len / 15
+    ab_start_jd = sunrise_jd + _ABHIJIT_MUHURTA_INDEX * muhurta
+    ab_end_jd = ab_start_jd + muhurta
+
+    return {
+        "sunrise": _jd_to_local_hhmm(sunrise_jd, tz_offset),
+        "sunset": _jd_to_local_hhmm(sunset_jd, tz_offset),
+        "rahu_kalam": {
+            "start": _jd_to_local_hhmm(rk_start_jd, tz_offset),
+            "end": _jd_to_local_hhmm(rk_end_jd, tz_offset),
+        },
+        "abhijit": {
+            "start": _jd_to_local_hhmm(ab_start_jd, tz_offset),
+            "end": _jd_to_local_hhmm(ab_end_jd, tz_offset),
+        },
+    }

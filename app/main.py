@@ -687,6 +687,64 @@ def create_app():
                                 distance_km=distance, location_name=loc["name"],
                                 location_is_default=location_is_default())
 
+    @app.get("/hindu-view")
+    def hindu_view():
+        """Location-corrected Hindu daily panel + monthly grid. Unlike the
+        Hindu festival dates on the Events tab (which stay pinned to
+        Ujjain -- see interfaith_calendar.py's docstring), everything here
+        uses the user's saved location, since Rahu Kalam/Abhijit are
+        meaningless without the actual local sunrise-sunset span."""
+        loc = current_location()
+        today_g = date.today()
+
+        hy_today, hm_today, _ = hindu.gregorian_to_hindu(today_g, loc["lat"], loc["lng"])
+        hindu_year = request.args.get("y", type=int) or hy_today
+        hindu_month = request.args.get("m", type=int) or hm_today
+        # month can shift out of range on a "go to next year" click at the
+        # Chaitra/Phalguna boundary -- clamp rather than let year_months() throw
+        months_in_year = len(hindu.year_months(hindu_year))
+        hindu_month = max(1, min(hindu_month, months_in_year))
+
+        tithi, paksha = hindu.tithi_on(today_g, loc["lat"], loc["lng"])
+        nakshatra = hindu.nakshatra_on(today_g, loc["lat"], loc["lng"])
+        muhurats = hindu.daily_muhurats(loc["lat"], loc["lng"], today_g, loc["tz_offset"])
+
+        def _mins(hhmm):
+            h, m = hhmm.split(":")
+            return int(h) * 60 + int(m)
+
+        span_start = _mins(muhurats["sunrise"])
+        span_end = _mins(muhurats["sunset"])
+        span = max(span_end - span_start, 1)
+
+        def _pct(hhmm):
+            return round((_mins(hhmm) - span_start) / span * 100, 2)
+
+        timeline = {
+            "rahu_kalam_left": _pct(muhurats["rahu_kalam"]["start"]),
+            "rahu_kalam_width": round((_mins(muhurats["rahu_kalam"]["end"]) - _mins(muhurats["rahu_kalam"]["start"])) / span * 100, 2),
+            "abhijit_left": _pct(muhurats["abhijit"]["start"]),
+            "abhijit_width": round((_mins(muhurats["abhijit"]["end"]) - _mins(muhurats["abhijit"]["start"])) / span * 100, 2),
+        }
+
+        month_days = hindu.month_grid(hindu_year, hindu_month, loc["lat"], loc["lng"])
+        prev_y, prev_m = hindu.prev_month(hindu_year, hindu_month)
+        next_y, next_m = hindu.next_month(hindu_year, hindu_month)
+
+        return render_template(
+            "hindu.html", active="hindu",
+            tithi=tithi, paksha=paksha, nakshatra=nakshatra,
+            sunrise=muhurats["sunrise"], sunset=muhurats["sunset"],
+            rahu_kalam=muhurats["rahu_kalam"], abhijit=muhurats["abhijit"],
+            timeline=timeline,
+            hindu_year=hindu_year, hindu_month=hindu_month,
+            month_name=hindu.month_name(hindu_year, hindu_month),
+            month_days=month_days,
+            today_iso=today_g.isoformat(),
+            prev_y=prev_y, prev_m=prev_m, next_y=next_y, next_m=next_m,
+            location_name=loc["name"], location_is_default=location_is_default(),
+        )
+
     @app.route("/settings", methods=["GET", "POST"])
     def settings_view():
         if request.method == "POST":
