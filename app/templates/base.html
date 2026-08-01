@@ -34,26 +34,18 @@
 
     <style>
         .notes-widget{border-top:1px solid #e5e0da;padding:14px 16px;}
-        .notes-widget h3{margin:0 0 10px;font-size:13px;text-transform:uppercase;
-            letter-spacing:.03em;color:#888;}
-        .notes-add-form{display:flex;gap:6px;margin-bottom:10px;}
-        .notes-add-form input[type="text"]{flex:1;padding:7px 9px;font-size:13px;
-            border:1px solid #ddd;border-radius:6px;}
-        .notes-add-form button{border:none;background:#b5121b;color:#fff;border-radius:6px;
-            padding:0 12px;font-size:13px;font-weight:600;cursor:pointer;}
-        .notes-add-form button:hover{background:#8f0e15;}
-        .notes-list{list-style:none;margin:0;padding:0;}
-        .notes-list li{display:flex;align-items:flex-start;gap:8px;padding:6px 0;
-            border-bottom:1px solid #f2efe9;font-size:13.5px;}
-        .notes-list li:last-child{border-bottom:none;}
-        .notes-list .note-text{flex:1;word-break:break-word;}
-        .notes-list .note-text.done{text-decoration:line-through;color:#999;}
-        .notes-list form{display:inline;}
-        .notes-list .note-toggle{background:none;border:none;padding:0;cursor:pointer;
-            font-size:15px;line-height:1.3;color:#666;}
-        .notes-list .note-delete{background:none;border:none;padding:0;cursor:pointer;
-            font-size:12px;color:#b5121b;}
-        .notes-empty{font-size:12.5px;color:#999;}
+        .notes-toolbar{display:flex;align-items:center;gap:6px;margin-bottom:8px;}
+        .notes-toolbar button{border:1px solid #ddd;background:#fff;border-radius:4px;
+            padding:3px 10px;font-size:12.5px;cursor:pointer;color:#444;}
+        .notes-toolbar button:hover{background:#f4f1ea;}
+        .notes-toolbar button#note-bold-btn{font-weight:700;}
+        .notes-toolbar button#note-bullet-btn{font-size:14px;line-height:1;}
+        .note-save-status{margin-left:auto;font-size:11px;color:#999;}
+        .sticky-note{min-height:170px;background:#fff8d6;border-radius:3px;
+            box-shadow:0 1px 4px rgba(0,0,0,.18);padding:14px;font-size:13.5px;
+            line-height:1.55;outline:none;white-space:pre-wrap;}
+        .sticky-note:empty::before{content:attr(data-placeholder);color:#a89a5c;}
+        .sticky-note ul{margin:4px 0 4px 18px;padding:0;}
     </style>
 
     <div class="app-body">
@@ -69,33 +61,61 @@
             {% endif %}
 
             <div class="notes-widget">
-                <h3>Notes</h3>
-                <form method="post" action="{{ url_for('add_note') }}" class="notes-add-form">
-                    <input type="text" name="text" placeholder="Write something important&hellip;" maxlength="500">
-                    <button type="submit">Add</button>
-                </form>
-                {% if sidebar_notes %}
-                <ul class="notes-list">
-                    {% for n in sidebar_notes %}
-                    <li>
-                        <form method="post" action="{{ url_for('toggle_note', note_id=n.id) }}">
-                            <button type="submit" class="note-toggle" title="Mark {{ 'not done' if n.is_done else 'done' }}">{{ '☑' if n.is_done else '☐' }}</button>
-                        </form>
-                        <span class="note-text {{ 'done' if n.is_done else '' }}">{{ n.text }}</span>
-                        <form method="post" action="{{ url_for('delete_note', note_id=n.id) }}">
-                            <button type="submit" class="note-delete" onclick="return confirm('Delete this note?')">remove</button>
-                        </form>
-                    </li>
-                    {% endfor %}
-                </ul>
-                {% else %}
-                <div class="notes-empty">Nothing here yet.</div>
-                {% endif %}
+                <div class="notes-toolbar">
+                    <button type="button" id="note-bold-btn" title="Bold the selected text">B</button>
+                    <button type="button" id="note-bullet-btn" title="Bullet list">&bull;&nbsp;List</button>
+                    <span id="note-save-status" class="note-save-status"></span>
+                </div>
+                <div id="sticky-note" class="sticky-note" contenteditable="true"
+                     data-placeholder="Write something important&hellip;">{{ sidebar_note_content|safe }}</div>
             </div>
         </aside>
         <main class="main-content">
             {% block content %}{% endblock %}
         </main>
     </div>
+
+    <script>
+    (function(){
+        var note = document.getElementById('sticky-note');
+        var status = document.getElementById('note-save-status');
+        var boldBtn = document.getElementById('note-bold-btn');
+        var bulletBtn = document.getElementById('note-bullet-btn');
+        var saveTimer = null;
+
+        function saveNote(){
+            status.textContent = 'Saving…';
+            fetch('{{ url_for("save_note") }}', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: 'content=' + encodeURIComponent(note.innerHTML)
+            }).then(function(r){
+                status.textContent = r.ok ? 'Saved' : 'Could not save';
+                setTimeout(function(){ status.textContent = ''; }, 1500);
+            }).catch(function(){
+                status.textContent = 'Could not save';
+            });
+        }
+
+        note.addEventListener('input', function(){
+            clearTimeout(saveTimer);
+            status.textContent = '';
+            saveTimer = setTimeout(saveNote, 800);
+        });
+        note.addEventListener('blur', saveNote);
+
+        // execCommand is deprecated but still the only one-line way to do
+        // rich-text bold/list toggling in a contenteditable box without
+        // pulling in a whole editor library -- fine for two buttons.
+        boldBtn.addEventListener('click', function(){
+            document.execCommand('bold');
+            note.focus();
+        });
+        bulletBtn.addEventListener('click', function(){
+            document.execCommand('insertUnorderedList');
+            note.focus();
+        });
+    })();
+    </script>
 </body>
 </html>
