@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% block title %}Hindu Calendar{% endblock %}
+{% block content %}
+<style>
+    .hindu-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;}
+    .hindu-header h1{margin:0;}
+    .hindu-loc{font-size:12.5px;color:#888;}
+
+    .daily-panel{background:#fff;border:1px solid #e5e0da;border-radius:8px;padding:18px;margin-bottom:20px;
+        display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;}
+    @media (max-width:700px){.daily-panel{grid-template-columns:1fr;}}
+    .daily-stat{}
+    .daily-stat .label{font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:#999;margin-bottom:3px;}
+    .daily-stat .value{font-size:19px;font-weight:700;color:#333;}
+    .daily-stat .sub{font-size:12px;color:#888;margin-top:2px;}
+    #muhurat-countdown{font-variant-numeric:tabular-nums;}
+
+    .timeline-card{background:#fff;border:1px solid #e5e0da;border-radius:8px;padding:16px 18px;margin-bottom:20px;}
+    .timeline-card h3{margin:0 0 10px;font-size:14px;color:#555;}
+    .timeline-bar{position:relative;height:34px;background:#f4f1ea;border-radius:5px;overflow:hidden;}
+    .timeline-segment{position:absolute;top:0;bottom:0;}
+    .timeline-segment.rahu{background:rgba(213,60,60,.35);border-left:2px solid #d53c3c;border-right:2px solid #d53c3c;}
+    .timeline-segment.abhijit{background:rgba(46,160,90,.35);border-left:2px solid #2ea05a;border-right:2px solid #2ea05a;}
+    .timeline-labels{display:flex;justify-content:space-between;font-size:11px;color:#999;margin-top:6px;}
+    .timeline-legend{display:flex;gap:16px;margin-top:10px;font-size:12px;color:#666;}
+    .timeline-legend span{display:inline-flex;align-items:center;gap:5px;}
+    .legend-dot{width:10px;height:10px;border-radius:2px;display:inline-block;}
+    .legend-dot.rahu{background:#d53c3c;}
+    .legend-dot.abhijit{background:#2ea05a;}
+
+    .month-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+    .month-nav a{color:#b5121b;text-decoration:none;font-size:13px;font-weight:600;}
+    .month-nav h2{margin:0;font-size:16px;}
+
+    .month-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:6px;}
+    .month-day{border:1px solid #eee;border-radius:6px;padding:6px 4px;text-align:center;font-size:11.5px;
+        background:#fff;position:relative;}
+    .month-day .g-date{color:#999;font-size:10px;}
+    .month-day .tlabel{font-weight:700;color:#444;margin-top:1px;}
+    .month-day.today{border-color:#b5121b;box-shadow:0 0 0 1px #b5121b inset;}
+    .day-dot{position:absolute;top:3px;right:3px;width:7px;height:7px;border-radius:50%;}
+    .day-dot.ekadashi{background:#8e44ad;}
+    .day-dot.purnima{background:#e67e22;}
+    .month-grid-legend{display:flex;gap:16px;margin-top:12px;font-size:12px;color:#666;}
+</style>
+
+<div class="hindu-header">
+    <h1>Hindu Calendar</h1>
+    <span class="hindu-loc">{{ location_name }}{% if location_is_default %} (default -- set yours in Settings){% endif %}</span>
+</div>
+
+<div class="daily-panel">
+    <div class="daily-stat">
+        <div class="label">Tithi</div>
+        <div class="value">{{ tithi }} <span style="font-weight:400;font-size:14px;color:#888;">({{ paksha }})</span></div>
+    </div>
+    <div class="daily-stat">
+        <div class="label">Nakshatra</div>
+        <div class="value">{{ nakshatra }}</div>
+    </div>
+    <div class="daily-stat">
+        <div class="label">Next Muhurat boundary</div>
+        <div class="value" id="muhurat-countdown">--:--:--</div>
+        <div class="sub" id="muhurat-countdown-label"></div>
+    </div>
+</div>
+
+<div class="timeline-card">
+    <h3>Today's timeline -- {{ sunrise }} to {{ sunset }}</h3>
+    <div class="timeline-bar">
+        <div class="timeline-segment rahu" style="left:{{ timeline.rahu_kalam_left }}%;width:{{ timeline.rahu_kalam_width }}%;"
+             title="Rahu Kalam {{ rahu_kalam.start }}-{{ rahu_kalam.end }}"></div>
+        <div class="timeline-segment abhijit" style="left:{{ timeline.abhijit_left }}%;width:{{ timeline.abhijit_width }}%;"
+             title="Abhijit Muhurat {{ abhijit.start }}-{{ abhijit.end }}"></div>
+    </div>
+    <div class="timeline-labels"><span>{{ sunrise }}</span><span>{{ sunset }}</span></div>
+    <div class="timeline-legend">
+        <span><span class="legend-dot rahu"></span> Rahu Kalam {{ rahu_kalam.start }}-{{ rahu_kalam.end }} (avoid starting new things)</span>
+        <span><span class="legend-dot abhijit"></span> Abhijit Muhurat {{ abhijit.start }}-{{ abhijit.end }} (auspicious)</span>
+    </div>
+</div>
+
+<div class="month-nav">
+    <a href="{{ url_for('hindu_view', y=prev_y, m=prev_m) }}">&larr; Prev</a>
+    <h2>{{ month_name }} {{ hindu_year }}</h2>
+    <a href="{{ url_for('hindu_view', y=next_y, m=next_m) }}">Next &rarr;</a>
+</div>
+
+<div class="month-grid">
+    {% for d in month_days %}
+    <div class="month-day {{ 'today' if d.gregorian == today_iso else '' }}">
+        {% if d.is_ekadashi %}<span class="day-dot ekadashi" title="Ekadashi"></span>{% endif %}
+        {% if d.is_purnima %}<span class="day-dot purnima" title="Purnima"></span>{% endif %}
+        <div class="g-date">{{ d.gregorian[8:10] }}/{{ d.gregorian[5:7] }}</div>
+        <div class="tlabel">{{ d.label }}</div>
+    </div>
+    {% endfor %}
+</div>
+<div class="month-grid-legend">
+    <span><span class="day-dot ekadashi" style="position:static;display:inline-block;"></span> Ekadashi</span>
+    <span><span class="day-dot purnima" style="position:static;display:inline-block;"></span> Purnima</span>
+</div>
+
+<script>
+(function(){
+    // Countdown to whichever of today's Rahu Kalam / Abhijit boundaries
+    // (start or end) is next -- pure client-side arithmetic against the
+    // server-computed times, no polling needed.
+    var boundaries = [
+        {label: 'Rahu Kalam starts', hhmm: '{{ rahu_kalam.start }}'},
+        {label: 'Rahu Kalam ends', hhmm: '{{ rahu_kalam.end }}'},
+        {label: 'Abhijit Muhurat starts', hhmm: '{{ abhijit.start }}'},
+        {label: 'Abhijit Muhurat ends', hhmm: '{{ abhijit.end }}'}
+    ];
+
+    function toToday(hhmm){
+        var parts = hhmm.split(':').map(Number);
+        var now = new Date();
+        return new Date(now.getFullYear(), now.getMonth(), now.getDate(), parts[0], parts[1], 0, 0);
+    }
+
+    function tick(){
+        var now = new Date();
+        var upcoming = boundaries
+            .map(function(b){ return {label: b.label, at: toToday(b.hhmm)}; })
+            .filter(function(b){ return b.at > now; })
+            .sort(function(a,b){ return a.at - b.at; });
+
+        var el = document.getElementById('muhurat-countdown');
+        var labelEl = document.getElementById('muhurat-countdown-label');
+        if (!upcoming.length) {
+            el.textContent = '--:--:--';
+            labelEl.textContent = "Today's windows have passed";
+            return;
+        }
+        var diff = upcoming[0].at - now;
+        var h = Math.floor(diff / 3600000);
+        var m = Math.floor((diff % 3600000) / 60000);
+        var s = Math.floor((diff % 60000) / 1000);
+        el.textContent = (h ? h + 'h ' : '') + String(m).padStart(2,'0') + 'm ' + String(s).padStart(2,'0') + 's';
+        labelEl.textContent = upcoming[0].label;
+    }
+
+    tick();
+    setInterval(tick, 1000);
+})();
+</script>
+{% endblock %}
