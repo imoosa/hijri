@@ -55,12 +55,13 @@
     {% endwith %}
 
     <style>
-        /* [guessing] Sidebar column removed entirely -- {% block sidebar %}
-           is never overridden in any template I have, so that column only
-           ever held the note + alerts widgets. .app-body forced to block
-           layout here as a safety-net override, in case style.css had it
-           set to display:flex for the old two-column shell -- I don't have
-           that file so I can't confirm, only guard against it. */
+        /* [guessing] Sidebar column removed entirely -- the "sidebar" block
+           this base template used to expose is never overridden in any
+           page template I have, so that column only ever held the note +
+           alerts widgets. .app-body forced to block layout here as a
+           safety-net override, in case style.css had it set to
+           display:flex for the old two-column shell -- I don't have that
+           file so I can't confirm, only guard against it. */
         .app-body{ display:block; }
         .main-content{ width:100%; }
 
