@@ -7,6 +7,7 @@ from . import hijri_calendar as hc
 from . import hebrew_calendar as heb
 from . import parsi_calendar as pc
 from . import hindu_calendar as hindu
+from . import christian_calendar as cc
 from . import prayer_times as pt
 from . import prayer_times_accurate as pt
 from . import qibla as qb
@@ -254,6 +255,19 @@ def create_app():
         the key->file mapping as JSON. One source of truth (RINGTONE_OPTIONS
         above) instead of duplicating the list in both templates."""
         return dict(ringtone_options=RINGTONE_OPTIONS)
+
+    @app.context_processor
+    def inject_liturgical():
+        """base.html's topbar badge and calendar.html's Saint-of-the-Day
+        panel both reference these -- they were referenced in the templates
+        but never actually populated from here, so both silently rendered
+        as empty. Cheap pure-date-math, safe to compute on every request."""
+        season = cc.liturgical_season(date.today())
+        return dict(
+            liturgical_color_hex=season["color_hex"],
+            liturgical_season_name=season["season"],
+            today_saint=cc.saint_of_day(date.today().month, date.today().day),
+        )
 
     @app.post("/notes/save")
     def save_note():
@@ -728,6 +742,30 @@ def create_app():
                 },
             }
 
+        # Shabbat/Zmanim ritual panel -- only computed when Hebrew is the
+        # selected calendar, same gating as hindu_daily above. Was
+        # referenced in calendar.html before this but never actually built
+        # here, so it silently never rendered.
+        hebrew_widget = None
+        if cal_key == "hebrew":
+            hebrew_widget = {
+                "shabbat": heb.shabbat_times(today_g, loc["lat"], loc["lng"], loc["tz_offset"]),
+                "zmanim": heb.zmanim(today_g, loc["lat"], loc["lng"], loc["tz_offset"]),
+            }
+
+        # Roj/Mah/Gah ritual panel -- same story, only when Parsi is selected.
+        parsi_widget = None
+        if cal_key == "parsi":
+            gah = pc.gah_now(datetime.now(), loc["lat"], loc["lng"], loc["tz_offset"])
+            _, p_month, p_day = pc.gregorian_to_parsi(today_g)
+            gah_desc = next((g["desc"] for g in pc.GAHS if g["name"] == gah["gah"]), "")
+            parsi_widget = {
+                "roj": pc.roj_name(p_day),
+                "mah": pc.month_name(p_month),
+                "gah": gah,
+                "gah_desc": gah_desc,
+            }
+
         # Get user's custom events (only Bohra events for now, can extend)
         db = get_session()
         try:
@@ -774,6 +812,8 @@ def create_app():
             secondary_month_label=secondary_month_label,
             user_prefs=prefs,
             hindu_daily=hindu_daily,
+            hebrew_widget=hebrew_widget,
+            parsi_widget=parsi_widget,
         )
 
     @app.get("/prayer-times-view")
