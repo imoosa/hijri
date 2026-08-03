@@ -137,11 +137,65 @@
         .alerts-widget .alerts-note{margin-top:6px;color:#999;font-size:11px;line-height:1.4;}
     </style>
 
-    
+    <div class="app-body">
+        <aside class="sidebar">
+            {% if sidebar_content|trim %}
+            <input type="checkbox" id="sidebar-toggle" class="sidebar-toggle-checkbox">
+            <label for="sidebar-toggle" class="sidebar-toggle-label">
+                Filters &amp; events <span class="toggle-arrow">&#9662;</span>
+            </label>
+            <div class="sidebar-inner">
+                {{ sidebar_content }}
+            </div>
+            {% endif %}
+
+            <div class="notes-widget">
+                <div class="sticky-note-card">
+                    <div class="notes-header">
+                        <span class="notes-drag-dots" title="Cosmetic only -- CSS can't make a page element drag around the OS desktop">::::</span>
+                        <div class="notes-header-actions">
+                            <button type="button" id="note-collapse-btn" class="notes-icon-btn" title="Collapse/expand">&minus;</button>
+                            <button type="button" id="note-new-btn" class="notes-icon-btn" title="Clear this note and start fresh">+</button>
+                            <button type="button" class="notes-icon-btn" title="Nothing to put in this menu yet" disabled>&#8942;</button>
+                            <button type="button" id="note-close-btn" class="notes-icon-btn" title="Hide">&times;</button>
+                        </div>
+                    </div>
+
+                    <div id="sticky-note" class="sticky-note" contenteditable="true"
+                         data-placeholder="Write something important&hellip;">{{ sidebar_note_content|safe }}</div>
+
+                    <div class="notes-toolbar">
+                        <button type="button" id="note-bold-btn" class="notes-icon-btn" title="Bold the selected text">B</button>
+                        <button type="button" id="note-italic-btn" class="notes-icon-btn" title="Italic the selected text">I</button>
+                        <button type="button" id="note-underline-btn" class="notes-icon-btn" title="Underline the selected text">U</button>
+                        <button type="button" id="note-bullet-btn" class="notes-icon-btn" title="Bullet list">&#9776;</button>
+                        <button type="button" id="note-number-btn" class="notes-icon-btn" title="Numbered list">1.</button>
+                        <button type="button" id="note-image-btn" class="notes-icon-btn"
+                                title="Not wired to a backend yet -- see the sanitizer note below">&#128247;</button>
+                        <span id="note-save-status" class="note-save-status"></span>
+                    </div>
+                </div>
+                <button type="button" id="note-reopen-btn" class="note-reopen-btn">+ Note</button>
+            </div>
+
+            <div class="alerts-widget">
+                <label>
+                    <input type="checkbox" id="alerts-enabled">
+                    Sound reminders (azaan times, birthdays/anniversaries, today's tradition holidays)
+                </label>
+                <div class="alerts-note">
+                    Only fires while this tab stays open on any page -- switching
+                    pages resets the timers, and closing the tab/browser stops it
+                    entirely. Plays the actual azaan recitation for your default
+                    calendar (Bohra/Sunni/Shia); other reminders are a chime +
+                    on-screen notification.
+                </div>
+            </div>
+        </aside>
         <main class="main-content">
             {% block content %}{% endblock %}
         </main>
-    
+    </div>
 
     <script>
     (function(){
@@ -410,6 +464,14 @@
             }
             fallbackChime();
         }
+
+        // settings.html's preview buttons (both dropdowns and the custom-
+        // upload list) call window.previewRingtone(key) directly -- this is
+        // that function. Falls back to a generic chime, same as playRingtone,
+        // if the file 404s or the key isn't recognized.
+        window.previewRingtone = function(key){
+            playRingtone(key, function(){ beep([523, 659, 784], 180); });
+        };
 
         function notify(title, body){
             if (window.Notification && Notification.permission === 'granted') {
