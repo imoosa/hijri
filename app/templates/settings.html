@@ -99,6 +99,20 @@
     background:#f4f1ea;color:#555;border:none;padding:10px 24px;border-radius:8px;
     font-size:14px;cursor:pointer;
   }
+
+  .ringtone-preview-btn{
+    border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--bohra);
+    width:38px;flex:none;font-size:13px;cursor:pointer;
+  }
+  .ringtone-preview-btn:hover{background:#faf8f4}
+  .ringtone-upload-card{
+    margin-top:18px;padding:14px 16px;border:1px dashed var(--line);border-radius:10px;background:#faf8f4;
+  }
+  .ringtone-upload-list{margin-top:12px;display:flex;flex-direction:column;gap:6px}
+  .ringtone-upload-row{
+    display:flex;align-items:center;justify-content:space-between;font-size:13px;
+    padding:7px 10px;background:#fff;border:1px solid var(--line);border-radius:6px;
+  }
 </style>
 
 <div class="card">
@@ -290,27 +304,33 @@
             <div class="field-grid" style="margin-top:14px;">
                 <div class="field">
                     <label for="f-birthday-ringtone">Birthday ringtone</label>
-                    <select name="birthday_ringtone" id="f-birthday-ringtone">
-                        {% for key, opt in ringtone_options.items() %}
-                        <option value="{{ key }}" {{ 'selected' if prefs.birthday_ringtone == key else '' }}>{{ opt.label }}</option>
-                        {% endfor %}
-                    </select>
+                    <div style="display:flex;gap:6px;">
+                        <select name="birthday_ringtone" id="f-birthday-ringtone" style="flex:1;">
+                            {% for key, opt in ringtone_options.items() %}
+                            <option value="{{ key }}" {{ 'selected' if prefs.birthday_ringtone == key else '' }}>{{ opt.label }}</option>
+                            {% endfor %}
+                        </select>
+                        <button type="button" class="ringtone-preview-btn" data-select="f-birthday-ringtone" title="Play the selected sound">&#9654;</button>
+                    </div>
                 </div>
                 <div class="field">
                     <label for="f-anniversary-ringtone">Anniversary ringtone</label>
-                    <select name="anniversary_ringtone" id="f-anniversary-ringtone">
-                        {% for key, opt in ringtone_options.items() %}
-                        <option value="{{ key }}" {{ 'selected' if prefs.anniversary_ringtone == key else '' }}>{{ opt.label }}</option>
-                        {% endfor %}
-                    </select>
+                    <div style="display:flex;gap:6px;">
+                        <select name="anniversary_ringtone" id="f-anniversary-ringtone" style="flex:1;">
+                            {% for key, opt in ringtone_options.items() %}
+                            <option value="{{ key }}" {{ 'selected' if prefs.anniversary_ringtone == key else '' }}>{{ opt.label }}</option>
+                            {% endfor %}
+                        </select>
+                        <button type="button" class="ringtone-preview-btn" data-select="f-anniversary-ringtone" title="Play the selected sound">&#9654;</button>
+                    </div>
                 </div>
             </div>
-            <p class="section-hint" style="margin-top:10px;">
-                Any option other than "Synth beep" needs its mp3 dropped into
-                <code>static/sounds/</code> under that name (see base.html's
-                SOUND_FILES / this app's RINGTONE_OPTIONS) -- until you add the
-                file, that choice silently falls back to the synth beep instead
-                of failing.
+            <p class="section-hint" style="margin-top:6px;">
+                Pick a sound in either dropdown, then tap &#9654; next to it to hear it before saving.
+                Only "Synth beep" is guaranteed to play everywhere -- the others need their file to
+                actually exist (either one of the built-ins under <code>static/sounds/</code>, or
+                something you've uploaded yourself below); until then that choice silently falls back
+                to the synth beep instead of failing.
             </p>
             <p class="section-hint">
                 Want a specific person's birthday to always use a different
@@ -318,6 +338,41 @@
                 on the <a href="{{ url_for('events_view', tab='personal') }}">event itself</a>,
                 not here -- these two selects are the category-wide fallback.
             </p>
+
+            <div class="ringtone-upload-card">
+                <h3 style="margin:0 0 4px;font-size:14px;">Upload your own ringtone</h3>
+                <p class="section-hint" style="margin:0 0 10px;">
+                    Don't like the built-in options? Upload an mp3/wav/ogg/m4a/aac
+                    file (under 5&nbsp;MB) and it'll show up as a choice in both
+                    dropdowns above, and as a per-event override on individual events.
+                </p>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
+                    <div class="field" style="flex:1;min-width:160px;margin:0;">
+                        <label for="f-ringtone-file">Audio file</label>
+                        <input type="file" id="f-ringtone-file" name="ringtone_file" accept="audio/*">
+                    </div>
+                    <div class="field" style="flex:1;min-width:160px;margin:0;">
+                        <label for="f-ringtone-label">Name it (optional)</label>
+                        <input type="text" id="f-ringtone-label" name="ringtone_label" placeholder="e.g. Amma's favorite bell">
+                    </div>
+                    <button type="button" id="ringtone-upload-btn" class="btn-save" style="padding:9px 16px;">Upload</button>
+                </div>
+
+                {% if custom_ringtones %}
+                <div class="ringtone-upload-list">
+                    {% for r in custom_ringtones %}
+                    <div class="ringtone-upload-row">
+                        <span>{{ r.label }}</span>
+                        <div style="display:flex;gap:6px;align-items:center;">
+                            <button type="button" class="ringtone-preview-btn" data-key="{{ r.key }}" title="Play">&#9654;</button>
+                            <button type="button" class="link-btn ringtone-delete-btn" data-key="{{ r.key }}"
+                                    data-url="{{ url_for('delete_ringtone', key=r.key) }}" style="color:#b5121b;">delete</button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
         </div>
 
         <div class="settings-actions">
@@ -464,6 +519,57 @@
             e.preventDefault();
             lookupTypedLocation();
         }
+    });
+})();
+
+// ---- Ringtone preview / upload / delete ----
+// These live inside the page's single big settings <form>, but every
+// button here is type="button" (never type="submit") and every network
+// call goes through fetch(), specifically so none of this ever triggers
+// or nests inside that form's own POST -- a real nested <form> would be
+// invalid HTML and browsers handle it inconsistently.
+(function(){
+    document.querySelectorAll('.ringtone-preview-btn').forEach(function(btn){
+        btn.addEventListener('click', function(){
+            var key = btn.dataset.key;
+            if (!key && btn.dataset.select) {
+                var sel = document.getElementById(btn.dataset.select);
+                key = sel ? sel.value : null;
+            }
+            if (key && window.previewRingtone) window.previewRingtone(key);
+        });
+    });
+
+    var uploadBtn = document.getElementById('ringtone-upload-btn');
+    if (uploadBtn) {
+        uploadBtn.addEventListener('click', function(){
+            var fileInput = document.getElementById('f-ringtone-file');
+            if (!fileInput.files.length) {
+                alert('Choose an audio file first.');
+                return;
+            }
+            var fd = new FormData();
+            fd.append('ringtone_file', fileInput.files[0]);
+            fd.append('ringtone_label', document.getElementById('f-ringtone-label').value);
+            uploadBtn.disabled = true;
+            uploadBtn.textContent = 'Uploading\u2026';
+            fetch('{{ url_for("upload_ringtone") }}', {method: 'POST', body: fd})
+                .then(function(){ window.location.reload(); })
+                .catch(function(){
+                    alert('Upload failed -- check your connection and try again.');
+                    uploadBtn.disabled = false;
+                    uploadBtn.textContent = 'Upload';
+                });
+        });
+    }
+
+    document.querySelectorAll('.ringtone-delete-btn').forEach(function(btn){
+        btn.addEventListener('click', function(){
+            if (!confirm('Delete this ringtone?')) return;
+            fetch(btn.dataset.url, {method: 'POST'})
+                .then(function(){ window.location.reload(); })
+                .catch(function(){ alert('Delete failed -- try again.'); });
+        });
     });
 })();
 </script>

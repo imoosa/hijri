@@ -25,12 +25,18 @@
 </head>
 <body>
     <header class="topbar">
-        <div class="brand">Bohra Calendar</div>
-        <span class="liturgical-badge" title="Christian liturgical season, sets today's accent color"><span class="dot"></span>{{ liturgical_season_name }}</span>
+        <!-- [guessing] Moved before .brand per request ("menu before Bohra
+             Calendar on mobile"). This assumes style.css doesn't select
+             these by sibling order (e.g. ".brand + .liturgical-badge") --
+             if the badge or nav look misplaced after this, that's the
+             likely cause; tell me and I'll switch to a flex `order:` based
+             approach instead of a DOM reorder. -->
         <input type="checkbox" id="menu-toggle" class="menu-toggle-checkbox">
         <label for="menu-toggle" class="menu-toggle-label" aria-label="Menu">
             <span></span><span></span><span></span>
         </label>
+        <div class="brand">Bohra Calendar</div>
+        <span class="liturgical-badge" title="Christian liturgical season, sets today's accent color"><span class="dot"></span>{{ liturgical_season_name }}</span>
         <nav class="menu">
             <a href="{{ url_for('calendar_view') }}" class="{{ 'active' if active == 'calendar' else '' }}">Calendar</a>
             <a href="{{ url_for('prayer_view') }}" class="{{ 'active' if active == 'prayer' else '' }}">Prayer Times</a>
@@ -43,6 +49,7 @@
                 <input type="checkbox" id="alerts-enabled">
                 Sound reminders
             </label>
+            <span id="notif-status" class="notif-status"></span>
         </div>
     </header>
 
@@ -137,6 +144,7 @@
            label + checkbox with no card chrome needed. */
         .alerts-widget{display:flex;align-items:center;gap:6px;font-size:12px;color:#666;margin-left:auto;}
         .alerts-widget label{display:flex;align-items:center;gap:5px;cursor:pointer;white-space:nowrap;}
+        .notif-status{font-size:10.5px;color:#b5121b;white-space:nowrap;}
     </style>
 
     <div class="app-body">
@@ -529,10 +537,26 @@
             }).catch(function(){ /* server unreachable -- skip silently */ });
         }
 
-        function start(){
-            if (window.Notification && Notification.permission === 'default') {
-                Notification.requestPermission();
+        var notifStatusEl = document.getElementById('notif-status');
+
+        function updateNotifStatus(){
+            if (!notifStatusEl) return;
+            if (!window.Notification) {
+                // [certain] iOS Safari in an ordinary browser tab has no
+                // Notification API at all -- it only works there if the
+                // site's been added to the Home Screen as a PWA (iOS
+                // 16.4+). That's a platform limitation, not a bug here;
+                // the in-tab chime still works fine either way.
+                notifStatusEl.textContent = 'Notifications not supported on this browser -- sound-only';
+            } else if (Notification.permission === 'denied') {
+                notifStatusEl.textContent = 'Notifications blocked -- enable in browser settings for pop-ups too';
+            } else {
+                notifStatusEl.textContent = '';
             }
+        }
+        updateNotifStatus();
+
+        function start(){
             loadAndSchedule();
         }
 
@@ -540,8 +564,26 @@
         if (toggle.checked) start();
         toggle.addEventListener('change', function(){
             localStorage.setItem(STORAGE_KEY, toggle.checked ? '1' : '0');
-            if (toggle.checked) start();
+            if (toggle.checked) {
+                // Requesting permission from inside this handler (a direct
+                // click/tap) instead of on page load is what actually gets
+                // the native prompt to show on mobile browsers -- most of
+                // them silently ignore a request that isn't tied to a user
+                // gesture like this one.
+                if (window.Notification && Notification.permission === 'default') {
+                    Notification.requestPermission().then(updateNotifStatus);
+                } else {
+                    updateNotifStatus();
+                }
+                start();
+            }
         });
+
+        // Settings' ringtone preview buttons call this directly -- same
+        // playback path the real reminders use, so "what you hear when you
+        // preview" and "what you hear when it actually rings" can't drift
+        // apart into two different code paths.
+        window.previewRingtone = function(key){ playRingtone(key, CHIMES.birthday); };
     })();
     </script>
 </body>
