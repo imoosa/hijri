@@ -25,18 +25,12 @@
 </head>
 <body>
     <header class="topbar">
-        <!-- [guessing] Moved before .brand per request ("menu before Bohra
-             Calendar on mobile"). This assumes style.css doesn't select
-             these by sibling order (e.g. ".brand + .liturgical-badge") --
-             if the badge or nav look misplaced after this, that's the
-             likely cause; tell me and I'll switch to a flex `order:` based
-             approach instead of a DOM reorder. -->
+        <div class="brand">Bohra Calendar</div>
+        <span class="liturgical-badge" title="Christian liturgical season, sets today's accent color"><span class="dot"></span>{{ liturgical_season_name }}</span>
         <input type="checkbox" id="menu-toggle" class="menu-toggle-checkbox">
         <label for="menu-toggle" class="menu-toggle-label" aria-label="Menu">
             <span></span><span></span><span></span>
         </label>
-        <div class="brand">Bohra Calendar</div>
-        <span class="liturgical-badge" title="Christian liturgical season, sets today's accent color"><span class="dot"></span>{{ liturgical_season_name }}</span>
         <nav class="menu">
             <a href="{{ url_for('calendar_view') }}" class="{{ 'active' if active == 'calendar' else '' }}">Calendar</a>
             <a href="{{ url_for('prayer_view') }}" class="{{ 'active' if active == 'prayer' else '' }}">Prayer Times</a>
@@ -44,13 +38,6 @@
             <a href="{{ url_for('events_view') }}" class="{{ 'active' if active == 'events' else '' }}">Events</a>
             <a href="{{ url_for('settings_view') }}" class="{{ 'active' if active == 'settings' else '' }}">Settings</a>
         </nav>
-        <div class="alerts-widget">
-            <label title="Chime + on-screen notification for azaan times, birthdays/anniversaries, and today's tradition holidays. Only fires while this tab stays open -- switching pages resets the timers, closing the tab stops it entirely. Not the actual azaan recitation.">
-                <input type="checkbox" id="alerts-enabled">
-                Sound reminders
-            </label>
-            <span id="notif-status" class="notif-status"></span>
-        </div>
     </header>
 
     {% with messages = get_flashed_messages() %}
@@ -61,29 +48,18 @@
       {% endif %}
     {% endwith %}
 
-    <style>
-        /* [guessing] Sidebar column removed entirely -- the "sidebar" block
-           this base template used to expose is never overridden in any
-           page template I have, so that column only ever held the note +
-           alerts widgets. .app-body forced to block layout here as a
-           safety-net override, in case style.css had it set to
-           display:flex for the old two-column shell -- I don't have that
-           file so I can't confirm, only guard against it. */
-        .app-body{ display:block; }
-        .main-content{ width:100%; }
+    {% set sidebar_content %}{% block sidebar %}{% endblock %}{% endset %}
 
-        /* Note card: floating + draggable on every screen size now, not
-           just mobile. Defaults to the bottom-right corner until dragged,
-           same spot the old mobile-only version used -- just no longer
-           gated behind a media query. */
-        .notes-widget{
-            position:fixed; z-index:60; width:230px; padding:0;
-        }
-        .notes-widget .notes-header{ cursor:grab; touch-action:none; }
-        .notes-widget .notes-header:active{ cursor:grabbing; }
-        .note-reopen-btn.floating-reopen{
-            position:fixed; z-index:60; right:16px; bottom:16px;
-        }
+    <style>
+        /* [guessing] widened from whatever style.css sets -- I don't have
+           that file, so this is an override via source order (this <style>
+           tag renders after the linked stylesheet, so it wins on equal
+           specificity). If your sidebar uses CSS grid track sizing instead
+           of flex/width, this won't take -- send style.css and I'll match
+           the real mechanism instead of overriding it from outside. */
+        .sidebar{ width: 320px; flex: 0 0 320px; }
+
+        .notes-widget{border-top:1px solid #e5e0da;padding:14px 16px;}
 
         /* Card shell -- this is what carries the shadow/radius now, not
            .sticky-note itself, so the header and toolbar sit inside the
@@ -139,55 +115,87 @@
             display:none;}
         .note-reopen-btn:hover{background:#f4f1ea;}
 
-        /* Sound reminders now lives as a compact inline toggle in the topbar
-           (see header markup) instead of a sidebar block, so it's just a
-           label + checkbox with no card chrome needed. */
-        .alerts-widget{display:flex;align-items:center;gap:6px;font-size:12px;color:#666;margin-left:auto;}
-        .alerts-widget label{display:flex;align-items:center;gap:5px;cursor:pointer;white-space:nowrap;}
-        .notif-status{font-size:10.5px;color:#b5121b;white-space:nowrap;}
+        /* Mobile: the note leaves the sidebar's normal flow and becomes a
+           free-floating, draggable card -- position is fixed to the
+           viewport (not the sidebar) so it can be dragged anywhere on
+           screen, including over the main content. */
+        .notes-widget.mobile-note{
+            position:fixed;
+            z-index:60; /* stays under calendar.html's modal-overlay (z-index:100) so Add Event still covers it */
+            width:230px;
+            padding:0;
+            border-top:none;
+        }
+        .notes-widget.mobile-note .notes-header{
+            cursor:grab;
+            touch-action:none; /* stops the page from scrolling under your finger while dragging the header */
+        }
+        .notes-widget.mobile-note .notes-header:active{cursor:grabbing;}
+
+        .alerts-widget{border-top:1px solid #e5e0da;padding:14px 16px;font-size:12.5px;color:#666;}
+        .alerts-widget label{display:flex;align-items:center;gap:6px;cursor:pointer;}
+        .alerts-widget .alerts-note{margin-top:6px;color:#999;font-size:11px;line-height:1.4;}
     </style>
 
     <div class="app-body">
+        <aside class="sidebar">
+            {% if sidebar_content|trim %}
+            <input type="checkbox" id="sidebar-toggle" class="sidebar-toggle-checkbox">
+            <label for="sidebar-toggle" class="sidebar-toggle-label">
+                Filters &amp; events <span class="toggle-arrow">&#9662;</span>
+            </label>
+            <div class="sidebar-inner">
+                {{ sidebar_content }}
+            </div>
+            {% endif %}
+
+            <div class="notes-widget">
+                <div class="sticky-note-card">
+                    <div class="notes-header">
+                        <span class="notes-drag-dots" title="Cosmetic only -- CSS can't make a page element drag around the OS desktop">::::</span>
+                        <div class="notes-header-actions">
+                            <button type="button" id="note-collapse-btn" class="notes-icon-btn" title="Collapse/expand">&minus;</button>
+                            <button type="button" id="note-new-btn" class="notes-icon-btn" title="Clear this note and start fresh">+</button>
+                            <button type="button" class="notes-icon-btn" title="Nothing to put in this menu yet" disabled>&#8942;</button>
+                            <button type="button" id="note-close-btn" class="notes-icon-btn" title="Hide">&times;</button>
+                        </div>
+                    </div>
+
+                    <div id="sticky-note" class="sticky-note" contenteditable="true"
+                         data-placeholder="Write something important&hellip;">{{ sidebar_note_content|safe }}</div>
+
+                    <div class="notes-toolbar">
+                        <button type="button" id="note-bold-btn" class="notes-icon-btn" title="Bold the selected text">B</button>
+                        <button type="button" id="note-italic-btn" class="notes-icon-btn" title="Italic the selected text">I</button>
+                        <button type="button" id="note-underline-btn" class="notes-icon-btn" title="Underline the selected text">U</button>
+                        <button type="button" id="note-bullet-btn" class="notes-icon-btn" title="Bullet list">&#9776;</button>
+                        <button type="button" id="note-number-btn" class="notes-icon-btn" title="Numbered list">1.</button>
+                        <button type="button" id="note-image-btn" class="notes-icon-btn"
+                                title="Not wired to a backend yet -- see the sanitizer note below">&#128247;</button>
+                        <span id="note-save-status" class="note-save-status"></span>
+                    </div>
+                </div>
+                <button type="button" id="note-reopen-btn" class="note-reopen-btn">+ Note</button>
+            </div>
+
+            <div class="alerts-widget">
+                <label>
+                    <input type="checkbox" id="alerts-enabled">
+                    Sound reminders (azaan times, birthdays/anniversaries, today's tradition holidays)
+                </label>
+                <div class="alerts-note">
+                    Only fires while this tab stays open on any page -- switching
+                    pages resets the timers, and closing the tab/browser stops it
+                    entirely. Plays the actual azaan recitation for your default
+                    calendar (Bohra/Sunni/Shia); other reminders are a chime +
+                    on-screen notification.
+                </div>
+            </div>
+        </aside>
         <main class="main-content">
             {% block content %}{% endblock %}
         </main>
     </div>
-
-    <!-- Sticky note: floats globally over every page now (no sidebar column
-         to sit in), draggable by its header on desktop and mobile alike.
-         Any page can open it with window.openStickyNote() -- calendar.html
-         uses this to put its own "+ Note" trigger in its toolbar instead of
-         relying on the fallback reopen pill below. -->
-    <div class="notes-widget">
-        <div class="sticky-note-card">
-            <div class="notes-header">
-                <span class="notes-drag-dots" title="Drag from here to move the note">::::</span>
-                <div class="notes-header-actions">
-                    <button type="button" id="note-collapse-btn" class="notes-icon-btn" title="Collapse/expand">&minus;</button>
-                    <button type="button" id="note-new-btn" class="notes-icon-btn" title="Clear this note and start fresh">+</button>
-                    <button type="button" class="notes-icon-btn" title="Nothing to put in this menu yet" disabled>&#8942;</button>
-                    <button type="button" id="note-close-btn" class="notes-icon-btn" title="Hide">&times;</button>
-                </div>
-            </div>
-
-            <div id="sticky-note" class="sticky-note" contenteditable="true"
-                 data-placeholder="Write something important&hellip;">{{ sidebar_note_content|safe }}</div>
-
-            <div class="notes-toolbar">
-                <button type="button" id="note-bold-btn" class="notes-icon-btn" title="Bold the selected text">B</button>
-                <button type="button" id="note-italic-btn" class="notes-icon-btn" title="Italic the selected text">I</button>
-                <button type="button" id="note-underline-btn" class="notes-icon-btn" title="Underline the selected text">U</button>
-                <button type="button" id="note-bullet-btn" class="notes-icon-btn" title="Bullet list">&#9776;</button>
-                <button type="button" id="note-number-btn" class="notes-icon-btn" title="Numbered list">1.</button>
-                <button type="button" id="note-image-btn" class="notes-icon-btn"
-                        title="Not wired to a backend yet -- see the sanitizer note below">&#128247;</button>
-                <span id="note-save-status" class="note-save-status"></span>
-            </div>
-        </div>
-    </div>
-    <!-- Fallback trigger for pages that don't add their own "+ Note" button
-         (e.g. calendar.html puts one in its toolbar instead -- see there). -->
-    <button type="button" id="note-reopen-btn" class="note-reopen-btn floating-reopen">+ Note</button>
 
     <script>
     (function(){
@@ -247,7 +255,6 @@
         document.getElementById('note-close-btn').addEventListener('click', function(){ setHidden(true); });
         reopenBtn.addEventListener('click', function(){ setHidden(false); });
         setHidden(localStorage.getItem(HIDE_KEY) === '1');
-        window.openStickyNote = function(){ setHidden(false); note.focus(); };
 
         // "+" -- there's only one note slot (see database.py's Note model),
         // so this can't create a second note. What it CAN honestly do is
@@ -287,12 +294,20 @@
             alert('Image notes need a small backend change first (main.py: add "img" to _NOTE_ALLOWED_TAGS, plus an upload endpoint). Not done yet -- ask if you want that built.');
         });
 
-        // ---- Drag the whole card around on any screen size, position
-        // persisted across page loads (and across pages, since this markup
-        // is now global instead of living inside a per-page sidebar).
+        // ---- Mobile only: drag the whole card around, position persisted.
+        // [guessing] breakpoint -- this mirrors a common mobile cutoff, but
+        // I don't have style.css, so if your real mobile breakpoint (the
+        // one #menu-toggle uses) sits at a different width, this can
+        // disagree with it visually. Tell me the real value and I'll match it.
+        var mq = window.matchMedia('(max-width: 760px)');
         var POS_KEY = 'sticky-note-pos';
 
-        function applyPosition(){
+        function applyMode(isMobile){
+            widget.classList.toggle('mobile-note', isMobile);
+            if (!isMobile){
+                widget.style.left = widget.style.top = widget.style.right = widget.style.bottom = '';
+                return;
+            }
             var saved = null;
             try { saved = JSON.parse(localStorage.getItem(POS_KEY) || 'null'); } catch(e){}
             if (saved && typeof saved.left === 'number' && typeof saved.top === 'number'){
@@ -305,10 +320,13 @@
                 widget.style.bottom = '16px';
             }
         }
-        applyPosition();
+        applyMode(mq.matches);
+        if (mq.addEventListener) mq.addEventListener('change', function(e){ applyMode(e.matches); });
+        else mq.addListener(function(e){ applyMode(e.matches); }); // older Safari
 
         var dragging = false, startX, startY, startLeft, startTop;
         header.addEventListener('pointerdown', function(e){
+            if (!widget.classList.contains('mobile-note')) return;
             if (e.target.closest('button')) return; // header buttons still need to be tappable, not drag starters
             dragging = true;
             header.setPointerCapture(e.pointerId);
@@ -388,6 +406,13 @@
         // your own licensed recordings in static/sounds/ using these exact
         // names and the app plays them in full instead of the synthesized
         // chime. Nothing ships here by default; see static/sounds/README.txt.
+        //
+        // azaan is the exception: it's resolved per-request from
+        // prefsData.azaan_file (main.py's AZAAN_FILES, keyed by
+        // default_calendar -- Bohra/Sunni/Shia each get their own bundled
+        // recording). The 'azaan' entry below only fires if the server
+        // didn't send a file for some reason (e.g. an unrecognized
+        // default_calendar) -- see playSound()'s path-vs-key branch.
         var SOUND_FILES = {
             azaan: '/static/sounds/azaan.mp3',
             christian: '/static/sounds/christian.mp3',
@@ -408,7 +433,11 @@
         }
 
         function playSound(key, fallbackChime){
-            var path = SOUND_FILES[key];
+            // A key that's already a path (leading '/', e.g. prefsData.azaan_file
+            // from the server) plays directly. Anything else is looked up in
+            // SOUND_FILES as before -- this keeps every existing caller
+            // (festival tradition sounds, shabbat) working unchanged.
+            var path = (typeof key === 'string' && key.charAt(0) === '/') ? key : SOUND_FILES[key];
             if (path) {
                 var audio = new Audio(path);
                 var played = audio.play();
@@ -467,9 +496,14 @@
                 // display hint -- flip the calendar to Gregorian and these
                 // never get scheduled at all, even with the setting checked.
                 if (prefsData.alert_azaan && prefsData.is_hijri_family) {
+                    // prefsData.azaan_file comes from main.py's AZAAN_FILES,
+                    // keyed by default_calendar (hijri=Bohra/sunni/shia).
+                    // Falls back to the generic 'azaan' SOUND_FILES key only
+                    // if the server didn't send one.
+                    var azaanSound = prefsData.azaan_file || 'azaan';
                     [['fajr','Fajr'], ['zawal','Zuhr'], ['asr','Asr'], ['maghrib','Maghrib'], ['isha','Isha']]
                         .forEach(function(pair){
-                            scheduleAt(pt[pair[0]], 'azaan-' + pair[0], 'azaan', CHIMES.azaan,
+                            scheduleAt(pt[pair[0]], 'azaan-' + pair[0], azaanSound, CHIMES.azaan,
                                        pair[1] + ' time', pt[pair[0]] + ' -- ' + pair[1]);
                         });
                 }
@@ -537,26 +571,10 @@
             }).catch(function(){ /* server unreachable -- skip silently */ });
         }
 
-        var notifStatusEl = document.getElementById('notif-status');
-
-        function updateNotifStatus(){
-            if (!notifStatusEl) return;
-            if (!window.Notification) {
-                // [certain] iOS Safari in an ordinary browser tab has no
-                // Notification API at all -- it only works there if the
-                // site's been added to the Home Screen as a PWA (iOS
-                // 16.4+). That's a platform limitation, not a bug here;
-                // the in-tab chime still works fine either way.
-                notifStatusEl.textContent = 'Notifications not supported on this browser -- sound-only';
-            } else if (Notification.permission === 'denied') {
-                notifStatusEl.textContent = 'Notifications blocked -- enable in browser settings for pop-ups too';
-            } else {
-                notifStatusEl.textContent = '';
-            }
-        }
-        updateNotifStatus();
-
         function start(){
+            if (window.Notification && Notification.permission === 'default') {
+                Notification.requestPermission();
+            }
             loadAndSchedule();
         }
 
@@ -564,26 +582,8 @@
         if (toggle.checked) start();
         toggle.addEventListener('change', function(){
             localStorage.setItem(STORAGE_KEY, toggle.checked ? '1' : '0');
-            if (toggle.checked) {
-                // Requesting permission from inside this handler (a direct
-                // click/tap) instead of on page load is what actually gets
-                // the native prompt to show on mobile browsers -- most of
-                // them silently ignore a request that isn't tied to a user
-                // gesture like this one.
-                if (window.Notification && Notification.permission === 'default') {
-                    Notification.requestPermission().then(updateNotifStatus);
-                } else {
-                    updateNotifStatus();
-                }
-                start();
-            }
+            if (toggle.checked) start();
         });
-
-        // Settings' ringtone preview buttons call this directly -- same
-        // playback path the real reminders use, so "what you hear when you
-        // preview" and "what you hear when it actually rings" can't drift
-        // apart into two different code paths.
-        window.previewRingtone = function(key){ playRingtone(key, CHIMES.birthday); };
     })();
     </script>
 </body>
