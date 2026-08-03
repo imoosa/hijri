@@ -254,6 +254,72 @@
             </div>
         </div>
 
+        <div class="settings-section">
+            <h2>Sound reminders</h2>
+            <p class="section-hint">
+                Fine-grained control over what rings. This works alongside the
+                "Sound reminders" switch in the sidebar -- that one is the master
+                on/off for this browser; these two decide which categories ring
+                and what they sound like, and are saved to your account like
+                everything else on this page.
+            </p>
+
+            <div class="toggle-row">
+                <span class="toggle-label">Azaan reminders</span>
+                <label class="switch">
+                    <input type="checkbox" name="alert_azaan" value="yes" {{ 'checked' if prefs.alert_azaan else '' }}>
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <p class="section-hint" style="margin:-4px 0 14px;">
+                Only rings while your <strong>default calendar</strong> above is a
+                Hijri-family one (Bohra, Sunni, or Shia) -- azaan times don't mean
+                much while you're browsing the Gregorian, Hebrew, Parsi, or Hindu
+                grid, so this switches off automatically on those, even if it's
+                checked here.
+            </p>
+
+            <div class="toggle-row">
+                <span class="toggle-label">Birthday &amp; anniversary reminders</span>
+                <label class="switch">
+                    <input type="checkbox" name="alert_birthday_anniversary" value="yes" {{ 'checked' if prefs.alert_birthday_anniversary else '' }}>
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div class="field-grid" style="margin-top:14px;">
+                <div class="field">
+                    <label for="f-birthday-ringtone">Birthday ringtone</label>
+                    <select name="birthday_ringtone" id="f-birthday-ringtone">
+                        {% for key, opt in ringtone_options.items() %}
+                        <option value="{{ key }}" {{ 'selected' if prefs.birthday_ringtone == key else '' }}>{{ opt.label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="f-anniversary-ringtone">Anniversary ringtone</label>
+                    <select name="anniversary_ringtone" id="f-anniversary-ringtone">
+                        {% for key, opt in ringtone_options.items() %}
+                        <option value="{{ key }}" {{ 'selected' if prefs.anniversary_ringtone == key else '' }}>{{ opt.label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <p class="section-hint" style="margin-top:10px;">
+                Any option other than "Synth beep" needs its mp3 dropped into
+                <code>static/sounds/</code> under that name (see base.html's
+                SOUND_FILES / this app's RINGTONE_OPTIONS) -- until you add the
+                file, that choice silently falls back to the synth beep instead
+                of failing.
+            </p>
+            <p class="section-hint">
+                Want a specific person's birthday to always use a different
+                ringtone than the category default? That's a per-event setting
+                on the <a href="{{ url_for('events_view', tab='personal') }}">event itself</a>,
+                not here -- these two selects are the category-wide fallback.
+            </p>
+        </div>
+
         <div class="settings-actions">
             <button type="submit" class="btn-save">Save all settings</button>
             <button type="button" class="btn-cancel" onclick="window.location.href='{{ url_for('calendar_view') }}'">Cancel</button>

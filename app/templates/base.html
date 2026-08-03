@@ -407,13 +407,22 @@
         // chime. Nothing ships here by default; see static/sounds/README.txt.
         var SOUND_FILES = {
             azaan: '/static/sounds/azaan.mp3',
-            birthday: '/static/sounds/birthday.mp3',
             christian: '/static/sounds/christian.mp3',
             jewish: '/static/sounds/jewish.mp3',
             hindu: '/static/sounds/hindu.mp3',
             parsi: '/static/sounds/parsi.mp3',
             french: '/static/sounds/french.mp3'
         };
+
+        // Ringtone choices from Settings -- single source of truth is
+        // main.py's RINGTONE_OPTIONS, injected here so this list can't
+        // drift out of sync with the <select> options on settings.html.
+        var RINGTONE_OPTIONS = {{ ringtone_options|tojson }};
+
+        function ringtoneFile(key){
+            var opt = RINGTONE_OPTIONS[key];
+            return (opt && opt.file) ? opt.file : null;
+        }
 
         function playSound(key, fallbackChime){
             var path = SOUND_FILES[key];
@@ -425,6 +434,20 @@
                     // unsupported format all land here -- fall back quietly.
                     played.catch(function(){ fallbackChime(); });
                 }
+                return;
+            }
+            fallbackChime();
+        }
+
+        // Same idea as playSound above, but resolves through RINGTONE_OPTIONS
+        // (Settings' birthday/anniversary pickers, or a per-event override)
+        // instead of the fixed SOUND_FILES map.
+        function playRingtone(ringtoneKey, fallbackChime){
+            var file = ringtoneFile(ringtoneKey);
+            if (file) {
+                var audio = new Audio(file);
+                var played = audio.play();
+                if (played && played.catch) played.catch(function(){ fallbackChime(); });
                 return;
             }
             fallbackChime();
@@ -452,19 +475,37 @@
 
         function loadAndSchedule(){
             fetch('{{ url_for("api_alerts_today") }}').then(function(r){ return r.json(); }).then(function(data){
+                var prefsData = data.prefs || {};
                 var pt = data.prayer_times || {};
-                [['fajr','Fajr'], ['zawal','Zuhr'], ['asr','Asr'], ['maghrib','Maghrib'], ['isha','Isha']]
-                    .forEach(function(pair){
-                        scheduleAt(pt[pair[0]], 'azaan-' + pair[0], 'azaan', CHIMES.azaan,
-                                   pair[1] + ' time', pt[pair[0]] + ' -- ' + pair[1]);
-                    });
+
+                // Azaan only fires when BOTH are true: the toggle in
+                // Settings is on, AND the default calendar is Hijri-family
+                // (Bohra/Sunni/Shia). This is a hard gate, not just a
+                // display hint -- flip the calendar to Gregorian and these
+                // never get scheduled at all, even with the setting checked.
+                if (prefsData.alert_azaan && prefsData.is_hijri_family) {
+                    [['fajr','Fajr'], ['zawal','Zuhr'], ['asr','Asr'], ['maghrib','Maghrib'], ['isha','Isha']]
+                        .forEach(function(pair){
+                            scheduleAt(pt[pair[0]], 'azaan-' + pair[0], 'azaan', CHIMES.azaan,
+                                       pair[1] + ' time', pt[pair[0]] + ' -- ' + pair[1]);
+                        });
+                }
 
                 (data.personal_events || []).forEach(function(ev, i){
-                    if (!played['bday-' + ev.id]) {
-                        playSound('birthday', CHIMES.birthday);
-                        notify(ev.title, (ev.category || 'event') + ' today');
-                        markPlayed('bday-' + ev.id);
-                    }
+                    if (prefsData.alert_birthday_anniversary === false) return;
+                    if (played['bday-' + ev.id]) return;
+
+                    // Precedence: a per-event override (ev.ringtone, set on
+                    // the event itself) beats the category default from
+                    // Settings (birthday_ringtone / anniversary_ringtone).
+                    var categoryDefault = ev.category === 'anniversary'
+                        ? prefsData.anniversary_ringtone : prefsData.birthday_ringtone;
+                    var ringtoneKey = ev.ringtone || categoryDefault;
+                    var fallback = ev.category === 'anniversary' ? CHIMES.festival : CHIMES.birthday;
+
+                    playRingtone(ringtoneKey, fallback);
+                    notify(ev.title, (ev.category || 'event') + ' today');
+                    markPlayed('bday-' + ev.id);
                 });
 
                 (data.interfaith_events || []).forEach(function(ev, i){
