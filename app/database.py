@@ -1,7 +1,8 @@
 """SQLite storage for Bohra calendar events (misaqs, urs, eids, etc.)."""
 
-from sqlalchemy import create_engine, Column, Integer, String, Boolean, Date
+from sqlalchemy import create_engine, Column, Integer, String, Boolean, Date, DateTime
 from sqlalchemy.orm import declarative_base, sessionmaker
+from datetime import datetime
 
 DATABASE_URL = "sqlite:///./bohra_calendar.db"
 
@@ -113,6 +114,23 @@ def get_or_create_note(db):
         db.commit()
         db.refresh(note)
     return note
+
+
+class CustomRingtone(Base):
+    """A ringtone the user uploaded themselves (Settings -> Sound reminders),
+    on top of the built-in RINGTONE_OPTIONS in main.py. `key` is what gets
+    stored in prefs.birthday_ringtone/anniversary_ringtone/event.ringtone --
+    same role the built-in dict keys play, just DB-backed so uploads persist.
+    `filename` is the on-disk name under static/sounds/uploads/, not the
+    original upload name (that's kept only in `label`) -- avoids collisions
+    and path-traversal footguns from trusting a browser-supplied filename."""
+    __tablename__ = "custom_ringtones"
+
+    id = Column(Integer, primary_key=True, index=True)
+    key = Column(String, unique=True, nullable=False, index=True)
+    label = Column(String, nullable=False)
+    filename = Column(String, nullable=False)
+    uploaded_at = Column(DateTime, default=datetime.utcnow)
 
 
 def init_db():

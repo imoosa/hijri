@@ -19,8 +19,12 @@ from . import shia_calendar as shc
 from .database import (
     get_session, init_db, seed_if_empty, seed_missing_sources, HijriEvent,
     InterfaithEvent, PersonalEvent, Note, get_or_create_note, refresh_interfaith_events,
+    CustomRingtone,
 )
 
+import os
+import uuid
+from werkzeug.utils import secure_filename
 import calendar as _pycal
 from html.parser import HTMLParser
 from html import escape as _escape
@@ -86,6 +90,30 @@ RINGTONE_OPTIONS = {
     "bells": {"label": "Soft Bells",     "file": "/static/sounds/bells.mp3"},
     "piano": {"label": "Piano Note",     "file": "/static/sounds/piano.mp3"},
 }
+
+# Where uploaded ringtones land on disk, and what's allowed in. Extension
+# check is a basic filter, not real content sniffing -- someone could still
+# rename a non-audio file to .mp3 and upload it; it'll just fail to play
+# (silently, via the same catch-and-fall-back-to-chime path everything else
+# in this app's audio uses) rather than doing anything worse, since it's
+# never executed, only ever handed to an <audio> tag.
+RINGTONE_UPLOAD_SUBDIR = "sounds/uploads"
+ALLOWED_RINGTONE_EXTENSIONS = {"mp3", "wav", "ogg", "m4a", "aac"}
+MAX_RINGTONE_UPLOAD_BYTES = 5 * 1024 * 1024  # 5 MB -- a ringtone clip has no business being bigger
+
+
+def _valid_ringtone_keys():
+    """Built-in keys plus whatever's actually in the CustomRingtone table --
+    settings_view() checks submitted ringtone choices against this instead
+    of the static RINGTONE_OPTIONS dict, or every uploaded ringtone would
+    get silently rejected back to the default the moment someone saves
+    Settings after uploading one."""
+    db = get_session()
+    try:
+        custom_keys = {r.key for r, in db.query(CustomRingtone.key).all()}
+    finally:
+        db.close()
+    return set(RINGTONE_OPTIONS.keys()) | custom_keys
 # Which of this app's calendars are Hijri-family -- azaan reminders only
 # make sense while one of these is your default calendar.
 HIJRI_FAMILY_CALENDARS = {"hijri", "sunni", "shia"}
@@ -252,9 +280,23 @@ def create_app():
     def inject_ringtone_options():
         """Same idea as inject_sidebar_note above -- settings.html needs
         this for its <select> options, and base.html's alert script needs
-        the key->file mapping as JSON. One source of truth (RINGTONE_OPTIONS
-        above) instead of duplicating the list in both templates."""
-        return dict(ringtone_options=RINGTONE_OPTIONS)
+        the key->file mapping as JSON. Built-ins from RINGTONE_OPTIONS above,
+        plus anything the user has uploaded themselves (Settings -> Sound
+        reminders -> Upload your own) -- merged into one dict so every
+        caller sees one consistent list without knowing there are two
+        sources behind it."""
+        options = dict(RINGTONE_OPTIONS)
+        db = get_session()
+        try:
+            for r in db.query(CustomRingtone).order_by(CustomRingtone.uploaded_at).all():
+                options[r.key] = {
+                    "label": f"{r.label} (uploaded)",
+                    "file": f"/static/{RINGTONE_UPLOAD_SUBDIR}/{r.filename}",
+                    "custom": True,
+                }
+        finally:
+            db.close()
+        return dict(ringtone_options=options)
 
     @app.context_processor
     def inject_liturgical():
@@ -862,9 +904,9 @@ def create_app():
                     "alert_azaan": "alert_azaan" in request.form,
                     "alert_birthday_anniversary": "alert_birthday_anniversary" in request.form,
                     "birthday_ringtone": request.form.get("birthday_ringtone", "chime")
-                        if request.form.get("birthday_ringtone") in RINGTONE_OPTIONS else "chime",
+                        if request.form.get("birthday_ringtone") in _valid_ringtone_keys() else "chime",
                     "anniversary_ringtone": request.form.get("anniversary_ringtone", "bells")
-                        if request.form.get("anniversary_ringtone") in RINGTONE_OPTIONS else "bells",
+                        if request.form.get("anniversary_ringtone") in _valid_ringtone_keys() else "bells",
                 }
                 session["preferences"] = prefs
                 flash("Settings updated.")
@@ -874,7 +916,81 @@ def create_app():
                 return redirect(url_for("settings_view"))
 
         prefs = get_user_prefs()
-        return render_template("settings.html", active="settings", location=current_location(), prefs=prefs)
+        db = get_session()
+        try:
+            custom_ringtones = db.query(CustomRingtone).order_by(CustomRingtone.uploaded_at).all()
+        finally:
+            db.close()
+        return render_template("settings.html", active="settings", location=current_location(),
+                                prefs=prefs, custom_ringtones=custom_ringtones)
+
+    @app.post("/settings/ringtone/upload")
+    def upload_ringtone():
+        """Save a user-uploaded ringtone file and register it as a new
+        RINGTONE_OPTIONS-equivalent entry (see CustomRingtone + the merged
+        inject_ringtone_options context processor). Redirects back to
+        Settings either way -- flash carries the result."""
+        f = request.files.get("ringtone_file")
+        label = (request.form.get("ringtone_label") or "").strip()
+
+        if not f or not f.filename:
+            flash("Choose an audio file to upload first.")
+            return redirect(url_for("settings_view"))
+
+        ext = f.filename.rsplit(".", 1)[-1].lower() if "." in f.filename else ""
+        if ext not in ALLOWED_RINGTONE_EXTENSIONS:
+            flash(f"That file type isn't supported -- use one of: {', '.join(sorted(ALLOWED_RINGTONE_EXTENSIONS))}.")
+            return redirect(url_for("settings_view"))
+
+        # request.content_length is the whole multipart body, not just this
+        # field, so this is a coarse guard, not exact -- good enough to
+        # reject an obviously-oversized upload before writing anything to disk.
+        if request.content_length and request.content_length > MAX_RINGTONE_UPLOAD_BYTES:
+            flash("That file is too large -- keep ringtones under 5 MB.")
+            return redirect(url_for("settings_view"))
+
+        if not label:
+            label = secure_filename(f.filename).rsplit(".", 1)[0] or "My ringtone"
+
+        upload_dir = os.path.join(app.static_folder, RINGTONE_UPLOAD_SUBDIR)
+        os.makedirs(upload_dir, exist_ok=True)
+
+        key = f"custom-{uuid.uuid4().hex[:10]}"
+        stored_filename = f"{key}.{ext}"
+        f.save(os.path.join(upload_dir, stored_filename))
+
+        db = get_session()
+        try:
+            db.add(CustomRingtone(key=key, label=label, filename=stored_filename))
+            db.commit()
+        finally:
+            db.close()
+
+        flash(f'"{label}" uploaded -- it now shows up in both ringtone dropdowns below.')
+        return redirect(url_for("settings_view"))
+
+    @app.post("/settings/ringtone/<key>/delete")
+    def delete_ringtone(key):
+        """Remove an uploaded ringtone -- both the DB row and the file on
+        disk. Anything currently set to use this key (a saved preference or
+        a per-event override) just silently falls back to the synth beep
+        afterward, same as any other missing sound file in this app --
+        not treated as an error."""
+        db = get_session()
+        try:
+            row = db.query(CustomRingtone).filter(CustomRingtone.key == key).first()
+            if row:
+                file_path = os.path.join(app.static_folder, RINGTONE_UPLOAD_SUBDIR, row.filename)
+                db.delete(row)
+                db.commit()
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                flash(f'Deleted "{row.label}".')
+            else:
+                flash("That ringtone was already removed.")
+        finally:
+            db.close()
+        return redirect(url_for("settings_view"))
 
     @app.route("/events-view", methods=["GET", "POST"])
     def events_view():
