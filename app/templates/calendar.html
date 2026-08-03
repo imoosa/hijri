@@ -180,6 +180,20 @@
     transition:opacity .15s ease;
   }
   .goto-date-inline button:hover{opacity:.88}
+  .toolbar-note-btn{
+    border:1px solid var(--line);border-radius:var(--radius-sm);
+    padding:var(--sp-2) var(--sp-3);font-size:12.5px;font-weight:600;line-height:1.4;
+    background:#fff;color:var(--ink);cursor:pointer;
+    transition:background .15s ease;
+  }
+  .toolbar-note-btn:hover{background:#f7f5f2}
+  .today-btn{
+    border:1px solid var(--line);border-radius:var(--radius-sm);
+    padding:var(--sp-2) var(--sp-3);font-size:12.5px;font-weight:600;line-height:1.4;
+    color:var(--ink);text-decoration:none;display:inline-flex;align-items:center;
+    transition:background .15s ease;
+  }
+  .today-btn:hover{background:#f7f5f2}
 
   /* Layout: main grid + detail column side by side on wide screens,
      stacked on narrow ones. This assumes .calendar-wrap is a flex/grid
@@ -197,11 +211,18 @@
 <div class="calendar-wrap">
     <div class="calendar-main">
         <div class="calendar-toolbar">
+            <button type="button" class="toolbar-note-btn" onclick="if(window.openStickyNote) window.openStickyNote();">&#128221; Note</button>
             <form method="get" action="{{ url_for('calendar_view') }}" class="goto-date-inline">
                 <input type="hidden" name="cal" value="{{ cal }}">
                 <input type="date" name="goto" id="goto-date-input" aria-label="Go to date">
                 <button type="submit">Go</button>
             </form>
+            <!-- [guessing] jumps back to today by requesting the view with no
+                 y/m/day -- this assumes calendar_view() defaults to today's
+                 date when those params are absent. If it actually requires
+                 them, tell me and I'll pass today's hijri/gregorian values
+                 explicitly instead. -->
+            <a class="today-btn" href="{{ url_for('calendar_view', cal=cal) }}">Today</a>
         </div>
 
         <div class="calendar-nav">
