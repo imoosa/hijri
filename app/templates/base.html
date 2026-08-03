@@ -51,6 +51,14 @@
     {% set sidebar_content %}{% block sidebar %}{% endblock %}{% endset %}
 
     <style>
+        /* [guessing] widened from whatever style.css sets -- I don't have
+           that file, so this is an override via source order (this <style>
+           tag renders after the linked stylesheet, so it wins on equal
+           specificity). If your sidebar uses CSS grid track sizing instead
+           of flex/width, this won't take -- send style.css and I'll match
+           the real mechanism instead of overriding it from outside. */
+        .sidebar{ width: 320px; flex: 0 0 320px; }
+
         .notes-widget{border-top:1px solid #e5e0da;padding:14px 16px;}
 
         /* Card shell -- this is what carries the shadow/radius now, not
@@ -73,10 +81,8 @@
             display:inline-flex;align-items:center;justify-content:center;padding:0;
         }
         .notes-icon-btn:hover{background:#00000012;}
-        /* + and ... are disabled -- this app has exactly one shared note
-           (see database.py's Note model), so "new note" and a note-level
-           menu have nothing to do yet. A clickable button that does
-           nothing is worse than no button. */
+        /* Only "..." is still disabled -- there's genuinely nothing to put
+           in that menu yet. "+" now does something real (see JS). */
         .notes-icon-btn:disabled{opacity:.4;cursor:default;}
         .notes-icon-btn:disabled:hover{background:none;}
 
@@ -93,6 +99,14 @@
         .sticky-note:empty::before{content:attr(data-placeholder);color:#a89a5c;}
         .sticky-note ul,.sticky-note ol{margin:4px 0 4px 18px;padding:0;}
 
+        /* Collapsed -- hides body + toolbar, leaves the header bar as a
+           thin strip. Works at any screen width, per your ask for mobile
+           specifically, but there's no reason to lock it to mobile only. */
+        .sticky-note-card.collapsed .sticky-note,
+        .sticky-note-card.collapsed .notes-toolbar{
+            display:none;
+        }
+
         /* Reopen pill shown only when the card has been closed via the X --
            without this, closing the note would be a one-way trip with no
            way back short of clearing localStorage. */
@@ -100,6 +114,23 @@
             border-radius:6px;padding:6px 10px;font-size:12px;color:#777;cursor:pointer;
             display:none;}
         .note-reopen-btn:hover{background:#f4f1ea;}
+
+        /* Mobile: the note leaves the sidebar's normal flow and becomes a
+           free-floating, draggable card -- position is fixed to the
+           viewport (not the sidebar) so it can be dragged anywhere on
+           screen, including over the main content. */
+        .notes-widget.mobile-note{
+            position:fixed;
+            z-index:60; /* stays under calendar.html's modal-overlay (z-index:100) so Add Event still covers it */
+            width:230px;
+            padding:0;
+            border-top:none;
+        }
+        .notes-widget.mobile-note .notes-header{
+            cursor:grab;
+            touch-action:none; /* stops the page from scrolling under your finger while dragging the header */
+        }
+        .notes-widget.mobile-note .notes-header:active{cursor:grabbing;}
 
         .alerts-widget{border-top:1px solid #e5e0da;padding:14px 16px;font-size:12.5px;color:#666;}
         .alerts-widget label{display:flex;align-items:center;gap:6px;cursor:pointer;}
@@ -123,7 +154,8 @@
                     <div class="notes-header">
                         <span class="notes-drag-dots" title="Cosmetic only -- CSS can't make a page element drag around the OS desktop">::::</span>
                         <div class="notes-header-actions">
-                            <button type="button" class="notes-icon-btn" title="Only one shared note exists in this app" disabled>+</button>
+                            <button type="button" id="note-collapse-btn" class="notes-icon-btn" title="Collapse/expand">&minus;</button>
+                            <button type="button" id="note-new-btn" class="notes-icon-btn" title="Clear this note and start fresh">+</button>
                             <button type="button" class="notes-icon-btn" title="Nothing to put in this menu yet" disabled>&#8942;</button>
                             <button type="button" id="note-close-btn" class="notes-icon-btn" title="Hide">&times;</button>
                         </div>
@@ -209,7 +241,9 @@
         // Close/reopen -- persisted so an accidental close doesn't feel
         // like the note vanished. Card and pill states are always kept
         // as exact opposites of each other.
+        var widget = document.querySelector('.notes-widget');
         var card = document.querySelector('.sticky-note-card');
+        var header = document.querySelector('.notes-header');
         var reopenBtn = document.getElementById('note-reopen-btn');
         var HIDE_KEY = 'sticky-note-hidden';
         function setHidden(hidden){
@@ -221,6 +255,35 @@
         reopenBtn.addEventListener('click', function(){ setHidden(false); });
         setHidden(localStorage.getItem(HIDE_KEY) === '1');
 
+        // "+" -- there's only one note slot (see database.py's Note model),
+        // so this can't create a second note. What it CAN honestly do is
+        // clear the current one so you're starting fresh, same as opening
+        // a blank Windows sticky note -- with a confirm so a stray tap
+        // doesn't wipe something you meant to keep.
+        document.getElementById('note-new-btn').addEventListener('click', function(){
+            if (note.textContent.trim() === '' || confirm('Clear the current note and start a new one?')) {
+                note.innerHTML = '';
+                note.focus();
+                saveNote();
+            }
+        });
+
+        // Collapse -- shrinks the card to just its header bar. Works on
+        // any screen size, not only mobile; nothing stops you from using
+        // it on desktop too.
+        var COLLAPSE_KEY = 'sticky-note-collapsed';
+        var collapseBtn = document.getElementById('note-collapse-btn');
+        function setCollapsed(collapsed){
+            card.classList.toggle('collapsed', collapsed);
+            collapseBtn.innerHTML = collapsed ? '&#9633;' : '&minus;';
+            collapseBtn.title = collapsed ? 'Expand' : 'Collapse';
+            localStorage.setItem(COLLAPSE_KEY, collapsed ? '1' : '0');
+        }
+        collapseBtn.addEventListener('click', function(){
+            setCollapsed(!card.classList.contains('collapsed'));
+        });
+        setCollapsed(localStorage.getItem(COLLAPSE_KEY) === '1');
+
         // Deliberately NOT wired to insertImage/execCommand -- that would
         // embed a base64 data: URI, and _NOTE_ALLOWED_TAGS in main.py has
         // no img entry, so sanitize_note_html would strip it back out on
@@ -229,6 +292,67 @@
         document.getElementById('note-image-btn').addEventListener('click', function(){
             alert('Image notes need a small backend change first (main.py: add "img" to _NOTE_ALLOWED_TAGS, plus an upload endpoint). Not done yet -- ask if you want that built.');
         });
+
+        // ---- Mobile only: drag the whole card around, position persisted.
+        // [guessing] breakpoint -- this mirrors a common mobile cutoff, but
+        // I don't have style.css, so if your real mobile breakpoint (the
+        // one #menu-toggle uses) sits at a different width, this can
+        // disagree with it visually. Tell me the real value and I'll match it.
+        var mq = window.matchMedia('(max-width: 760px)');
+        var POS_KEY = 'sticky-note-pos';
+
+        function applyMode(isMobile){
+            widget.classList.toggle('mobile-note', isMobile);
+            if (!isMobile){
+                widget.style.left = widget.style.top = widget.style.right = widget.style.bottom = '';
+                return;
+            }
+            var saved = null;
+            try { saved = JSON.parse(localStorage.getItem(POS_KEY) || 'null'); } catch(e){}
+            if (saved && typeof saved.left === 'number' && typeof saved.top === 'number'){
+                widget.style.left = saved.left + 'px';
+                widget.style.top = saved.top + 'px';
+                widget.style.right = widget.style.bottom = '';
+            } else {
+                widget.style.left = widget.style.top = '';
+                widget.style.right = '16px';
+                widget.style.bottom = '16px';
+            }
+        }
+        applyMode(mq.matches);
+        if (mq.addEventListener) mq.addEventListener('change', function(e){ applyMode(e.matches); });
+        else mq.addListener(function(e){ applyMode(e.matches); }); // older Safari
+
+        var dragging = false, startX, startY, startLeft, startTop;
+        header.addEventListener('pointerdown', function(e){
+            if (!widget.classList.contains('mobile-note')) return;
+            if (e.target.closest('button')) return; // header buttons still need to be tappable, not drag starters
+            dragging = true;
+            header.setPointerCapture(e.pointerId);
+            var rect = widget.getBoundingClientRect();
+            startX = e.clientX; startY = e.clientY;
+            startLeft = rect.left; startTop = rect.top;
+            widget.style.right = widget.style.bottom = '';
+        });
+        header.addEventListener('pointermove', function(e){
+            if (!dragging) return;
+            var left = startLeft + (e.clientX - startX);
+            var top = startTop + (e.clientY - startY);
+            left = Math.max(0, Math.min(window.innerWidth - widget.offsetWidth, left));
+            top = Math.max(0, Math.min(window.innerHeight - widget.offsetHeight, top));
+            widget.style.left = left + 'px';
+            widget.style.top = top + 'px';
+        });
+        function endDrag(){
+            if (!dragging) return;
+            dragging = false;
+            localStorage.setItem(POS_KEY, JSON.stringify({
+                left: parseInt(widget.style.left, 10),
+                top: parseInt(widget.style.top, 10)
+            }));
+        }
+        header.addEventListener('pointerup', endDrag);
+        header.addEventListener('pointercancel', endDrag);
     })();
     </script>
 
