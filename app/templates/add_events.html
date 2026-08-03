@@ -37,6 +37,21 @@
 
             <label>Color<input type="color" name="color" value="#1f9d55"></label>
 
+            <div class="field-row">
+                <label>Person's name (optional)<input type="text" name="person_name" placeholder="e.g. Fatima Bhen"></label>
+                <label>Relation (optional)<input type="text" name="relation" placeholder="e.g. Sister"></label>
+            </div>
+            <label>Phone (optional)<input type="text" name="phone"></label>
+
+            <label>Ringtone for this event (optional)
+                <select name="ringtone">
+                    <option value="" selected>Use the category default (set in Settings)</option>
+                    {% for key, opt in ringtone_options.items() %}
+                    <option value="{{ key }}">{{ opt.label }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+
             <label>Gregorian date<input type="date" name="anchor_date" required></label>
 
             <div class="field-row">

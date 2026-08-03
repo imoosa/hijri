@@ -498,10 +498,24 @@
                     // Precedence: a per-event override (ev.ringtone, set on
                     // the event itself) beats the category default from
                     // Settings (birthday_ringtone / anniversary_ringtone).
-                    var categoryDefault = ev.category === 'anniversary'
-                        ? prefsData.anniversary_ringtone : prefsData.birthday_ringtone;
+                    // Settings only has those two selects -- death/religious/
+                    // other categories have no dedicated ringtone setting,
+                    // so they get the neutral synth beep rather than either
+                    // the birthday or anniversary tone (a death/memorial
+                    // event ringing a bright birthday triad would be wrong).
+                    var categoryDefault;
+                    var fallback;
+                    if (ev.category === 'anniversary') {
+                        categoryDefault = prefsData.anniversary_ringtone;
+                        fallback = CHIMES.festival;
+                    } else if (ev.category === 'birthday') {
+                        categoryDefault = prefsData.birthday_ringtone;
+                        fallback = CHIMES.birthday;
+                    } else {
+                        categoryDefault = 'beep';
+                        fallback = CHIMES.gah; // neutral soft two-tone, not celebratory
+                    }
                     var ringtoneKey = ev.ringtone || categoryDefault;
-                    var fallback = ev.category === 'anniversary' ? CHIMES.festival : CHIMES.birthday;
 
                     playRingtone(ringtoneKey, fallback);
                     notify(ev.title, (ev.category || 'event') + ' today');
