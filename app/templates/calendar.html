@@ -139,14 +139,22 @@
   .hindu-day-dot.purnima{background:#e67e22;}
 
   /* Hindu daily panel + timeline -- shown below the grid only when cal == 'hindu',
-     same slot the hijri/sunni/shia prayer-strip uses below. */
-  .hindu-daily-panel{display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--sp-4);
+     same slot the hijri/sunni/shia prayer-strip uses below. Hebrew/Parsi
+     panels reuse this exact shape (3-up stat grid), just gated to their own
+     cal value instead -- see .hebrew-daily-panel below, which is identical
+     styling under a different name only so each tradition's block is easy
+     to find/edit independently later. */
+  .hindu-daily-panel, .hebrew-daily-panel{display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--sp-4);
       border:1px solid var(--line);border-radius:var(--radius-md);background:#fff;
       padding:var(--sp-5);margin-top:var(--sp-4);}
-  @media (max-width:700px){.hindu-daily-panel{grid-template-columns:1fr}}
-  .hindu-daily-panel .label{font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);margin-bottom:3px;}
-  .hindu-daily-panel .value{font-size:19px;font-weight:700;color:var(--ink);}
-  .hindu-daily-panel .sub{font-size:12px;color:var(--muted);margin-top:2px;}
+  @media (max-width:700px){.hindu-daily-panel, .hebrew-daily-panel{grid-template-columns:1fr}}
+  .hindu-daily-panel .label, .hebrew-daily-panel .label{font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);margin-bottom:3px;cursor:help;}
+  .hindu-daily-panel .value, .hebrew-daily-panel .value{font-size:19px;font-weight:700;color:var(--ink);}
+  .hindu-daily-panel .sub, .hebrew-daily-panel .sub{font-size:12px;color:var(--muted);margin-top:2px;}
+  .info-dot{display:inline-flex;align-items:center;justify-content:center;width:13px;height:13px;
+      border-radius:50%;background:var(--line);color:var(--muted);font-size:9px;font-weight:700;
+      margin-left:2px;cursor:help;}
+  .ritual-panel-intro{font-size:12.5px;color:var(--muted);margin-top:var(--sp-3);}
   #muhurat-countdown{font-variant-numeric:tabular-nums;}
   .hindu-timeline-card{border:1px solid var(--line);border-radius:var(--radius-md);background:#fff;
       padding:var(--sp-4) var(--sp-5);margin-top:var(--sp-3);}
@@ -300,23 +308,28 @@
             {% endif %}
         </div>
             {% elif cal == 'hindu' and hindu_daily %}
+        <div class="ritual-panel-intro">
+            <strong>Today's Panchang</strong> &mdash; the Hindu almanac's core daily readings.
+        </div>
         <div class="hindu-daily-panel">
             <div>
-                <div class="label">Tithi</div>
+                <div class="label" title="The lunar day -- one of 30 phases the Moon moves through relative to the Sun each month.">Tithi <span class="info-dot">?</span></div>
                 <div class="value">{{ hindu_daily.tithi }} <span style="font-weight:400;font-size:14px;color:var(--muted);">({{ hindu_daily.paksha }})</span></div>
+                <div class="sub">{{ 'Waxing fortnight (moon growing)' if hindu_daily.paksha == 'Shukla' else 'Waning fortnight (moon shrinking)' }}</div>
             </div>
             <div>
-                <div class="label">Nakshatra</div>
+                <div class="label" title="Which of the 27 lunar constellations the Moon is passing through today -- used for muhurat (auspicious-timing) calculations.">Nakshatra <span class="info-dot">?</span></div>
                 <div class="value">{{ hindu_daily.nakshatra }}</div>
+                <div class="sub">Today's lunar constellation</div>
             </div>
             <div>
-                <div class="label">Next muhurat boundary</div>
+                <div class="label" title="Countdown to the next boundary below (Rahu Kalam or Abhijit Muhurat starting or ending).">Next muhurat boundary <span class="info-dot">?</span></div>
                 <div class="value" id="muhurat-countdown">--:--:--</div>
                 <div class="sub" id="muhurat-countdown-label"></div>
             </div>
         </div>
         <div class="hindu-timeline-card">
-            <h4>Today's timeline &middot; {{ hindu_daily.sunrise }} to {{ hindu_daily.sunset }}</h4>
+            <h4>Today's timeline &middot; sunrise {{ hindu_daily.sunrise }} to sunset {{ hindu_daily.sunset }}</h4>
             <div class="hindu-timeline-bar">
                 <div class="hindu-timeline-segment rahu"
                      style="left:{{ hindu_daily.timeline.rahu_kalam_left }}%;width:{{ hindu_daily.timeline.rahu_kalam_width }}%;"
@@ -326,8 +339,8 @@
                      title="Abhijit Muhurat {{ hindu_daily.abhijit.start }}-{{ hindu_daily.abhijit.end }}"></div>
             </div>
             <div class="hindu-timeline-legend">
-                <span><span class="hindu-legend-dot rahu"></span> Rahu Kalam {{ hindu_daily.rahu_kalam.start }}-{{ hindu_daily.rahu_kalam.end }} (avoid starting new things)</span>
-                <span><span class="hindu-legend-dot abhijit"></span> Abhijit Muhurat {{ hindu_daily.abhijit.start }}-{{ hindu_daily.abhijit.end }} (auspicious)</span>
+                <span><span class="hindu-legend-dot rahu"></span> Rahu Kalam {{ hindu_daily.rahu_kalam.start }}-{{ hindu_daily.rahu_kalam.end }} &mdash; an inauspicious window, traditionally avoided for starting anything new</span>
+                <span><span class="hindu-legend-dot abhijit"></span> Abhijit Muhurat {{ hindu_daily.abhijit.start }}-{{ hindu_daily.abhijit.end }} &mdash; the most auspicious window of the day, good for important beginnings</span>
                 <span><span class="hindu-legend-dot" style="background:#8e44ad;"></span> Ekadashi</span>
                 <span><span class="hindu-legend-dot" style="background:#e67e22;"></span> Purnima</span>
             </div>
@@ -370,6 +383,105 @@
             setInterval(tick, 1000);
         })();
         </script>
+
+            {% elif cal == 'hebrew' and hebrew_widget %}
+        <div class="ritual-panel-intro">
+            <strong>Shabbat &amp; today's Zmanim</strong> &mdash; halachic (Jewish law) daily time markers.
+        </div>
+        <div class="hebrew-daily-panel">
+            <div>
+                <div class="label" id="shabbat-countdown-label" title="Countdown to candle lighting (before this week's Friday sunset) or Havdalah (after Saturday's sunset), whichever is next.">Shabbat countdown <span class="info-dot">?</span></div>
+                <div class="value" id="shabbat-countdown" style="font-variant-numeric:tabular-nums;">--:--:--</div>
+                <div class="sub">Candles {{ hebrew_widget.shabbat.candle_lighting }} &middot; Havdalah {{ hebrew_widget.shabbat.havdalah }}</div>
+            </div>
+            <div>
+                <div class="label" title="The latest time to begin Shacharit (morning prayer), per the GRA opinion -- 4 halachic hours after sunrise.">Sof zman tefila <span class="info-dot">?</span></div>
+                <div class="value">{{ hebrew_widget.zmanim.sof_zman_tefila }}</div>
+                <div class="sub">{{ 'Time still remains for Shacharit' if hebrew_widget.zmanim.shacharit_time_left else 'Shacharit window has passed for today' }}</div>
+            </div>
+            <div>
+                <div class="label" title="Halachic midday and Mincha (afternoon prayer) deadline, based on sunrise-to-sunset for today.">Sunrise / sunset <span class="info-dot">?</span></div>
+                <div class="value">{{ hebrew_widget.zmanim.sunrise }} &ndash; {{ hebrew_widget.zmanim.sunset }}</div>
+                <div class="sub">{{ 'Mincha window still open' if hebrew_widget.zmanim.mincha_time_left else 'Mincha window has closed' }}</div>
+            </div>
+        </div>
+        <div class="hindu-timeline-card">
+            <h4>Halachic day progress &middot; sunrise to sunset divided into 12 proportional hours</h4>
+            <div class="hindu-timeline-bar">
+                <div class="hindu-timeline-segment" style="left:0;width:{{ hebrew_widget.zmanim.progress_pct }}%;background:rgba(124,58,237,.3);"></div>
+                <div class="hindu-timeline-segment" style="left:{{ hebrew_widget.zmanim.tefila_marker_pct }}%;width:2px;background:#7c3aed;" title="Sof zman tefila -- {{ hebrew_widget.zmanim.sof_zman_tefila }}"></div>
+            </div>
+            <div class="hindu-timeline-legend">
+                <span><span class="hindu-legend-dot" style="background:rgba(124,58,237,.5);"></span> Elapsed today</span>
+                <span><span class="hindu-legend-dot" style="background:#7c3aed;"></span> Sof zman tefila (Shacharit deadline)</span>
+            </div>
+        </div>
+        <script>
+        (function(){
+            var el = document.getElementById('shabbat-countdown');
+            var label = document.getElementById('shabbat-countdown-label');
+            if (!el) return;
+            var candle = new Date("{{ hebrew_widget.shabbat.candle_lighting_iso }}");
+            var havdalah = new Date("{{ hebrew_widget.shabbat.havdalah_iso }}");
+            function tick(){
+                var now = new Date();
+                var target = now < candle ? candle : (now < havdalah ? havdalah : null);
+                if (!target) { el.textContent = '--:--:--'; label.textContent = 'Shabbat has ended'; return; }
+                label.textContent = now < candle ? 'Until candle lighting' : 'Until Havdalah';
+                var diff = target - now;
+                var h = Math.floor(diff / 3600000);
+                var m = Math.floor((diff % 3600000) / 60000);
+                var s = Math.floor((diff % 60000) / 1000);
+                el.textContent = String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+            }
+            tick();
+            setInterval(tick, 1000);
+        })();
+        </script>
+
+            {% elif cal == 'parsi' and parsi_widget %}
+        <div class="ritual-panel-intro">
+            <strong>Roj &middot; Mah &middot; Gah</strong> &mdash; today's date and time-watch in the Shahenshahi calendar.
+        </div>
+        <div class="hebrew-daily-panel">
+            <div>
+                <div class="label" title="The name of today in the 30-day Roj cycle -- each day of the Parsi month has its own name rather than just a number.">Roj (day name) <span class="info-dot">?</span></div>
+                <div class="value">{{ parsi_widget.roj }}</div>
+            </div>
+            <div>
+                <div class="label" title="The current Parsi month.">Mah (month) <span class="info-dot">?</span></div>
+                <div class="value">{{ parsi_widget.mah }}</div>
+            </div>
+            <div>
+                <div class="label" title="One of 5 daily prayer watches in Zoroastrian practice -- each has its own set of prayers.">Current Gah <span class="info-dot">?</span></div>
+                <div class="value">{{ parsi_widget.gah.gah }}</div>
+                <div class="sub">{{ parsi_widget.gah_desc }}</div>
+            </div>
+        </div>
+        <div class="hindu-timeline-card">
+            <h4>Next Gah change</h4>
+            <div id="gah-change-countdown" style="font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;" data-minutes="{{ parsi_widget.gah.minutes_to_change }}">
+                {{ parsi_widget.gah.minutes_to_change }} min
+            </div>
+        </div>
+        <script>
+        (function(){
+            var el = document.getElementById('gah-change-countdown');
+            if (!el) return;
+            var remaining = parseInt(el.getAttribute('data-minutes'), 10) * 60;
+            function tick(){
+                if (remaining <= 0) { el.textContent = 'Gah is changing now'; return; }
+                remaining -= 1;
+                var m = Math.floor(remaining / 60), s = remaining % 60;
+                el.textContent = m + 'm ' + String(s).padStart(2,'0') + 's';
+            }
+            setInterval(tick, 1000);
+        })();
+        </script>
+
+            {% elif cal == 'gregorian' %}
+        <!-- Deliberately empty -- Gregorian is the secular calendar, there's
+             no ritual data that honestly belongs here. -->
             {% endif %}
     </div>
     
@@ -444,83 +556,6 @@
             <div style="font-size:12px;color:var(--muted,#888);margin-bottom:8px;">{{ today_saint.title }}</div>
             <div style="font-size:13px;font-style:italic;line-height:1.5;">&ldquo;{{ today_saint.prayer }}&rdquo;</div>
         </div>
-        {% endif %}
-
-        {% if hebrew_widget %}
-        <div class="detail-panel shabbat-panel" style="border-left:4px solid var(--jewish,#7c3aed);">
-            <h3 style="margin-top:0;">Shabbat Countdown</h3>
-            <div id="shabbat-countdown-label" style="font-size:12px;color:var(--muted,#888);">Candle lighting</div>
-            <div id="shabbat-countdown" style="font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;">--:--:--</div>
-            <div style="font-size:11px;color:var(--muted,#888);margin-top:2px;">
-                Candles {{ hebrew_widget.shabbat.candle_lighting }} &middot; Havdalah {{ hebrew_widget.shabbat.havdalah }}
-            </div>
-
-            <h4 style="margin:14px 0 6px 0;font-size:12px;color:var(--muted,#888);font-weight:600;">Today's Zmanim</h4>
-            <div style="position:relative;height:10px;background:#f4f1ea;border-radius:5px;overflow:hidden;">
-                <div style="position:absolute;left:0;top:0;bottom:0;width:{{ hebrew_widget.zmanim.progress_pct }}%;background:var(--jewish,#7c3aed);opacity:.55;"></div>
-                <div style="position:absolute;left:{{ hebrew_widget.zmanim.tefila_marker_pct }}%;top:0;bottom:0;width:2px;background:#7c3aed;" title="Sof zman tefila -- {{ hebrew_widget.zmanim.sof_zman_tefila }}"></div>
-            </div>
-            <div style="display:flex;justify-content:space-between;font-size:10.5px;color:var(--muted,#888);margin-top:3px;">
-                <span>Sunrise {{ hebrew_widget.zmanim.sunrise }}</span>
-                <span>Sof zman tefila {{ hebrew_widget.zmanim.sof_zman_tefila }}</span>
-                <span>Sunset {{ hebrew_widget.zmanim.sunset }}</span>
-            </div>
-            <div style="font-size:11px;margin-top:6px;">
-                {% if hebrew_widget.zmanim.shacharit_time_left %}Time remains for Shacharit.{% else %}Sof zman tefila has passed for today.{% endif %}
-                {% if not hebrew_widget.zmanim.mincha_time_left %} Mincha window has closed.{% endif %}
-            </div>
-        </div>
-        <script>
-        (function(){
-            var el = document.getElementById('shabbat-countdown');
-            var label = document.getElementById('shabbat-countdown-label');
-            if (!el) return;
-            var candle = new Date("{{ hebrew_widget.shabbat.candle_lighting_iso }}");
-            var havdalah = new Date("{{ hebrew_widget.shabbat.havdalah_iso }}");
-            function tick(){
-                var now = new Date();
-                var target = now < candle ? candle : (now < havdalah ? havdalah : null);
-                if (!target) { el.textContent = '--:--:--'; label.textContent = 'Shabbat has ended'; return; }
-                label.textContent = now < candle ? 'Until candle lighting' : 'Until Havdalah';
-                var diff = target - now;
-                var h = Math.floor(diff / 3600000);
-                var m = Math.floor((diff % 3600000) / 60000);
-                var s = Math.floor((diff % 60000) / 1000);
-                el.textContent = String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
-            }
-            tick();
-            setInterval(tick, 1000);
-        })();
-        </script>
-        {% endif %}
-
-        {% if parsi_widget %}
-        <div class="detail-panel parsi-widget-panel" style="border-left:4px solid var(--parsi,#16a085);">
-            <h3 style="margin-top:0;">Roj &middot; Mah</h3>
-            <div style="font-size:16px;font-weight:700;">{{ parsi_widget.roj }} <span style="font-weight:400;font-size:13px;color:var(--muted,#888);">Roj</span></div>
-            <div style="font-size:14px;">{{ parsi_widget.mah }} <span style="font-weight:400;font-size:12px;color:var(--muted,#888);">Mah</span></div>
-            <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line,#e5e0da);">
-                <div style="font-size:12px;color:var(--muted,#888);">Current Gah</div>
-                <div style="font-size:16px;font-weight:700;">{{ parsi_widget.gah.gah }}</div>
-                <div id="gah-change-countdown" style="font-size:11px;color:var(--muted,#888);" data-minutes="{{ parsi_widget.gah.minutes_to_change }}">
-                    Next Gah in {{ parsi_widget.gah.minutes_to_change }} min
-                </div>
-            </div>
-        </div>
-        <script>
-        (function(){
-            var el = document.getElementById('gah-change-countdown');
-            if (!el) return;
-            var remaining = parseInt(el.getAttribute('data-minutes'), 10) * 60;
-            function tick(){
-                if (remaining <= 0) { el.textContent = 'Gah is changing now'; return; }
-                remaining -= 1;
-                var m = Math.floor(remaining / 60), s = remaining % 60;
-                el.textContent = 'Next Gah in ' + m + 'm ' + String(s).padStart(2,'0') + 's';
-            }
-            setInterval(tick, 1000);
-        })();
-        </script>
         {% endif %}
 
     </div>
