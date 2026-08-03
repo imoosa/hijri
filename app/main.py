@@ -72,6 +72,23 @@ def sanitize_note_html(raw: str) -> str:
 DEFAULT_LOCATION = {"name": "Mumbai, Maharashtra", "lat": 19.076, "lng": 72.877, "tz_offset": 5.5}
 ALL_TRADITIONS = set(ic.TRADITIONS.keys())  # {'christian','french','jewish','hindu','parsi'}
 
+# Ringtone choices for the sound-reminder settings + per-event override.
+# "beep" has file=None on purpose -- it's the synthesized Web Audio tone
+# already in base.html's CHIMES, so it always works with zero setup. The
+# others point at files nobody has dropped into static/sounds/ yet (same
+# situation as the existing SOUND_FILES dict in base.html) -- picking one
+# of those before adding the actual mp3 will silently fall back to the
+# synth beep, not error.
+RINGTONE_OPTIONS = {
+    "beep":  {"label": "Synth beep (built-in, always works)", "file": None},
+    "chime": {"label": "Classic Chime",  "file": "/static/sounds/chime.mp3"},
+    "bells": {"label": "Soft Bells",     "file": "/static/sounds/bells.mp3"},
+    "piano": {"label": "Piano Note",     "file": "/static/sounds/piano.mp3"},
+}
+# Which of this app's calendars are Hijri-family -- azaan reminders only
+# make sense while one of these is your default calendar.
+HIJRI_FAMILY_CALENDARS = {"hijri", "sunni", "shia"}
+
 # Which calendar the main /calendar grid is currently paging through. Every
 # entry needs: grid(year, month) -> [(gregorian_date, ordinal, native_label_input), ...],
 # month_name(year, month) -> str, native_of(gregorian_date) -> (year, month, day),
@@ -230,6 +247,14 @@ def create_app():
             db.close()
         return dict(sidebar_note_content=content)
 
+    @app.context_processor
+    def inject_ringtone_options():
+        """Same idea as inject_sidebar_note above -- settings.html needs
+        this for its <select> options, and base.html's alert script needs
+        the key->file mapping as JSON. One source of truth (RINGTONE_OPTIONS
+        above) instead of duplicating the list in both templates."""
+        return dict(ringtone_options=RINGTONE_OPTIONS)
+
     @app.post("/notes/save")
     def save_note():
         """AJAX target for the sticky note -- called on a debounce timer and
@@ -252,7 +277,12 @@ def create_app():
         visible interfaith tradition's holiday/event landing today. Reuses
         the exact same helpers the calendar page itself uses for personal/
         interfaith lookups, rather than a second copy of that logic --
-        see get_personal_by_date / get_interfaith_by_date below."""
+        see get_personal_by_date / get_interfaith_by_date below.
+
+        The `prefs` block here is new: it's what base.html's JS reads to
+        decide (a) whether azaan reminders fire at all -- only when the
+        default calendar is Hijri-family, per your ask -- and (b) which
+        ringtone key to play for a birthday vs an anniversary."""
         today = date.today()
         prefs = get_user_prefs()
         traditions = get_visible_traditions(prefs)
@@ -265,6 +295,14 @@ def create_app():
             "prayer_times": prayer,
             "personal_events": personal_today,
             "interfaith_events": interfaith_today,
+            "prefs": {
+                "default_calendar": prefs["default_calendar"],
+                "is_hijri_family": prefs["default_calendar"] in HIJRI_FAMILY_CALENDARS,
+                "alert_azaan": prefs["alert_azaan"],
+                "alert_birthday_anniversary": prefs["alert_birthday_anniversary"],
+                "birthday_ringtone": prefs["birthday_ringtone"],
+                "anniversary_ringtone": prefs["anniversary_ringtone"],
+            },
         })
 
     # ---------- shared helpers ----------
@@ -280,6 +318,14 @@ def create_app():
         "show_parsi": True,
         "show_french": True,
         "show_personal": True,
+        # Sound-reminder settings, split by category per your ask --
+        # separate from the master on/off switch in the sidebar (that one
+        # stays in localStorage, not here, since it's "did the user grant
+        # Notification permission in this browser", a per-device thing).
+        "alert_azaan": True,
+        "alert_birthday_anniversary": True,
+        "birthday_ringtone": "chime",
+        "anniversary_ringtone": "bells",
     }
 
     def get_user_prefs():
@@ -354,6 +400,8 @@ def create_app():
                     by_date.setdefault(occ, []).append({
                         "id": r.id, "title": r.title, "category": r.category,
                         "description": r.description, "color": r.color,
+                        "ringtone": r.ringtone,
+                        "person_name": r.person_name, "relation": r.relation,
                     })
             return by_date
         finally:
@@ -771,6 +819,12 @@ def create_app():
                     "show_parsi": "show_parsi" in request.form,
                     "show_french": "show_french" in request.form,
                     "show_personal": "show_personal" in request.form,
+                    "alert_azaan": "alert_azaan" in request.form,
+                    "alert_birthday_anniversary": "alert_birthday_anniversary" in request.form,
+                    "birthday_ringtone": request.form.get("birthday_ringtone", "chime")
+                        if request.form.get("birthday_ringtone") in RINGTONE_OPTIONS else "chime",
+                    "anniversary_ringtone": request.form.get("anniversary_ringtone", "bells")
+                        if request.form.get("anniversary_ringtone") in RINGTONE_OPTIONS else "bells",
                 }
                 session["preferences"] = prefs
                 flash("Settings updated.")
@@ -829,6 +883,14 @@ def create_app():
                         hijri_month=hijri_month,
                         hijri_day=hijri_day,
                         recur_calendar=recur_calendar,
+                        # Optional "complete info of the person" -- all
+                        # blank-safe, see database.py's PersonalEvent for
+                        # why these are separate from title/description.
+                        person_name=request.form.get("person_name") or None,
+                        relation=request.form.get("relation") or None,
+                        phone=request.form.get("phone") or None,
+                        ringtone=request.form.get("ringtone") or None
+                            if request.form.get("ringtone") in RINGTONE_OPTIONS else None,
                     )
                     db.add(p)
                     db.commit()

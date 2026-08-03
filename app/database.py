@@ -76,6 +76,19 @@ class PersonalEvent(Base):
     # aren't set (there's nothing to choose between).
     recur_calendar = Column(String, default="gregorian")  # 'gregorian' | 'hijri'
 
+    # Optional "complete info of the person" fields -- all nullable, so
+    # existing rows (and anyone who leaves these blank) are unaffected.
+    # These are about the PERSON the event is for, not the event itself --
+    # keep that distinction if you add more fields here later.
+    person_name = Column(String, nullable=True)   # e.g. "Fatima Bhen" -- separate from `title` (e.g. "Fatima's Birthday")
+    relation = Column(String, nullable=True)       # e.g. "Sister", "Colleague"
+    phone = Column(String, nullable=True)          # free-text, no validation -- add a format check before trusting this for anything automated
+
+    # Per-event ringtone override -- key into main.py's RINGTONE_OPTIONS.
+    # None/blank means "use the category default from Settings"
+    # (birthday_ringtone / anniversary_ringtone), not "no sound".
+    ringtone = Column(String, nullable=True)
+
 
 class Note(Base):
     """The single shared sticky-note shown in the sidebar (base.html). Not
