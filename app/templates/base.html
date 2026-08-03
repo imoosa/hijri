@@ -52,20 +52,54 @@
 
     <style>
         .notes-widget{border-top:1px solid #e5e0da;padding:14px 16px;}
-        .notes-toolbar{display:flex;align-items:center;gap:6px;margin-bottom:8px;}
-        .notes-toolbar button{border:1px solid #ddd;background:#fff;border-radius:4px;
-            padding:3px 10px;font-size:12.5px;cursor:pointer;color:#444;}
-        .notes-toolbar button:hover{background:#f4f1ea;}
+
+        /* Card shell -- this is what carries the shadow/radius now, not
+           .sticky-note itself, so the header and toolbar sit inside the
+           same rounded card instead of floating above/below it. */
+        .sticky-note-card{
+            background:#fff8d6;border-radius:8px;
+            box-shadow:0 4px 14px rgba(0,0,0,.16);
+            overflow:hidden;display:flex;flex-direction:column;
+        }
+        .notes-header{
+            display:flex;align-items:center;justify-content:space-between;
+            padding:6px 8px;
+        }
+        .notes-drag-dots{color:#00000045;font-size:13px;letter-spacing:2px;user-select:none;}
+        .notes-header-actions{display:flex;gap:2px;}
+        .notes-icon-btn{
+            border:none;background:none;cursor:pointer;color:#4a4326;
+            width:24px;height:24px;border-radius:4px;font-size:13px;
+            display:inline-flex;align-items:center;justify-content:center;padding:0;
+        }
+        .notes-icon-btn:hover{background:#00000012;}
+        /* + and ... are disabled -- this app has exactly one shared note
+           (see database.py's Note model), so "new note" and a note-level
+           menu have nothing to do yet. A clickable button that does
+           nothing is worse than no button. */
+        .notes-icon-btn:disabled{opacity:.4;cursor:default;}
+        .notes-icon-btn:disabled:hover{background:none;}
+
+        .notes-toolbar{display:flex;align-items:center;gap:2px;
+            padding:6px 8px;border-top:1px solid rgba(0,0,0,.08);}
         .notes-toolbar button#note-bold-btn{font-weight:700;}
         .notes-toolbar button#note-italic-btn{font-style:italic;}
         .notes-toolbar button#note-underline-btn{text-decoration:underline;}
-        .notes-toolbar button#note-bullet-btn,.notes-toolbar button#note-number-btn{font-size:14px;line-height:1;}
-        .note-save-status{margin-left:auto;font-size:11px;color:#999;}
-        .sticky-note{min-height:170px;background:#fff8d6;border-radius:3px;
-            box-shadow:0 1px 4px rgba(0,0,0,.18);padding:14px;font-size:13.5px;
+        .note-save-status{margin-left:auto;font-size:11px;color:#8a8360;}
+
+        .sticky-note{min-height:150px;background:transparent;
+            box-shadow:none;padding:4px 14px 10px;font-size:13.5px;
             line-height:1.55;outline:none;white-space:pre-wrap;}
         .sticky-note:empty::before{content:attr(data-placeholder);color:#a89a5c;}
         .sticky-note ul,.sticky-note ol{margin:4px 0 4px 18px;padding:0;}
+
+        /* Reopen pill shown only when the card has been closed via the X --
+           without this, closing the note would be a one-way trip with no
+           way back short of clearing localStorage. */
+        .note-reopen-btn{margin:14px 16px 0;border:1px dashed #ccc;background:#fff;
+            border-radius:6px;padding:6px 10px;font-size:12px;color:#777;cursor:pointer;
+            display:none;}
+        .note-reopen-btn:hover{background:#f4f1ea;}
 
         .alerts-widget{border-top:1px solid #e5e0da;padding:14px 16px;font-size:12.5px;color:#666;}
         .alerts-widget label{display:flex;align-items:center;gap:6px;cursor:pointer;}
@@ -85,16 +119,31 @@
             {% endif %}
 
             <div class="notes-widget">
-                <div class="notes-toolbar">
-                    <button type="button" id="note-bold-btn" title="Bold the selected text">B</button>
-                    <button type="button" id="note-italic-btn" title="Italic the selected text">I</button>
-                    <button type="button" id="note-underline-btn" title="Underline the selected text">U</button>
-                    <button type="button" id="note-bullet-btn" title="Bullet list">&bull;&nbsp;List</button>
-                    <button type="button" id="note-number-btn" title="Numbered list">1.&nbsp;List</button>
-                    <span id="note-save-status" class="note-save-status"></span>
+                <div class="sticky-note-card">
+                    <div class="notes-header">
+                        <span class="notes-drag-dots" title="Cosmetic only -- CSS can't make a page element drag around the OS desktop">::::</span>
+                        <div class="notes-header-actions">
+                            <button type="button" class="notes-icon-btn" title="Only one shared note exists in this app" disabled>+</button>
+                            <button type="button" class="notes-icon-btn" title="Nothing to put in this menu yet" disabled>&#8942;</button>
+                            <button type="button" id="note-close-btn" class="notes-icon-btn" title="Hide">&times;</button>
+                        </div>
+                    </div>
+
+                    <div id="sticky-note" class="sticky-note" contenteditable="true"
+                         data-placeholder="Write something important&hellip;">{{ sidebar_note_content|safe }}</div>
+
+                    <div class="notes-toolbar">
+                        <button type="button" id="note-bold-btn" class="notes-icon-btn" title="Bold the selected text">B</button>
+                        <button type="button" id="note-italic-btn" class="notes-icon-btn" title="Italic the selected text">I</button>
+                        <button type="button" id="note-underline-btn" class="notes-icon-btn" title="Underline the selected text">U</button>
+                        <button type="button" id="note-bullet-btn" class="notes-icon-btn" title="Bullet list">&#9776;</button>
+                        <button type="button" id="note-number-btn" class="notes-icon-btn" title="Numbered list">1.</button>
+                        <button type="button" id="note-image-btn" class="notes-icon-btn"
+                                title="Not wired to a backend yet -- see the sanitizer note below">&#128247;</button>
+                        <span id="note-save-status" class="note-save-status"></span>
+                    </div>
                 </div>
-                <div id="sticky-note" class="sticky-note" contenteditable="true"
-                     data-placeholder="Write something important&hellip;">{{ sidebar_note_content|safe }}</div>
+                <button type="button" id="note-reopen-btn" class="note-reopen-btn">+ Note</button>
             </div>
 
             <div class="alerts-widget">
@@ -156,6 +205,30 @@
         bindCmd('note-underline-btn', 'underline');
         bindCmd('note-bullet-btn', 'insertUnorderedList');
         bindCmd('note-number-btn', 'insertOrderedList');
+
+        // Close/reopen -- persisted so an accidental close doesn't feel
+        // like the note vanished. Card and pill states are always kept
+        // as exact opposites of each other.
+        var card = document.querySelector('.sticky-note-card');
+        var reopenBtn = document.getElementById('note-reopen-btn');
+        var HIDE_KEY = 'sticky-note-hidden';
+        function setHidden(hidden){
+            card.style.display = hidden ? 'none' : '';
+            reopenBtn.style.display = hidden ? 'inline-block' : 'none';
+            localStorage.setItem(HIDE_KEY, hidden ? '1' : '0');
+        }
+        document.getElementById('note-close-btn').addEventListener('click', function(){ setHidden(true); });
+        reopenBtn.addEventListener('click', function(){ setHidden(false); });
+        setHidden(localStorage.getItem(HIDE_KEY) === '1');
+
+        // Deliberately NOT wired to insertImage/execCommand -- that would
+        // embed a base64 data: URI, and _NOTE_ALLOWED_TAGS in main.py has
+        // no img entry, so sanitize_note_html would strip it back out on
+        // the very next save. Shipping a button that silently loses your
+        // image is worse than no button, so this says so instead.
+        document.getElementById('note-image-btn').addEventListener('click', function(){
+            alert('Image notes need a small backend change first (main.py: add "img" to _NOTE_ALLOWED_TAGS, plus an upload endpoint). Not done yet -- ask if you want that built.');
+        });
     })();
     </script>
 
