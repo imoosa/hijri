@@ -1,10 +1,7 @@
-import os
-import uuid
 from datetime import date, datetime, timedelta
 
 from flask import Flask, request, jsonify, render_template, session, redirect, url_for, flash
 from flask_cors import CORS
-from werkzeug.utils import secure_filename
 
 from . import hijri_calendar as hc
 from . import hebrew_calendar as heb
@@ -21,7 +18,6 @@ from . import shia_calendar as shc
 from .database import (
     get_session, init_db, seed_if_empty, seed_missing_sources, HijriEvent,
     InterfaithEvent, PersonalEvent, Note, get_or_create_note, refresh_interfaith_events,
-    CustomRingtone,
 )
 
 import calendar as _pycal
@@ -83,23 +79,12 @@ ALL_TRADITIONS = set(ic.TRADITIONS.keys())  # {'christian','french','jewish','hi
 # situation as the existing SOUND_FILES dict in base.html) -- picking one
 # of those before adding the actual mp3 will silently fall back to the
 # synth beep, not error.
-# Built-in presets only. User-uploaded ringtones live in the CustomRingtone
-# table (database.py) and get merged into this at request time by
-# all_ringtone_options() below -- nothing outside that helper should read
-# this dict directly when it needs to validate/display "any valid ringtone
-# key", or custom uploads will look invalid.
 RINGTONE_OPTIONS = {
     "beep":  {"label": "Synth beep (built-in, always works)", "file": None},
     "chime": {"label": "Classic Chime",  "file": "/static/sounds/chime.mp3"},
     "bells": {"label": "Soft Bells",     "file": "/static/sounds/bells.mp3"},
     "piano": {"label": "Piano Note",     "file": "/static/sounds/piano.mp3"},
 }
-
-# Custom ringtone upload constraints -- 5MB cap matches the copy already
-# shown to the user in settings.html ("under 5MB"). Extension whitelist
-# only; we don't sniff/transcode audio content here.
-ALLOWED_RINGTONE_EXTENSIONS = {"mp3", "wav", "ogg", "m4a", "aac"}
-MAX_RINGTONE_BYTES = 5 * 1024 * 1024
 # Which of this app's calendars are Hijri-family -- azaan reminders only
 # make sense while one of these is your default calendar.
 HIJRI_FAMILY_CALENDARS = {"hijri", "sunni", "shia"}
@@ -151,6 +136,85 @@ def _grid_hindu(year, month):
     # native_label() needs to render the on-screen "S5"/"K12"-style label.
     return [(date.fromisoformat(d["gregorian"]), d["ordinal"], (d["tithi"], d["paksha"]))
             for d in hindu.month_grid(year, month)]
+
+def compute_hindu_daily(today_g, loc):
+    hd_tithi, hd_paksha = hindu.tithi_on(today_g, loc["lat"], loc["lng"])
+    hd_muhurats = hindu.daily_muhurats(loc["lat"], loc["lng"], today_g, loc["tz_offset"])
+
+    def _mins(hhmm):
+        h, m = hhmm.split(":")
+        return int(h) * 60 + int(m)
+
+    span_start = _mins(hd_muhurats["sunrise"])
+    span = max(_mins(hd_muhurats["sunset"]) - span_start, 1)
+
+    def _pct(hhmm):
+        return round((_mins(hhmm) - span_start) / span * 100, 2)
+
+    return {
+        "tithi": hd_tithi,
+        "paksha": hd_paksha,
+        "is_ekadashi": hd_tithi == 11,
+        "is_purnima": hd_tithi == 15 and hd_paksha == hindu.PAKSHA_SHUKLA,
+        "nakshatra": hindu.nakshatra_on(today_g, loc["lat"], loc["lng"]),
+        "sunrise": hd_muhurats["sunrise"],
+        "sunset": hd_muhurats["sunset"],
+        "rahu_kalam": hd_muhurats["rahu_kalam"],
+        "abhijit": hd_muhurats["abhijit"],
+        "timeline": {
+            "rahu_kalam_left": _pct(hd_muhurats["rahu_kalam"]["start"]),
+            "rahu_kalam_width": round((_mins(hd_muhurats["rahu_kalam"]["end"]) - _mins(hd_muhurats["rahu_kalam"]["start"])) / span * 100, 2),
+            "abhijit_left": _pct(hd_muhurats["abhijit"]["start"]),
+            "abhijit_width": round((_mins(hd_muhurats["abhijit"]["end"]) - _mins(hd_muhurats["abhijit"]["start"])) / span * 100, 2),
+        },
+    }
+
+
+def compute_hebrew_daily(today_g, loc):
+    hy, hm, hd = heb.gregorian_to_hebrew(today_g)
+    shabbat = heb.shabbat_times(today_g, loc["lat"], loc["lng"], loc["tz_offset"])
+    z = heb.zmanim(today_g, loc["lat"], loc["lng"], loc["tz_offset"])
+    return {
+        "month_name": heb.month_name(hm),
+        "day": hd,
+        "year": hy,
+        "is_leap_year": heb.is_leap(hy),
+        "sunrise": z["sunrise"],
+        "sunset": z["sunset"],
+        "sof_zman_tefila": z["sof_zman_tefila"],
+        "chatzot": z["chatzot"],
+        "progress_pct": z["progress_pct"],
+        "tefila_marker_pct": z["tefila_marker_pct"],
+        "shacharit_time_left": z["shacharit_time_left"],
+        "mincha_time_left": z["mincha_time_left"],
+        "shabbat": shabbat,
+    }
+
+
+def compute_parsi_daily(today_g, loc):
+    py, pm, pd = pc.gregorian_to_parsi(today_g)
+    now_local_dt = datetime.utcnow() + timedelta(hours=loc["tz_offset"])
+    gah = pc.gah_now(now_local_dt, loc["lat"], loc["lng"], loc["tz_offset"])
+    return {
+        "year": py,
+        "month_name": pc.month_name(pm),
+        "day": pd,
+        "is_gatha": pm == pc.GATHA_MONTH,
+        "roj": pc.roj_name(pd),
+        "gah": gah["gah"],
+        "minutes_to_change": gah["minutes_to_change"],
+        "gahs": pc.GAHS,
+    }
+
+
+def compute_christian_daily(today_g):
+    season = cc.liturgical_season(today_g)
+    return {
+        "season": season["season"],
+        "color_name": season["color_name"],
+        "color_hex": season["color_hex"],
+        "saint": cc.saint_of_day(today_g.month, today_g.day),
+    }
 
 
 CALENDARS = {
@@ -239,13 +303,6 @@ def create_app():
     app.secret_key = "dev-secret-change-this-before-any-real-deployment"
     CORS(app)
 
-    # Where uploaded ringtone files actually land on disk. Lives under
-    # static/ so the same /static/sounds/... URL scheme that already serves
-    # the built-in presets (see RINGTONE_OPTIONS) also serves uploads --
-    # no separate download route needed.
-    UPLOAD_FOLDER = os.path.join(app.static_folder, "sounds", "uploads")
-    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
     init_db()
     seed_if_empty()
     seed_missing_sources()
@@ -269,28 +326,13 @@ def create_app():
             db.close()
         return dict(sidebar_note_content=content)
 
-    def all_ringtone_options():
-        """RINGTONE_OPTIONS (built-in presets) plus every uploaded
-        CustomRingtone, merged into one key -> {label, file} dict. Every
-        caller that needs "is this a valid ringtone key" or "list every
-        choice for a dropdown" should go through this, not RINGTONE_OPTIONS
-        directly, or uploads will look invalid/missing."""
-        options = dict(RINGTONE_OPTIONS)
-        db = get_session()
-        try:
-            for r in db.query(CustomRingtone).all():
-                options[r.key] = {"label": r.label, "file": f"/static/sounds/uploads/{r.filename}"}
-        finally:
-            db.close()
-        return options
-
     @app.context_processor
     def inject_ringtone_options():
         """Same idea as inject_sidebar_note above -- settings.html needs
         this for its <select> options, and base.html's alert script needs
-        the key->file mapping as JSON. One source of truth (all_ringtone_options
+        the key->file mapping as JSON. One source of truth (RINGTONE_OPTIONS
         above) instead of duplicating the list in both templates."""
-        return dict(ringtone_options=all_ringtone_options())
+        return dict(ringtone_options=RINGTONE_OPTIONS)
 
     @app.post("/notes/save")
     def save_note():
@@ -734,36 +776,14 @@ def create_app():
         prayer_date = selected_day["gregorian"] if selected_day else today_g
         prayer = pt.calculate(loc["lat"], loc["lng"], prayer_date, loc["tz_offset"])
 
-        hindu_daily = None
-        if cal_key == "hindu":
-            hd_tithi, hd_paksha = hindu.tithi_on(today_g, loc["lat"], loc["lng"])
-            hd_muhurats = hindu.daily_muhurats(loc["lat"], loc["lng"], today_g, loc["tz_offset"])
-
-            def _mins(hhmm):
-                h, m = hhmm.split(":")
-                return int(h) * 60 + int(m)
-
-            span_start = _mins(hd_muhurats["sunrise"])
-            span = max(_mins(hd_muhurats["sunset"]) - span_start, 1)
-
-            def _pct(hhmm):
-                return round((_mins(hhmm) - span_start) / span * 100, 2)
-
-            hindu_daily = {
-                "tithi": hd_tithi,
-                "paksha": hd_paksha,
-                "nakshatra": hindu.nakshatra_on(today_g, loc["lat"], loc["lng"]),
-                "sunrise": hd_muhurats["sunrise"],
-                "sunset": hd_muhurats["sunset"],
-                "rahu_kalam": hd_muhurats["rahu_kalam"],
-                "abhijit": hd_muhurats["abhijit"],
-                "timeline": {
-                    "rahu_kalam_left": _pct(hd_muhurats["rahu_kalam"]["start"]),
-                    "rahu_kalam_width": round((_mins(hd_muhurats["rahu_kalam"]["end"]) - _mins(hd_muhurats["rahu_kalam"]["start"])) / span * 100, 2),
-                    "abhijit_left": _pct(hd_muhurats["abhijit"]["start"]),
-                    "abhijit_width": round((_mins(hd_muhurats["abhijit"]["end"]) - _mins(hd_muhurats["abhijit"]["start"])) / span * 100, 2),
-                },
-            }
+        hindu_daily = compute_hindu_daily(today_g, loc) if cal_key == "hindu" else None
+        hebrew_daily = compute_hebrew_daily(today_g, loc) if cal_key == "hebrew" else None
+        parsi_daily = compute_parsi_daily(today_g, loc) if cal_key == "parsi" else None
+        christian_daily = (
+            compute_christian_daily(today_g)
+            if cal_key == "gregorian" and "christian" in traditions_on
+            else None
+        )
 
         # Get user's custom events (only Bohra events for now, can extend)
         db = get_session()
@@ -816,11 +836,40 @@ def create_app():
     @app.get("/prayer-times-view")
     def prayer_view():
         loc = current_location()
+        prefs = get_user_prefs()
         d = date.today()
-        prayer = pt.calculate(loc["lat"], loc["lng"], d, loc["tz_offset"])
-        return render_template("prayer.html", active="prayer", prayer=prayer,
-                                location_name=loc["name"], date_str=d.strftime("%d %B %Y"),
-                                location_is_default=location_is_default())
+
+        cal_key = request.args.get("cal")
+        if not cal_key or cal_key not in CALENDARS:
+            cal_key = prefs.get("default_calendar", "hijri")
+        if cal_key not in CALENDARS:
+            cal_key = "hijri"
+
+        traditions_on = get_visible_traditions(prefs)
+
+        prayer = hindu_daily = hebrew_daily = parsi_daily = christian_daily = None
+        needs_location = cal_key in HIJRI_FAMILY_CALENDARS | {"hindu", "hebrew", "parsi"}
+
+        if cal_key in HIJRI_FAMILY_CALENDARS:
+            prayer = pt.calculate(loc["lat"], loc["lng"], d, loc["tz_offset"])
+        elif cal_key == "hindu":
+            hindu_daily = compute_hindu_daily(d, loc)
+        elif cal_key == "hebrew":
+            hebrew_daily = compute_hebrew_daily(d, loc)
+        elif cal_key == "parsi":
+            parsi_daily = compute_parsi_daily(d, loc)
+        elif cal_key == "gregorian" and "christian" in traditions_on:
+            christian_daily = compute_christian_daily(d)
+
+        return render_template(
+            "prayer.html", active="prayer",
+            cal_key=cal_key, cal_label=CALENDARS[cal_key]["label"],
+            location_name=loc["name"], date_str=d.strftime("%d %B %Y"),
+            location_is_default=location_is_default(), needs_location=needs_location,
+            prayer=prayer, hindu_daily=hindu_daily, hebrew_daily=hebrew_daily,
+            parsi_daily=parsi_daily, christian_daily=christian_daily,
+            christian_enabled=("christian" in traditions_on),
+        )
 
     @app.get("/qibla-view")
     def qibla_view():
@@ -859,9 +908,9 @@ def create_app():
                     "alert_azaan": "alert_azaan" in request.form,
                     "alert_birthday_anniversary": "alert_birthday_anniversary" in request.form,
                     "birthday_ringtone": request.form.get("birthday_ringtone", "chime")
-                        if request.form.get("birthday_ringtone") in all_ringtone_options() else "chime",
+                        if request.form.get("birthday_ringtone") in RINGTONE_OPTIONS else "chime",
                     "anniversary_ringtone": request.form.get("anniversary_ringtone", "bells")
-                        if request.form.get("anniversary_ringtone") in all_ringtone_options() else "bells",
+                        if request.form.get("anniversary_ringtone") in RINGTONE_OPTIONS else "bells",
                 }
                 session["preferences"] = prefs
                 flash("Settings updated.")
@@ -871,77 +920,7 @@ def create_app():
                 return redirect(url_for("settings_view"))
 
         prefs = get_user_prefs()
-        db = get_session()
-        try:
-            custom_ringtones = db.query(CustomRingtone).order_by(CustomRingtone.uploaded_at.desc()).all()
-        finally:
-            db.close()
-        return render_template("settings.html", active="settings", location=current_location(),
-                                prefs=prefs, custom_ringtones=custom_ringtones)
-
-    @app.post("/upload-ringtone")
-    def upload_ringtone():
-        """AJAX target for settings.html's ringtone upload card. Stores the
-        file under a server-generated name (never the browser-supplied
-        filename -- see CustomRingtone's docstring in database.py) and adds
-        a DB row so it shows up as a choice everywhere all_ringtone_options()
-        is used: both settings.html dropdowns and per-event overrides."""
-        f = request.files.get("ringtone_file")
-        if not f or not f.filename:
-            return jsonify({"error": "Choose an audio file first."}), 400
-
-        ext = f.filename.rsplit(".", 1)[1].lower() if "." in f.filename else ""
-        if ext not in ALLOWED_RINGTONE_EXTENSIONS:
-            return jsonify({"error": "Unsupported file type. Use mp3, wav, ogg, m4a, or aac."}), 400
-
-        f.seek(0, os.SEEK_END)
-        size = f.tell()
-        f.seek(0)
-        if size > MAX_RINGTONE_BYTES:
-            return jsonify({"error": "File is too large (max 5MB)."}), 400
-        if size == 0:
-            return jsonify({"error": "That file is empty."}), 400
-
-        key = f"custom_{uuid.uuid4().hex}"
-        stored_name = f"{key}.{ext}"
-        f.save(os.path.join(UPLOAD_FOLDER, stored_name))
-
-        label = (request.form.get("ringtone_label") or "").strip()
-        if not label:
-            label = secure_filename(f.filename) or "Custom ringtone"
-
-        db = get_session()
-        try:
-            db.add(CustomRingtone(key=key, label=label, filename=stored_name))
-            db.commit()
-        finally:
-            db.close()
-
-        return jsonify({"status": "uploaded", "key": key, "label": label})
-
-    @app.post("/delete-ringtone/<key>")
-    def delete_ringtone(key):
-        """AJAX target for the delete link next to each uploaded ringtone.
-        Removes the DB row first, then best-effort removes the file --
-        a leftover orphan file on disk is a much smaller problem than a
-        dangling DB row pointing at a file that's already gone."""
-        db = get_session()
-        try:
-            r = db.query(CustomRingtone).filter(CustomRingtone.key == key).first()
-            if not r:
-                return jsonify({"error": "Ringtone not found."}), 404
-            filename = r.filename
-            db.delete(r)
-            db.commit()
-        finally:
-            db.close()
-
-        try:
-            os.remove(os.path.join(UPLOAD_FOLDER, filename))
-        except OSError:
-            pass  # already gone, or never wrote successfully -- not fatal
-
-        return jsonify({"status": "deleted"})
+        return render_template("settings.html", active="settings", location=current_location(), prefs=prefs)
 
     @app.route("/events-view", methods=["GET", "POST"])
     def events_view():
@@ -997,7 +976,7 @@ def create_app():
                         relation=request.form.get("relation") or None,
                         phone=request.form.get("phone") or None,
                         ringtone=request.form.get("ringtone") or None
-                            if request.form.get("ringtone") in all_ringtone_options() else None,
+                            if request.form.get("ringtone") in RINGTONE_OPTIONS else None,
                     )
                     db.add(p)
                     db.commit()
