@@ -1,10 +1,33 @@
 <!-- prayer.html -->
 {% extends "base.html" %}
-{% block title %}Prayer Times{% endblock %}
+{% block title %}{{ cal_label }} -- Today{% endblock %}
 {% block content %}
+<style>
+  .stat-row { display:flex; gap:16px; flex-wrap:wrap; margin:14px 0; }
+  .stat-box { flex:1; min-width:160px; background:#fafafa; border:1px solid #e5e5e5; border-radius:10px; padding:14px 16px; }
+  .stat-label { font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:#8a8a8a; margin-bottom:6px; }
+  .stat-value { font-size:22px; font-weight:700; color:#1a1a1a; }
+  .stat-sub { font-size:12.5px; color:#8a8a8a; margin-top:4px; }
+  .timeline-wrap { background:#fafafa; border:1px solid #e5e5e5; border-radius:10px; padding:14px 16px; margin:14px 0; }
+  .timeline-title { font-size:13.5px; font-weight:600; color:#333; margin-bottom:10px; }
+  .timeline-bar { position:relative; height:14px; background:#efe9dd; border-radius:7px; overflow:hidden; }
+  .timeline-seg { position:absolute; top:0; bottom:0; border-radius:4px; }
+  .timeline-legend { display:flex; gap:18px; flex-wrap:wrap; margin-top:10px; font-size:12.5px; color:#555; }
+  .legend-dot { display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:6px; vertical-align:middle; }
+  .season-badge { display:inline-block; padding:6px 14px; border-radius:20px; color:#fff; font-weight:600; font-size:13.5px; margin-bottom:10px; }
+  .saint-card { background:#fafafa; border:1px solid #e5e5e5; border-radius:10px; padding:16px; margin-top:10px; }
+  .saint-card .name { font-size:17px; font-weight:700; }
+  .saint-card .title { color:#8a8a8a; font-size:12.5px; text-transform:uppercase; letter-spacing:.03em; margin:2px 0 8px; }
+  .saint-card .prayer { font-style:italic; color:#444; }
+  .roj-list { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+  .roj-chip { padding:4px 10px; border-radius:14px; font-size:12.5px; background:#eee; color:#555; }
+  .roj-chip.active { background:#2e8b57; color:#fff; font-weight:600; }
+</style>
+
 <div class="card">
-    <h1>Prayer Times</h1>
-    {% if location_is_default %}
+    <h1>{{ cal_label }} -- Today</h1>
+
+    {% if needs_location and location_is_default %}
     <p class="note" style="background:#fff8e1;border:1px solid #ffe08a;padding:10px 14px;border-radius:8px;">
         These times are for <strong>{{ location_name }}</strong> (default) -- they may not be your
         location. <a href="{{ url_for('settings_view') }}">Set your location</a> for accurate times.
@@ -12,6 +35,8 @@
     {% endif %}
     <p class="sub">{{ location_name }} &middot; {{ date_str }}</p>
 
+    {# ==================== HIJRI FAMILY (Bohra / Sunni / Shia) ==================== #}
+    {% if prayer %}
     <div class="prayer-list">
         <div class="prayer-item"><span>Fajr</span><strong>{{ prayer.fajr }}</strong></div>
         <div class="prayer-item"><span>Sunrise</span><strong>{{ prayer.sunrise }}</strong></div>
@@ -21,11 +46,141 @@
         <div class="prayer-item"><span>Sunset (Maghrib begins)</span><strong>{{ prayer.sunset }}</strong></div>
         <div class="prayer-item"><span>Isha</span><strong>{{ prayer.isha }}</strong></div>
     </div>
-
     <p class="note">
-        <strong>Bohra convention:</strong> Zuhr and Asr are prayed together within the Zuhr window (until Asr time).
+        <strong>{{ cal_label }} convention:</strong> Zuhr and Asr are prayed together within the Zuhr window (until Asr time).
         Maghrib and Isha are prayed together after sunset (until Isha time).
         Change your location under Settings.
     </p>
+
+    {# ==================== HINDU -- Panchang ==================== #}
+    {% elif hindu_daily %}
+    <p class="sub" style="margin-top:-4px;">Today's Panchang -- the Hindu almanac's core daily readings.</p>
+    <div class="stat-row">
+        <div class="stat-box">
+            <div class="stat-label">Tithi</div>
+            <div class="stat-value">{{ hindu_daily.tithi }} ({{ hindu_daily.paksha }})</div>
+            <div class="stat-sub">
+                {% if hindu_daily.paksha == 'Shukla' %}Waxing fortnight (moon growing){% else %}Waning fortnight (moon shrinking){% endif %}
+                {% if hindu_daily.is_ekadashi %} &middot; Ekadashi{% endif %}
+                {% if hindu_daily.is_purnima %} &middot; Purnima{% endif %}
+            </div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">Nakshatra</div>
+            <div class="stat-value">{{ hindu_daily.nakshatra }}</div>
+            <div class="stat-sub">Today's lunar constellation</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">Sunrise / Sunset</div>
+            <div class="stat-value">{{ hindu_daily.sunrise }}</div>
+            <div class="stat-sub">Sunset {{ hindu_daily.sunset }}</div>
+        </div>
+    </div>
+
+    <div class="timeline-wrap">
+        <div class="timeline-title">Today's timeline &middot; sunrise {{ hindu_daily.sunrise }} to sunset {{ hindu_daily.sunset }}</div>
+        <div class="timeline-bar">
+            <div class="timeline-seg" style="left:{{ hindu_daily.timeline.abhijit_left }}%; width:{{ hindu_daily.timeline.abhijit_width }}%; background:#4caf7d;"></div>
+            <div class="timeline-seg" style="left:{{ hindu_daily.timeline.rahu_kalam_left }}%; width:{{ hindu_daily.timeline.rahu_kalam_width }}%; background:#e08a8a;"></div>
+        </div>
+        <div class="timeline-legend">
+            <span><span class="legend-dot" style="background:#e08a8a;"></span>Rahu Kalam {{ hindu_daily.rahu_kalam.start }}-{{ hindu_daily.rahu_kalam.end }} -- an inauspicious window, traditionally avoided for starting anything new</span>
+            <span><span class="legend-dot" style="background:#4caf7d;"></span>Abhijit Muhurat {{ hindu_daily.abhijit.start }}-{{ hindu_daily.abhijit.end }} -- the most auspicious window of the day, good for important beginnings</span>
+        </div>
+    </div>
+    <p class="note">Tithi/Nakshatra are read as of today's sunrise, per Panchang convention. Cross-check against a published Panchang for your exact location before treating this as authoritative for religious observance.</p>
+
+    {# ==================== HEBREW -- Zmanim + Shabbat ==================== #}
+    {% elif hebrew_daily %}
+    <p class="sub" style="margin-top:-4px;">{{ hebrew_daily.day }} {{ hebrew_daily.month_name }} {{ hebrew_daily.year }}{% if hebrew_daily.is_leap_year %} (leap year){% endif %}</p>
+    <div class="stat-row">
+        <div class="stat-box">
+            <div class="stat-label">Sunrise / Sunset</div>
+            <div class="stat-value">{{ hebrew_daily.sunrise }}</div>
+            <div class="stat-sub">Sunset {{ hebrew_daily.sunset }}</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">Sof Zman Tefila</div>
+            <div class="stat-value">{{ hebrew_daily.sof_zman_tefila }}</div>
+            <div class="stat-sub">{% if hebrew_daily.shacharit_time_left %}Shacharit window still open{% else %}Shacharit window has passed{% endif %}</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">Chatzot</div>
+            <div class="stat-value">{{ hebrew_daily.chatzot }}</div>
+            <div class="stat-sub">{% if hebrew_daily.mincha_time_left %}Mincha window still open{% else %}Mincha window has passed{% endif %}</div>
+        </div>
+    </div>
+
+    <div class="timeline-wrap">
+        <div class="timeline-title">Halachic day progress</div>
+        <div class="timeline-bar">
+            <div class="timeline-seg" style="left:0%; width:{{ hebrew_daily.progress_pct }}%; background:#8e44ad;"></div>
+            <div class="timeline-seg" style="left:{{ hebrew_daily.tefila_marker_pct }}%; width:2px; background:#333;"></div>
+        </div>
+        <div class="timeline-legend">
+            <span><span class="legend-dot" style="background:#8e44ad;"></span>Elapsed since sunrise</span>
+            <span>Marker at Sof Zman Tefila</span>
+        </div>
+    </div>
+
+    <div class="saint-card">
+        <div class="title">This week's Shabbat</div>
+        <div class="stat-row" style="margin:6px 0 0;">
+            <div class="stat-box">
+                <div class="stat-label">Candle Lighting (Fri)</div>
+                <div class="stat-value">{{ hebrew_daily.shabbat.candle_lighting }}</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">Havdalah (Sat)</div>
+                <div class="stat-value">{{ hebrew_daily.shabbat.havdalah }}</div>
+            </div>
+        </div>
+    </div>
+    <p class="note">GRA-opinion zmanim (sunrise-to-sunset, 12 proportional halachic hours). Candle-lighting/Havdalah offsets are common defaults -- confirm against your community's custom under Settings.</p>
+
+    {# ==================== PARSI -- Roj / Gah ==================== #}
+    {% elif parsi_daily %}
+    <p class="sub" style="margin-top:-4px;">
+        {% if parsi_daily.is_gatha %}Gatha day {{ parsi_daily.day }}{% else %}{{ parsi_daily.roj }} Roj, {{ parsi_daily.month_name }}{% endif %} -- Shahenshahi year {{ parsi_daily.year }}
+    </p>
+    <div class="stat-row">
+        <div class="stat-box">
+            <div class="stat-label">Current Gah</div>
+            <div class="stat-value">{{ parsi_daily.gah }}</div>
+            <div class="stat-sub">Changes in {{ parsi_daily.minutes_to_change }} min</div>
+        </div>
+    </div>
+    <div class="saint-card">
+        <div class="title">Today's Gah cycle</div>
+        <div class="roj-list">
+            {% for g in parsi_daily.gahs %}
+            <span class="roj-chip{% if g.name == parsi_daily.gah %} active{% endif %}">{{ g.name }}</span>
+            {% endfor %}
+        </div>
+        <p class="note" style="margin-top:10px;">{{ parsi_daily.gahs | selectattr('name', 'equalto', parsi_daily.gah) | map(attribute='desc') | first }}</p>
+    </div>
+    <p class="note">Shahenshahi calendar, no leap-year correction -- Navroz drifts later against the Gregorian date by about a day every 4 years. Gah boundaries use a flat year-round split; some traditions merge Rapithwin into neighbouring Gahs in winter, not modelled here.</p>
+
+    {# ==================== CHRISTIAN -- liturgical season + saint ==================== #}
+    {% elif christian_daily %}
+    <div class="season-badge" style="background:{{ christian_daily.color_hex }};">{{ christian_daily.season }} &middot; {{ christian_daily.color_name }}</div>
+    {% if christian_daily.saint %}
+    <div class="saint-card">
+        <div class="name">{{ christian_daily.saint.name }}</div>
+        <div class="title">{{ christian_daily.saint.title }}</div>
+        <div class="prayer">{{ christian_daily.saint.prayer }}</div>
+    </div>
+    {% else %}
+    <p class="note">No feast in this app's curated list for today -- that means "not in this small list," not "no feast exists."</p>
+    {% endif %}
+    <p class="note">Season boundaries follow the standard Western liturgical calendar off the Gregorian Easter algorithm. Saint-of-the-day is a curated subset of fixed-date feasts, not authoritative -- verify against a proper Martyrologium before relying on it.</p>
+
+    {% else %}
+    <p class="note">
+        Your default calendar is Gregorian and Christian isn't in your visible traditions, so there's no
+        religious detail to show here. <a href="{{ url_for('settings_view') }}">Enable Christian</a> in Settings,
+        or pick a different default calendar.
+    </p>
+    {% endif %}
 </div>
 {% endblock %}
