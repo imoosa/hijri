@@ -554,9 +554,16 @@
             uploadBtn.disabled = true;
             uploadBtn.textContent = 'Uploading\u2026';
             fetch('{{ url_for("upload_ringtone") }}', {method: 'POST', body: fd})
-                .then(function(){ window.location.reload(); })
-                .catch(function(){
-                    alert('Upload failed -- check your connection and try again.');
+                .then(function(resp){
+                    if (!resp.ok) {
+                        return resp.json().then(function(data){
+                            throw new Error(data.error || 'Upload failed.');
+                        });
+                    }
+                    window.location.reload();
+                })
+                .catch(function(err){
+                    alert(err.message || 'Upload failed -- check your connection and try again.');
                     uploadBtn.disabled = false;
                     uploadBtn.textContent = 'Upload';
                 });
@@ -567,7 +574,10 @@
         btn.addEventListener('click', function(){
             if (!confirm('Delete this ringtone?')) return;
             fetch(btn.dataset.url, {method: 'POST'})
-                .then(function(){ window.location.reload(); })
+                .then(function(resp){
+                    if (!resp.ok) throw new Error('Delete failed.');
+                    window.location.reload();
+                })
                 .catch(function(){ alert('Delete failed -- try again.'); });
         });
     });
