@@ -1,7 +1,10 @@
+import os
+import uuid
 from datetime import date, datetime, timedelta
 
 from flask import Flask, request, jsonify, render_template, session, redirect, url_for, flash
 from flask_cors import CORS
+from werkzeug.utils import secure_filename
 
 from . import hijri_calendar as hc
 from . import hebrew_calendar as heb
@@ -18,6 +21,7 @@ from . import shia_calendar as shc
 from .database import (
     get_session, init_db, seed_if_empty, seed_missing_sources, HijriEvent,
     InterfaithEvent, PersonalEvent, Note, get_or_create_note, refresh_interfaith_events,
+    CustomRingtone,
 )
 
 import calendar as _pycal
@@ -85,6 +89,39 @@ RINGTONE_OPTIONS = {
     "bells": {"label": "Soft Bells",     "file": "/static/sounds/bells.mp3"},
     "piano": {"label": "Piano Note",     "file": "/static/sounds/piano.mp3"},
 }
+
+# User-uploaded ringtones (Settings -> "Upload your own ringtone"). Stored
+# on disk here, not in static/, so a stale/partial upload can't be served
+# before it's committed to the DB row -- see save path in upload_ringtone().
+# NOTE: this directory lives on local disk. On Render's standard web
+# service tier that's an EPHEMERAL filesystem -- every redeploy/restart
+# wipes it, taking uploaded audio (and the DB rows still pointing at it)
+# with it. Fine for local dev; needs a persistent disk or S3/R2 before
+# this can be trusted in production.
+RINGTONE_UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "static", "sounds", "uploads")
+RINGTONE_ALLOWED_EXTENSIONS = {"mp3", "wav", "ogg", "m4a", "aac"}
+RINGTONE_MAX_BYTES = 5 * 1024 * 1024  # 5 MB, matches the limit stated in settings.html
+
+
+def _all_ringtone_options(db=None):
+    """RINGTONE_OPTIONS plus every CustomRingtone row, merged into one
+    key -> {label, file} dict. This is the single source of truth both
+    settings.html's dropdowns and base.html's alert-sound JSON should use --
+    without it, a custom upload shows up as a choice but never actually
+    plays, and gets silently discarded on save (see validation below)."""
+    options = dict(RINGTONE_OPTIONS)
+    owns_session = db is None
+    db = db or get_session()
+    try:
+        for r in db.query(CustomRingtone).all():
+            options[r.key] = {
+                "label": r.label,
+                "file": f"/static/sounds/uploads/{r.filename}",
+            }
+    finally:
+        if owns_session:
+            db.close()
+    return options
 # Which of this app's calendars are Hijri-family -- azaan reminders only
 # make sense while one of these is your default calendar.
 HIJRI_FAMILY_CALENDARS = {"hijri", "sunni", "shia"}
@@ -330,9 +367,16 @@ def create_app():
     def inject_ringtone_options():
         """Same idea as inject_sidebar_note above -- settings.html needs
         this for its <select> options, and base.html's alert script needs
-        the key->file mapping as JSON. One source of truth (RINGTONE_OPTIONS
-        above) instead of duplicating the list in both templates."""
-        return dict(ringtone_options=RINGTONE_OPTIONS)
+        the key->file mapping as JSON. Merged with any uploaded
+        CustomRingtone rows so uploads actually play, not just appear in
+        the dropdown (see _all_ringtone_options)."""
+        db = get_session()
+        try:
+            options = _all_ringtone_options(db)
+            custom = db.query(CustomRingtone).order_by(CustomRingtone.uploaded_at.desc()).all()
+        finally:
+            db.close()
+        return dict(ringtone_options=options, custom_ringtones=custom)
 
     @app.post("/notes/save")
     def save_note():
@@ -907,11 +951,16 @@ def create_app():
                     "show_personal": "show_personal" in request.form,
                     "alert_azaan": "alert_azaan" in request.form,
                     "alert_birthday_anniversary": "alert_birthday_anniversary" in request.form,
-                    "birthday_ringtone": request.form.get("birthday_ringtone", "chime")
-                        if request.form.get("birthday_ringtone") in RINGTONE_OPTIONS else "chime",
-                    "anniversary_ringtone": request.form.get("anniversary_ringtone", "bells")
-                        if request.form.get("anniversary_ringtone") in RINGTONE_OPTIONS else "bells",
                 }
+                valid_ringtones = _all_ringtone_options()
+                prefs["birthday_ringtone"] = (
+                    request.form.get("birthday_ringtone", "chime")
+                    if request.form.get("birthday_ringtone") in valid_ringtones else "chime"
+                )
+                prefs["anniversary_ringtone"] = (
+                    request.form.get("anniversary_ringtone", "bells")
+                    if request.form.get("anniversary_ringtone") in valid_ringtones else "bells"
+                )
                 session["preferences"] = prefs
                 flash("Settings updated.")
                 return redirect(url_for("calendar_view"))
@@ -921,6 +970,70 @@ def create_app():
 
         prefs = get_user_prefs()
         return render_template("settings.html", active="settings", location=current_location(), prefs=prefs)
+
+    @app.post("/settings/ringtones/upload")
+    def upload_ringtone():
+        """AJAX target for the "Upload your own ringtone" card. Saves the
+        file under RINGTONE_UPLOAD_DIR with a generated filename (never
+        the browser-supplied one -- see CustomRingtone's docstring on why)
+        and records it as a CustomRingtone row so it shows up everywhere
+        RINGTONE_OPTIONS does, via _all_ringtone_options()."""
+        f = request.files.get("ringtone_file")
+        if not f or not f.filename:
+            return jsonify({"error": "No file provided."}), 400
+
+        ext = f.filename.rsplit(".", 1)[-1].lower() if "." in f.filename else ""
+        if ext not in RINGTONE_ALLOWED_EXTENSIONS:
+            return jsonify({"error": "Unsupported file type. Use mp3, wav, ogg, m4a, or aac."}), 400
+
+        # Enforce the 5 MB limit stated in settings.html. content_length is
+        # set by the browser and isn't fully trustworthy on its own, so we
+        # also check the actual bytes read below before writing anything.
+        if request.content_length and request.content_length > RINGTONE_MAX_BYTES:
+            return jsonify({"error": "File is larger than 5 MB."}), 400
+
+        data = f.read()
+        if len(data) > RINGTONE_MAX_BYTES:
+            return jsonify({"error": "File is larger than 5 MB."}), 400
+        if not data:
+            return jsonify({"error": "That file is empty."}), 400
+
+        os.makedirs(RINGTONE_UPLOAD_DIR, exist_ok=True)
+        key = f"custom_{uuid.uuid4().hex[:12]}"
+        stored_filename = secure_filename(f"{key}.{ext}")
+        with open(os.path.join(RINGTONE_UPLOAD_DIR, stored_filename), "wb") as out:
+            out.write(data)
+
+        label = (request.form.get("ringtone_label") or "").strip() or secure_filename(f.filename)
+
+        db = get_session()
+        try:
+            db.add(CustomRingtone(key=key, label=label, filename=stored_filename))
+            db.commit()
+        finally:
+            db.close()
+
+        return jsonify({"status": "uploaded", "key": key, "label": label})
+
+    @app.post("/settings/ringtones/<key>/delete")
+    def delete_ringtone(key):
+        """Deletes both the CustomRingtone row and its file on disk. Any
+        prefs/events still pointing at this key just fall back silently
+        (the dropdown no longer offers it, and _all_ringtone_options() no
+        longer contains it) -- same "stale key -> quietly ignored" behavior
+        the app already has for the built-in RINGTONE_OPTIONS."""
+        db = get_session()
+        try:
+            r = db.query(CustomRingtone).filter(CustomRingtone.key == key).first()
+            if r:
+                path = os.path.join(RINGTONE_UPLOAD_DIR, r.filename)
+                db.delete(r)
+                db.commit()
+                if os.path.exists(path):
+                    os.remove(path)
+        finally:
+            db.close()
+        return jsonify({"status": "deleted"})
 
     @app.route("/events-view", methods=["GET", "POST"])
     def events_view():
@@ -976,7 +1089,7 @@ def create_app():
                         relation=request.form.get("relation") or None,
                         phone=request.form.get("phone") or None,
                         ringtone=request.form.get("ringtone") or None
-                            if request.form.get("ringtone") in RINGTONE_OPTIONS else None,
+                            if request.form.get("ringtone") in _all_ringtone_options() else None,
                     )
                     db.add(p)
                     db.commit()
