@@ -194,6 +194,74 @@ EID_AND_FASTING_EVENTS = [
     {"hijri_month": 12, "hijri_day": 18, "title": "Eid al-Ghadeer", "is_holiday": True, "color": "red"},
 ]
 
+# Miladeen, shahadats, and other named observances -- transcribed from a
+# user-supplied list. Four dates from that list are DELIBERATELY EXCLUDED
+# here because they'd duplicate rows already in EID_AND_FASTING_EVENTS:
+# 1/1 (New Year), 10/1 (Eid al-Fitr), 12/10 (Eid al-Adha), 12/18 (Eid
+# al-Ghadeer). The "1st-30th Ramadan daily fasting" line from that list is
+# also excluded -- it's not a per-day event, it's covered by the existing
+# 9/1 "Ramadan begins" fasting-day row.
+# Multi-day ranges (Ashara Mubaraka, Ayyam-ul-Beez) are expanded into one
+# row per day since HijriEvent has no date-range field.
+# "20th/21st Safar" (Shahadat of Imam Hasan AS) was ambiguous in the source
+# -- both days are included rather than guessing which is correct; verify
+# against your jamaat's calendar and delete whichever is wrong.
+MAJOR_OBSERVANCES = [
+    # --- Moharram al-Haraam (1) ---
+    {"hijri_month": 1, "hijri_day": 2, "title": "Ashara Mubaraka - Day 2 (sermons and majalis)"},
+    {"hijri_month": 1, "hijri_day": 3, "title": "Ashara Mubaraka - Day 3 (sermons and majalis)"},
+    {"hijri_month": 1, "hijri_day": 4, "title": "Ashara Mubaraka - Day 4 (sermons and majalis)"},
+    {"hijri_month": 1, "hijri_day": 5, "title": "Ashara Mubaraka - Day 5 (sermons and majalis)"},
+    {"hijri_month": 1, "hijri_day": 6, "title": "Ashara Mubaraka - Day 6 (sermons and majalis)"},
+    {"hijri_month": 1, "hijri_day": 7, "title": "Ashara Mubaraka - Day 7 (sermons and majalis)"},
+    {"hijri_month": 1, "hijri_day": 8, "title": "Ashara Mubaraka - Day 8 (sermons and majalis)"},
+    {"hijri_month": 1, "hijri_day": 9, "title": "Ashara Mubaraka - Day 9 (sermons and majalis)"},
+    {"hijri_month": 1, "hijri_day": 10, "title": "Yaum-e-Aashura - Martyrdom of Imam Husain AS"},
+    {"hijri_month": 1, "hijri_day": 13, "title": "Milad of Imam Aamir AS"},
+    {"hijri_month": 1, "hijri_day": 15, "title": "Milad of Imam Nizar al-Aziz AS"},
+
+    # --- Safar al-Muzaffar (2) ---
+    {"hijri_month": 2, "hijri_day": 16, "title": "Commemoration of Syedna Mohammed Burhanuddin RA"},
+    {"hijri_month": 2, "hijri_day": 19, "title": "Chehlum of Imam Husain AS"},
+    {"hijri_month": 2, "hijri_day": 20, "title": "Shahadat of Imam Hasan AS (source gave 20th or 21st -- verify)"},
+    {"hijri_month": 2, "hijri_day": 21, "title": "Shahadat of Imam Hasan AS (source gave 20th or 21st -- verify)"},
+
+    # --- Rabi al-Awwal (3) ---
+    {"hijri_month": 3, "hijri_day": 12, "title": "Eid-e-Milad-un-Nabi - Milad of Prophet Mohammed SAW", "is_holiday": True, "color": "red"},
+    {"hijri_month": 3, "hijri_day": 12, "title": "Milad of Syedna Ismail bin Jafar"},
+    {"hijri_month": 3, "hijri_day": 17, "title": "Milad of Imam Jafar al-Sadiq AS"},
+
+    # --- Jumada al-Ukhra (6) ---
+    {"hijri_month": 6, "hijri_day": 20, "title": "Milad of Maulatena Fatema Zahra AS"},
+
+    # --- Rajab al-Asab (7) ---
+    {"hijri_month": 7, "hijri_day": 1, "title": "Milad of Imam Mohammed al-Baqir AS"},
+    {"hijri_month": 7, "hijri_day": 13, "title": "Milad of Maulana Ali ibn Abi Talib AS"},
+    {"hijri_month": 7, "hijri_day": 13, "title": "Ayyam-ul-Beez fast - Day 1", "is_fasting_day": True},
+    {"hijri_month": 7, "hijri_day": 14, "title": "Ayyam-ul-Beez fast - Day 2", "is_fasting_day": True},
+    {"hijri_month": 7, "hijri_day": 15, "title": "Ayyam-ul-Beez fast - Day 3", "is_fasting_day": True},
+    {"hijri_month": 7, "hijri_day": 27, "title": "Laylat al-Mab'ath"},
+
+    # --- Shabaan al-Karim (8) ---
+    {"hijri_month": 8, "hijri_day": 3, "title": "Milad of Imam Husain AS"},
+    {"hijri_month": 8, "hijri_day": 4, "title": "Milad of Abul Fadl al-Abbas AS"},
+    {"hijri_month": 8, "hijri_day": 5, "title": "Milad of Imam Ali Zain al-Abidin AS"},
+    {"hijri_month": 8, "hijri_day": 15, "title": "Shab-e-Bara'at"},
+
+    # --- Ramadaan al-Moazzam (9) ---
+    {"hijri_month": 9, "hijri_day": 16, "title": "Washek Raat"},
+    {"hijri_month": 9, "hijri_day": 18, "title": "Washek Raat"},
+    {"hijri_month": 9, "hijri_day": 19, "title": "Attack on Maulana Ali AS"},
+    {"hijri_month": 9, "hijri_day": 20, "title": "Washek Raat"},
+    {"hijri_month": 9, "hijri_day": 21, "title": "Shahadat of Maulana Ali AS"},
+    {"hijri_month": 9, "hijri_day": 22, "title": "Lailat al-Qadr"},
+
+    # --- Zilhaj al-Haraam (12) ---
+    {"hijri_month": 12, "hijri_day": 1, "title": "Nikah of Maulana Ali AS and Maulatena Fatema az-Zahra AS"},
+    {"hijri_month": 12, "hijri_day": 7, "title": "Shahadat of Imam Muhammad al-Baqir AS"},
+    {"hijri_month": 12, "hijri_day": 9, "title": "Day of Arafah", "is_fasting_day": True},
+]
+
 # Urs/wafat (misaq) events, transcribed directly from the user-supplied
 # reference app screenshots (month-by-month "LIST" view), covering all
 # 12 Hijri months. Source: user's own reference calendar, not fabricated.
@@ -397,7 +465,7 @@ SHIA_EVENTS = [
     {"hijri_month": 12, "hijri_day": 18, "title": "Eid al-Ghadeer", "is_holiday": True, "color": "purple", "event_source": "shia"},
 ]
 
-SEED_EVENTS = EID_AND_FASTING_EVENTS + URS_EVENTS
+SEED_EVENTS = EID_AND_FASTING_EVENTS + MAJOR_OBSERVANCES + URS_EVENTS
 
 
 def refresh_interfaith_events(start_year: int, end_year: int):
