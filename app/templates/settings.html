@@ -516,6 +516,29 @@
             var lockBtn = document.getElementById('home-compass-lock-btn');
             var tracking = false;
 
+            function norm(deg){ return ((deg % 360) + 360) % 360; }
+            function circularDiff(a, b){
+                var d = Math.abs(a - b) % 360;
+                return d > 180 ? 360 - d : d;
+            }
+
+            // Raw sensor readings jitter by several degrees between events --
+            // this smooths them out, averaging as sin/cos components so it
+            // wraps correctly through 0/360 instead of jumping (a plain
+            // average of 359 and 1 would wrongly give 180).
+            var SMOOTHING = 0.15;
+            var sx = null, sy = null;
+            function smooth(rawHeading){
+                var rad = rawHeading * Math.PI / 180;
+                var nx = Math.sin(rad), ny = Math.cos(rad);
+                if (sx === null) { sx = nx; sy = ny; }
+                else {
+                    sx += (nx - sx) * SMOOTHING;
+                    sy += (ny - sy) * SMOOTHING;
+                }
+                return norm(Math.atan2(sx, sy) * 180 / Math.PI);
+            }
+
             function extractHeading(e){
                 if (typeof e.webkitCompassHeading === 'number') {
                     // iOS Safari gives true compass heading directly.
@@ -531,18 +554,37 @@
                 return null;
             }
 
+            // Auto-lock: once the smoothed heading has stayed within
+            // STABLE_THRESHOLD degrees for STABLE_MS straight, lock it in
+            // automatically. Any bigger move resets the stability clock.
+            var STABLE_THRESHOLD = 2.5;
+            var STABLE_MS = 1200;
+            var stableSince = null, stableAnchor = null;
+
             var sawAnyEvent = false;
             function trackingHandler(e){
                 sawAnyEvent = true;
-                var heading = extractHeading(e);
-                if (heading === null) return;
+                var raw = extractHeading(e);
+                if (raw === null) return;
+                var heading = smooth(raw);
                 setDegrees(heading);
-                sensorStatus.textContent = 'Facing ' + heading.toFixed(2) + '\u00b0 \u2014 keep turning, then lock it in.';
+
+                var now = Date.now();
+                if (stableAnchor === null || circularDiff(heading, stableAnchor) > STABLE_THRESHOLD) {
+                    stableAnchor = heading;
+                    stableSince = now;
+                } else if (now - stableSince >= STABLE_MS) {
+                    stopTracking('Auto-locked at ' + numInput.value + '\u00b0 once it settled.');
+                    return;
+                }
+                sensorStatus.textContent = 'Facing ' + heading.toFixed(2) + '\u00b0 \u2014 hold steady to lock automatically, or lock now.';
             }
 
             function startTracking(){
                 tracking = true;
                 sawAnyEvent = false;
+                sx = sy = null;
+                stableSince = stableAnchor = null;
                 sensorBtn.style.display = 'none';
                 lockBtn.style.display = '';
                 sensorStatus.textContent = 'Point your phone the way your entrance faces\u2026';
