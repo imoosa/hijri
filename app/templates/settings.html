@@ -411,18 +411,25 @@
                 </div>
             </div>
 
-            <input type="number" step="0.5" min="0" max="360" name="home_orientation" id="f-home-orientation"
+            <input type="number" step="0.01" min="0" max="360" name="home_orientation" id="f-home-orientation"
                    value="{{ prefs.home_orientation if prefs.home_orientation is not none else 0 }}"
                    placeholder="e.g. 90 for East facing">
 
-            <button type="button" id="home-compass-sensor-btn" class="btn-secondary" style="margin-top:8px;">
-                &#128205; Use my phone's compass
-            </button>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+                <button type="button" id="home-compass-sensor-btn" class="btn-secondary">
+                    &#128205; Track with phone's compass
+                </button>
+                <button type="button" id="home-compass-lock-btn" class="btn-secondary" style="display:none;">
+                    &#128274; Lock this direction
+                </button>
+            </div>
             <div id="home-compass-sensor-status" class="section-hint" style="margin-top:4px;min-height:16px;"></div>
 
             <span class="section-hint" style="margin-top:4px;">
                 Drag the red needle to point the way your main entrance wall faces, type the degree directly
-                below, or tap "Use my phone's compass" while standing at your entrance facing outward.
+                below (to 2 decimal places, for precision), or tap "Track with phone's compass" and turn to
+                face your entrance -- the needle updates live as you turn. Tap "Lock this direction" once
+                it's pointing the right way to stop tracking and keep that value.
                 The phone-compass button only works in an actual mobile browser with location/motion access
                 allowed -- it won't do anything in a desktop preview.
             </span>
@@ -464,10 +471,10 @@
 
             function setDegrees(deg, skipInput){
                 deg = ((deg % 360) + 360) % 360;
-                needle.setAttribute('transform', 'rotate(' + deg + ' 100 100)');
-                degreesEl.innerHTML = Math.round(deg * 10) / 10 + '&deg;';
+                needle.setAttribute('transform', 'rotate(' + deg.toFixed(2) + ' 100 100)');
+                degreesEl.innerHTML = deg.toFixed(2) + '&deg;';
                 labelEl.textContent = nearestLabel(deg);
-                if (!skipInput) numInput.value = Math.round(deg * 10) / 10;
+                if (!skipInput) numInput.value = deg.toFixed(2);
             }
 
             // Initialize from whatever's already saved.
@@ -502,79 +509,81 @@
             svg.addEventListener('pointerup', function(){ dragging = false; });
             svg.addEventListener('pointercancel', function(){ dragging = false; });
 
-            // Optional: read the phone's actual compass heading. Only ever
-            // fires from a direct button tap (required for iOS's permission
-            // prompt), takes the first usable reading, then stops listening.
-            function readCompassOnce(){
-                if (typeof DeviceOrientationEvent === 'undefined') {
-                    sensorStatus.textContent = "Your browser doesn't support compass access.";
-                    return;
+            // Track the phone's actual compass heading live -- the needle
+            // (and the number field) update continuously as you turn, same
+            // approach as the live compass on the Qibla page. Tracking only
+            // stops when you tap "Lock this direction" or navigate away.
+            var lockBtn = document.getElementById('home-compass-lock-btn');
+            var tracking = false;
+
+            function extractHeading(e){
+                if (typeof e.webkitCompassHeading === 'number') {
+                    // iOS Safari gives true compass heading directly.
+                    return e.webkitCompassHeading;
                 }
-                var settled = false;
-                var sawAnyEvent = false;
-
-                function extractHeading(e){
-                    if (typeof e.webkitCompassHeading === 'number') {
-                        // iOS Safari gives true compass heading directly.
-                        return e.webkitCompassHeading;
-                    }
-                    if (typeof e.alpha === 'number') {
-                        // e.absolute is unreliable on Android Chrome even for
-                        // real compass data -- deviceorientationabsolute
-                        // (below) is what actually guarantees true heading
-                        // there, so we accept alpha here too as a fallback.
-                        return (360 - e.alpha) % 360;
-                    }
-                    return null;
+                if (typeof e.alpha === 'number') {
+                    // e.absolute is unreliable on Android Chrome even for
+                    // real compass data -- deviceorientationabsolute (below)
+                    // is what actually guarantees true heading there, so we
+                    // accept alpha here too as a fallback.
+                    return (360 - e.alpha) % 360;
                 }
+                return null;
+            }
 
-                function handler(e){
-                    sawAnyEvent = true;
-                    if (settled) return;
-                    var heading = extractHeading(e);
-                    if (heading === null) return; // wait for a usable reading, don't give up on the first event
-                    settled = true;
-                    setDegrees(heading);
-                    sensorStatus.textContent = 'Set to ' + Math.round(heading) + '\u00b0 from your phone\u2019s compass.';
-                    cleanup();
-                }
+            var sawAnyEvent = false;
+            function trackingHandler(e){
+                sawAnyEvent = true;
+                var heading = extractHeading(e);
+                if (heading === null) return;
+                setDegrees(heading);
+                sensorStatus.textContent = 'Facing ' + heading.toFixed(2) + '\u00b0 \u2014 keep turning, then lock it in.';
+            }
 
-                function cleanup(){
-                    window.removeEventListener('deviceorientationabsolute', handler, true);
-                    window.removeEventListener('deviceorientation', handler, true);
-                }
-
-                sensorStatus.textContent = 'Point your phone the way your entrance faces, then hold still\u2026';
-                // Chrome/Android's dedicated true-heading event -- prefer this
-                // when the browser supports it.
-                window.addEventListener('deviceorientationabsolute', handler, true);
-                // iOS (webkitCompassHeading) and fallback for everything else.
-                window.addEventListener('deviceorientation', handler, true);
-
+            function startTracking(){
+                tracking = true;
+                sawAnyEvent = false;
+                sensorBtn.style.display = 'none';
+                lockBtn.style.display = '';
+                sensorStatus.textContent = 'Point your phone the way your entrance faces\u2026';
+                window.addEventListener('deviceorientationabsolute', trackingHandler, true);
+                window.addEventListener('deviceorientation', trackingHandler, true);
                 setTimeout(function(){
-                    if (settled) return;
-                    cleanup();
-                    if (!sawAnyEvent) {
+                    if (tracking && !sawAnyEvent) {
                         sensorStatus.textContent = 'No compass data arrived -- this device/browser may not expose one, or access was blocked.';
-                    } else {
-                        sensorStatus.textContent = "Got sensor data but couldn't read a heading from it -- try moving the phone in a figure-8 to calibrate, then tap again.";
                     }
                 }, 4000);
             }
 
+            function stopTracking(finalMessage){
+                tracking = false;
+                window.removeEventListener('deviceorientationabsolute', trackingHandler, true);
+                window.removeEventListener('deviceorientation', trackingHandler, true);
+                sensorBtn.style.display = '';
+                lockBtn.style.display = 'none';
+                sensorStatus.textContent = finalMessage || '';
+            }
+
+            lockBtn.addEventListener('click', function(){
+                stopTracking('Locked at ' + numInput.value + '\u00b0.');
+            });
+
             sensorBtn.addEventListener('click', function(){
-                if (typeof DeviceOrientationEvent !== 'undefined' &&
-                    typeof DeviceOrientationEvent.requestPermission === 'function') {
+                if (typeof DeviceOrientationEvent === 'undefined') {
+                    sensorStatus.textContent = "Your browser doesn't support compass access.";
+                    return;
+                }
+                if (typeof DeviceOrientationEvent.requestPermission === 'function') {
                     // iOS 13+ requires this to be called directly from a
                     // user gesture, which this click handler is.
                     DeviceOrientationEvent.requestPermission().then(function(state){
-                        if (state === 'granted') readCompassOnce();
+                        if (state === 'granted') startTracking();
                         else sensorStatus.textContent = 'Compass access was not allowed.';
                     }).catch(function(err){
                         sensorStatus.textContent = 'Compass access failed: ' + (err && err.message ? err.message : err);
                     });
                 } else {
-                    readCompassOnce();
+                    startTracking();
                 }
             });
         })();
