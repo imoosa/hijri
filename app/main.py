@@ -706,6 +706,7 @@ def create_app():
         cal_year = request.args.get("y", type=int) or ty
         cal_month = request.args.get("m", type=int) or tm
         selected_day_num = request.args.get("day", type=int)
+        loc = current_location()
         vastu_info = compute_vastu_daily(today_g, loc, prefs)
 
         # "Goto date" -- explicit navigation, takes priority over y/m if both
