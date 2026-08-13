@@ -12,13 +12,13 @@
     <p class="sub">{{ location_name }}</p>
 
     <div class="compass-wrap">
-        <svg viewBox="0 0 200 200" width="220" height="220">
+        <svg id="qibla-svg" viewBox="0 0 200 200" width="220" height="220">
             <circle cx="100" cy="100" r="95" fill="none" stroke="#333" stroke-width="2"/>
             <text x="100" y="20" text-anchor="middle" font-size="14">N</text>
             <text x="180" y="105" text-anchor="middle" font-size="14">E</text>
             <text x="100" y="190" text-anchor="middle" font-size="14">S</text>
             <text x="20" y="105" text-anchor="middle" font-size="14">W</text>
-            <g transform="rotate({{ bearing }} 100 100)">
+            <g id="qibla-needle" transform="rotate({{ bearing }} 100 100)">
                 <line x1="100" y1="100" x2="100" y2="25" stroke="#b5121b" stroke-width="4" />
                 <polygon points="100,15 92,35 108,35" fill="#b5121b" />
             </g>
@@ -28,8 +28,83 @@
 
     <p class="bearing-value">{{ bearing }}&deg; from North</p>
     <p class="sub">Distance to Mecca: {{ distance_km }} km</p>
-    <p class="note">Point the red arrow toward North on a real compass to find your qibla direction.
-    This page cannot read your phone's compass sensor directly (that needs a native/JS device API) —
-    it just tells you the bearing to align to.</p>
+
+    <button type="button" id="qibla-live-btn" class="btn-secondary">&#129517; Turn on live compass</button>
+    <p id="qibla-live-status" class="note" style="min-height:16px;"></p>
+
+    <p id="qibla-static-note" class="note">Point the top of your phone toward North to find your qibla direction.
+    Tap "Turn on live compass" above to have the arrow track automatically as you turn instead --
+    it'll always point toward Mecca relative to wherever your phone is currently facing.</p>
 </div>
+
+<script>
+(function(){
+    var BEARING = {{ bearing }}; // degrees from True North to Mecca, from the server
+    var needle = document.getElementById('qibla-needle');
+    var liveBtn = document.getElementById('qibla-live-btn');
+    var liveStatus = document.getElementById('qibla-live-status');
+    var staticNote = document.getElementById('qibla-static-note');
+
+    var live = false;
+
+    function norm(deg){ return ((deg % 360) + 360) % 360; }
+
+    function resetToStatic(){
+        needle.setAttribute('transform', 'rotate(' + BEARING + ' 100 100)');
+    }
+
+    var handler = function(e){
+        var heading = null;
+        if (typeof e.webkitCompassHeading === 'number') {
+            heading = e.webkitCompassHeading; // iOS -- already a true heading
+        } else if (typeof e.alpha === 'number') {
+            heading = (360 - e.alpha) % 360; // Android fallback
+        }
+        if (heading === null) return;
+        // Arrow points at Mecca relative to wherever the phone's top edge
+        // currently faces -- turn until the arrow points straight up.
+        var relative = norm(BEARING - heading);
+        needle.setAttribute('transform', 'rotate(' + relative + ' 100 100)');
+        liveStatus.textContent = 'Facing ' + Math.round(heading) + '\u00b0 \u2014 turn until the arrow points up.';
+    };
+
+    function startLive(){
+        window.addEventListener('deviceorientationabsolute', handler, true);
+        window.addEventListener('deviceorientation', handler, true);
+        live = true;
+        liveBtn.textContent = '\u23f9 Turn off live compass';
+        staticNote.style.display = 'none';
+        liveStatus.textContent = 'Move your phone in a figure-8 once if the reading looks off, to calibrate its sensor.';
+    }
+
+    function stopLive(){
+        window.removeEventListener('deviceorientationabsolute', handler, true);
+        window.removeEventListener('deviceorientation', handler, true);
+        live = false;
+        liveBtn.textContent = '\ud83e\udded Turn on live compass';
+        staticNote.style.display = '';
+        liveStatus.textContent = '';
+        resetToStatic();
+    }
+
+    liveBtn.addEventListener('click', function(){
+        if (live){ stopLive(); return; }
+        if (typeof DeviceOrientationEvent === 'undefined'){
+            liveStatus.textContent = "This browser doesn't support live compass access.";
+            return;
+        }
+        if (typeof DeviceOrientationEvent.requestPermission === 'function'){
+            // iOS 13+ -- must be called directly from this click.
+            DeviceOrientationEvent.requestPermission().then(function(state){
+                if (state === 'granted') startLive();
+                else liveStatus.textContent = 'Compass access was not allowed.';
+            }).catch(function(err){
+                liveStatus.textContent = 'Compass access failed: ' + (err && err.message ? err.message : err);
+            });
+        } else {
+            startLive();
+        }
+    });
+})();
+</script>
 {% endblock %}

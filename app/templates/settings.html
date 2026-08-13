@@ -504,36 +504,61 @@
 
             // Optional: read the phone's actual compass heading. Only ever
             // fires from a direct button tap (required for iOS's permission
-            // prompt), takes the first reading, then stops listening.
+            // prompt), takes the first usable reading, then stops listening.
             function readCompassOnce(){
                 if (typeof DeviceOrientationEvent === 'undefined') {
                     sensorStatus.textContent = "Your browser doesn't support compass access.";
                     return;
                 }
-                var handler = function(e){
-                    var heading = null;
+                var settled = false;
+                var sawAnyEvent = false;
+
+                function extractHeading(e){
                     if (typeof e.webkitCompassHeading === 'number') {
                         // iOS Safari gives true compass heading directly.
-                        heading = e.webkitCompassHeading;
-                    } else if (e.absolute && typeof e.alpha === 'number') {
-                        // Best-effort for Android/other browsers -- alpha is
-                        // rotation around the vertical axis, not always a
-                        // true compass heading depending on device/browser.
-                        heading = (360 - e.alpha) % 360;
+                        return e.webkitCompassHeading;
                     }
-                    if (heading === null) {
-                        sensorStatus.textContent = "Couldn't read a compass heading from this device.";
-                    } else {
-                        setDegrees(heading);
-                        sensorStatus.textContent = 'Set to ' + Math.round(heading) + '\u00b0 from your phone\u2019s compass.';
+                    if (typeof e.alpha === 'number') {
+                        // e.absolute is unreliable on Android Chrome even for
+                        // real compass data -- deviceorientationabsolute
+                        // (below) is what actually guarantees true heading
+                        // there, so we accept alpha here too as a fallback.
+                        return (360 - e.alpha) % 360;
                     }
+                    return null;
+                }
+
+                function handler(e){
+                    sawAnyEvent = true;
+                    if (settled) return;
+                    var heading = extractHeading(e);
+                    if (heading === null) return; // wait for a usable reading, don't give up on the first event
+                    settled = true;
+                    setDegrees(heading);
+                    sensorStatus.textContent = 'Set to ' + Math.round(heading) + '\u00b0 from your phone\u2019s compass.';
+                    cleanup();
+                }
+
+                function cleanup(){
+                    window.removeEventListener('deviceorientationabsolute', handler, true);
                     window.removeEventListener('deviceorientation', handler, true);
-                };
+                }
+
                 sensorStatus.textContent = 'Point your phone the way your entrance faces, then hold still\u2026';
+                // Chrome/Android's dedicated true-heading event -- prefer this
+                // when the browser supports it.
+                window.addEventListener('deviceorientationabsolute', handler, true);
+                // iOS (webkitCompassHeading) and fallback for everything else.
                 window.addEventListener('deviceorientation', handler, true);
-                // Stop waiting if nothing ever arrives (unsupported/blocked).
+
                 setTimeout(function(){
-                    window.removeEventListener('deviceorientation', handler, true);
+                    if (settled) return;
+                    cleanup();
+                    if (!sawAnyEvent) {
+                        sensorStatus.textContent = 'No compass data arrived -- this device/browser may not expose one, or access was blocked.';
+                    } else {
+                        sensorStatus.textContent = "Got sensor data but couldn't read a heading from it -- try moving the phone in a figure-8 to calibrate, then tap again.";
+                    }
                 }, 4000);
             }
 
@@ -545,8 +570,8 @@
                     DeviceOrientationEvent.requestPermission().then(function(state){
                         if (state === 'granted') readCompassOnce();
                         else sensorStatus.textContent = 'Compass access was not allowed.';
-                    }).catch(function(){
-                        sensorStatus.textContent = 'Compass access was not allowed.';
+                    }).catch(function(err){
+                        sensorStatus.textContent = 'Compass access failed: ' + (err && err.message ? err.message : err);
                     });
                 } else {
                     readCompassOnce();
