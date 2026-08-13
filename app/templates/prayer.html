@@ -182,5 +182,14 @@
         or pick a different default calendar.
     </p>
     {% endif %}
+
+    <!-- Add to prayer.html after the existing tradition blocks -->
+{% if cal_key == 'gregorian' and show_vastu and vastu_info %}
+<div style="margin-top:20px;border-top:2px solid var(--line);padding-top:16px;">
+    <div class="vastu-panel" style="margin-top:0;">
+        <!-- Vastu content here (same as calendar.html) -->
+    </div>
+</div>
+{% endif %}
 </div>
 {% endblock %}

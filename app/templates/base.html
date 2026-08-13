@@ -137,11 +137,86 @@
         .alerts-widget .alerts-note{margin-top:6px;color:#999;font-size:11px;line-height:1.4;}
     </style>
 
-    
+    <div class="app-body">
+        <aside class="sidebar">
+            {% if sidebar_content|trim %}
+            <input type="checkbox" id="sidebar-toggle" class="sidebar-toggle-checkbox">
+            <label for="sidebar-toggle" class="sidebar-toggle-label">
+                Filters &amp; events <span class="toggle-arrow">&#9662;</span>
+            </label>
+            <div class="sidebar-inner">
+                {{ sidebar_content }}
+            </div>
+            {% endif %}
+            <!-- Add to base.html or sidebar include -->
+<div class="alerts-widget" style="border-top:1px solid #e5e0da;padding:12px 16px;font-size:12.5px;color:#666;">
+    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+        <input type="checkbox" id="vastu-toggle" {{ 'checked' if show_vastu else '' }}>
+        🏠 Show Vastu guidance
+    </label>
+    <div class="alerts-note" style="margin-top:4px;font-size:11px;color:#999;line-height:1.4;">
+        Vastu Shastra daily guidance appears below the calendar.
+    </div>
+</div>
+
+<script>
+// Add to the bottom of base.html
+document.getElementById('vastu-toggle')?.addEventListener('change', function() {
+    fetch('/api/vastu/toggle', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({enabled: this.checked})
+    }).then(() => {
+        location.reload();
+    });
+});
+</script>
+            <div class="notes-widget">
+                <div class="sticky-note-card">
+                    <div class="notes-header">
+                        <span class="notes-drag-dots" title="Cosmetic only -- CSS can't make a page element drag around the OS desktop">::::</span>
+                        <div class="notes-header-actions">
+                            <button type="button" id="note-collapse-btn" class="notes-icon-btn" title="Collapse/expand">&minus;</button>
+                            <button type="button" id="note-new-btn" class="notes-icon-btn" title="Clear this note and start fresh">+</button>
+                            <button type="button" class="notes-icon-btn" title="Nothing to put in this menu yet" disabled>&#8942;</button>
+                            <button type="button" id="note-close-btn" class="notes-icon-btn" title="Hide">&times;</button>
+                        </div>
+                    </div>
+
+                    <div id="sticky-note" class="sticky-note" contenteditable="true"
+                         data-placeholder="Write something important&hellip;">{{ sidebar_note_content|safe }}</div>
+
+                    <div class="notes-toolbar">
+                        <button type="button" id="note-bold-btn" class="notes-icon-btn" title="Bold the selected text">B</button>
+                        <button type="button" id="note-italic-btn" class="notes-icon-btn" title="Italic the selected text">I</button>
+                        <button type="button" id="note-underline-btn" class="notes-icon-btn" title="Underline the selected text">U</button>
+                        <button type="button" id="note-bullet-btn" class="notes-icon-btn" title="Bullet list">&#9776;</button>
+                        <button type="button" id="note-number-btn" class="notes-icon-btn" title="Numbered list">1.</button>
+                        <button type="button" id="note-image-btn" class="notes-icon-btn"
+                                title="Not wired to a backend yet -- see the sanitizer note below">&#128247;</button>
+                        <span id="note-save-status" class="note-save-status"></span>
+                    </div>
+                </div>
+                <button type="button" id="note-reopen-btn" class="note-reopen-btn">+ Note</button>
+            </div>
+
+            <div class="alerts-widget">
+                <label>
+                    <input type="checkbox" id="alerts-enabled">
+                    Sound reminders (azaan times, birthdays/anniversaries, today's tradition holidays)
+                </label>
+                <div class="alerts-note">
+                    Only fires while this tab stays open on any page -- switching
+                    pages resets the timers, and closing the tab/browser stops it
+                    entirely. This is a chime + on-screen notification, not the
+                    actual azaan recitation.
+                </div>
+            </div>
+        </aside>
         <main class="main-content">
             {% block content %}{% endblock %}
         </main>
-    
+    </div>
 
     <script>
     (function(){
@@ -352,13 +427,6 @@
         // your own licensed recordings in static/sounds/ using these exact
         // names and the app plays them in full instead of the synthesized
         // chime. Nothing ships here by default; see static/sounds/README.txt.
-        //
-        // azaan is the exception: it's resolved per-request from
-        // prefsData.azaan_file (main.py's AZAAN_FILES, keyed by
-        // default_calendar -- Bohra/Sunni/Shia each get their own bundled
-        // recording). The 'azaan' entry below only fires if the server
-        // didn't send a file for some reason (e.g. an unrecognized
-        // default_calendar) -- see playSound()'s path-vs-key branch.
         var SOUND_FILES = {
             azaan: '/static/sounds/azaan.mp3',
             christian: '/static/sounds/christian.mp3',
@@ -379,11 +447,7 @@
         }
 
         function playSound(key, fallbackChime){
-            // A key that's already a path (leading '/', e.g. prefsData.azaan_file
-            // from the server) plays directly. Anything else is looked up in
-            // SOUND_FILES as before -- this keeps every existing caller
-            // (festival tradition sounds, shabbat) working unchanged.
-            var path = (typeof key === 'string' && key.charAt(0) === '/') ? key : SOUND_FILES[key];
+            var path = SOUND_FILES[key];
             if (path) {
                 var audio = new Audio(path);
                 var played = audio.play();
@@ -410,14 +474,6 @@
             }
             fallbackChime();
         }
-
-        // settings.html's preview buttons (both dropdowns and the custom-
-        // upload list) call window.previewRingtone(key) directly -- this is
-        // that function. Falls back to a generic chime, same as playRingtone,
-        // if the file 404s or the key isn't recognized.
-        window.previewRingtone = function(key){
-            playRingtone(key, function(){ beep([523, 659, 784], 180); });
-        };
 
         function notify(title, body){
             if (window.Notification && Notification.permission === 'granted') {
@@ -450,14 +506,9 @@
                 // display hint -- flip the calendar to Gregorian and these
                 // never get scheduled at all, even with the setting checked.
                 if (prefsData.alert_azaan && prefsData.is_hijri_family) {
-                    // prefsData.azaan_file comes from main.py's AZAAN_FILES,
-                    // keyed by default_calendar (hijri=Bohra/sunni/shia).
-                    // Falls back to the generic 'azaan' SOUND_FILES key only
-                    // if the server didn't send one.
-                    var azaanSound = prefsData.azaan_file || 'azaan';
                     [['fajr','Fajr'], ['zawal','Zuhr'], ['asr','Asr'], ['maghrib','Maghrib'], ['isha','Isha']]
                         .forEach(function(pair){
-                            scheduleAt(pt[pair[0]], 'azaan-' + pair[0], azaanSound, CHIMES.azaan,
+                            scheduleAt(pt[pair[0]], 'azaan-' + pair[0], 'azaan', CHIMES.azaan,
                                        pair[1] + ' time', pt[pair[0]] + ' -- ' + pair[1]);
                         });
                 }

@@ -17,6 +17,7 @@ from . import interfaith_calendar as ic
 from . import tz_lookup as tzl
 from . import personal_events as pe
 from . import sunni_calendar as sc
+from . import vastu as va
 from . import shia_calendar as shc
 from .database import (
     get_session, init_db, seed_if_empty, seed_missing_sources, HijriEvent,
@@ -438,13 +439,13 @@ def create_app():
         "show_christian": True,
         "show_jewish": True,
         "show_hindu": True,
+        "show_vastu": True,
+        "home_orientation": 0.0,
+        "home_entrance": "northeast",
+        "has_toilet_northeast": False,
         "show_parsi": True,
         "show_french": True,
-        "show_personal": True,
-        # Sound-reminder settings, split by category per your ask --
-        # separate from the master on/off switch in the sidebar (that one
-        # stays in localStorage, not here, since it's "did the user grant
-        # Notification permission in this browser", a per-device thing).
+        "show_personal": True,.
         "alert_azaan": True,
         "alert_birthday_anniversary": True,
         "birthday_ringtone": "chime",
@@ -512,6 +513,20 @@ def create_app():
             return by_date
         finally:
             db.close()
+
+    def compute_vastu_daily(today_g, loc, prefs):
+        """Compute daily Vastu guidance."""
+        if not prefs.get("show_vastu", True):
+            return None
+        
+        home_orientation = prefs.get("home_orientation")
+        return va.get_vastu_for_day(
+            today_g,
+            loc["lat"],
+            loc["lng"],
+            loc["tz_offset"],
+            home_orientation
+        )
 
     def get_personal_by_date(start_g, end_g):
         db = get_session()
@@ -691,6 +706,7 @@ def create_app():
         cal_year = request.args.get("y", type=int) or ty
         cal_month = request.args.get("m", type=int) or tm
         selected_day_num = request.args.get("day", type=int)
+        vastu_info = compute_vastu_daily(today_g, loc, prefs)
 
         # "Goto date" -- explicit navigation, takes priority over y/m if both
         # are somehow present. Always given as a Gregorian date (the <input
@@ -875,8 +891,49 @@ def create_app():
             secondary_month_label=secondary_month_label,
             user_prefs=prefs,
             hindu_daily=hindu_daily,
+            vastu_info=vastu_info,
+            show_vastu=prefs.get("show_vastu", True),
         )
 
+    @app.get("/api/vastu/today")
+    def api_vastu_today():
+        """API endpoint for daily Vastu guidance."""
+        loc = current_location()
+        prefs = get_user_prefs()
+        today = date.today()
+        
+        vastu_info = compute_vastu_daily(today, loc, prefs)
+        if vastu_info is None:
+            return jsonify({"enabled": False})
+        
+        return jsonify({
+            "enabled": True,
+            "date": today.isoformat(),
+            "weekday": vastu_info.weekday,
+            "ruling_planet": vastu_info.ruling_planet,
+            "energy_type": vastu_info.energy_type,
+            "best_direction": vastu_info.best_direction,
+            "best_activity": vastu_info.best_activity,
+            "avoid_direction": vastu_info.avoid_direction,
+            "avoid_activity": vastu_info.avoid_activity,
+            "tips": vastu_info.tips,
+            "sleeping_direction": vastu_info.sleeping_direction,
+            "working_direction": vastu_info.working_direction,
+            "eating_direction": vastu_info.eating_direction,
+            "study_direction": vastu_info.study_direction,
+            "directional_colors": vastu_info.directional_colors
+        })
+
+    @app.post("/api/vastu/toggle")
+    def api_vastu_toggle():
+        """Toggle Vastu visibility."""
+        data = request.get_json()
+        enabled = data.get('enabled', True)
+        prefs = session.get("preferences", {})
+        prefs["show_vastu"] = enabled
+        session["preferences"] = prefs
+        return jsonify({"status": "ok", "enabled": enabled})
+    
     @app.get("/prayer-times-view")
     def prayer_view():
         loc = current_location()
