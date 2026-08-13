@@ -345,6 +345,142 @@
                 <span><span class="hindu-legend-dot" style="background:#e67e22;"></span> Purnima</span>
             </div>
 
+        </div>
+        <script>
+        (function(){
+            var boundaries = [
+                {label: 'Rahu Kalam starts', hhmm: '{{ hindu_daily.rahu_kalam.start }}'},
+                {label: 'Rahu Kalam ends', hhmm: '{{ hindu_daily.rahu_kalam.end }}'},
+                {label: 'Abhijit Muhurat starts', hhmm: '{{ hindu_daily.abhijit.start }}'},
+                {label: 'Abhijit Muhurat ends', hhmm: '{{ hindu_daily.abhijit.end }}'}
+            ];
+            function toToday(hhmm){
+                var p = hhmm.split(':').map(Number);
+                var now = new Date();
+                return new Date(now.getFullYear(), now.getMonth(), now.getDate(), p[0], p[1], 0, 0);
+            }
+            function tick(){
+                var now = new Date();
+                var upcoming = boundaries
+                    .map(function(b){ return {label: b.label, at: toToday(b.hhmm)}; })
+                    .filter(function(b){ return b.at > now; })
+                    .sort(function(a,b){ return a.at - b.at; });
+                var el = document.getElementById('muhurat-countdown');
+                var labelEl = document.getElementById('muhurat-countdown-label');
+                if (!el) return;
+                if (!upcoming.length) {
+                    el.textContent = '--:--:--';
+                    labelEl.textContent = "Today's windows have passed";
+                    return;
+                }
+                var diff = upcoming[0].at - now;
+                var h = Math.floor(diff / 3600000);
+                var m = Math.floor((diff % 3600000) / 60000);
+                var s = Math.floor((diff % 60000) / 1000);
+                el.textContent = (h ? h + 'h ' : '') + String(m).padStart(2,'0') + 'm ' + String(s).padStart(2,'0') + 's';
+                labelEl.textContent = upcoming[0].label;
+            }
+            tick();
+            setInterval(tick, 1000);
+        })();
+        </script>
+
+            {% elif cal == 'hebrew' and hebrew_widget %}
+        <div class="ritual-panel-intro">
+            <strong>Shabbat &amp; today's Zmanim</strong> &mdash; halachic (Jewish law) daily time markers.
+        </div>
+        <div class="hebrew-daily-panel">
+            <div>
+                <div class="label" id="shabbat-countdown-label" title="Countdown to candle lighting (before this week's Friday sunset) or Havdalah (after Saturday's sunset), whichever is next.">Shabbat countdown <span class="info-dot">?</span></div>
+                <div class="value" id="shabbat-countdown" style="font-variant-numeric:tabular-nums;">--:--:--</div>
+                <div class="sub">Candles {{ hebrew_widget.shabbat.candle_lighting }} &middot; Havdalah {{ hebrew_widget.shabbat.havdalah }}</div>
+            </div>
+            <div>
+                <div class="label" title="The latest time to begin Shacharit (morning prayer), per the GRA opinion -- 4 halachic hours after sunrise.">Sof zman tefila <span class="info-dot">?</span></div>
+                <div class="value">{{ hebrew_widget.zmanim.sof_zman_tefila }}</div>
+                <div class="sub">{{ 'Time still remains for Shacharit' if hebrew_widget.zmanim.shacharit_time_left else 'Shacharit window has passed for today' }}</div>
+            </div>
+            <div>
+                <div class="label" title="Halachic midday and Mincha (afternoon prayer) deadline, based on sunrise-to-sunset for today.">Sunrise / sunset <span class="info-dot">?</span></div>
+                <div class="value">{{ hebrew_widget.zmanim.sunrise }} &ndash; {{ hebrew_widget.zmanim.sunset }}</div>
+                <div class="sub">{{ 'Mincha window still open' if hebrew_widget.zmanim.mincha_time_left else 'Mincha window has closed' }}</div>
+            </div>
+        </div>
+        <div class="hindu-timeline-card">
+            <h4>Halachic day progress &middot; sunrise to sunset divided into 12 proportional hours</h4>
+            <div class="hindu-timeline-bar">
+                <div class="hindu-timeline-segment" style="left:0;width:{{ hebrew_widget.zmanim.progress_pct }}%;background:rgba(124,58,237,.3);"></div>
+                <div class="hindu-timeline-segment" style="left:{{ hebrew_widget.zmanim.tefila_marker_pct }}%;width:2px;background:#7c3aed;" title="Sof zman tefila -- {{ hebrew_widget.zmanim.sof_zman_tefila }}"></div>
+            </div>
+            <div class="hindu-timeline-legend">
+                <span><span class="hindu-legend-dot" style="background:rgba(124,58,237,.5);"></span> Elapsed today</span>
+                <span><span class="hindu-legend-dot" style="background:#7c3aed;"></span> Sof zman tefila (Shacharit deadline)</span>
+            </div>
+        </div>
+        <script>
+        (function(){
+            var el = document.getElementById('shabbat-countdown');
+            var label = document.getElementById('shabbat-countdown-label');
+            if (!el) return;
+            var candle = new Date("{{ hebrew_widget.shabbat.candle_lighting_iso }}");
+            var havdalah = new Date("{{ hebrew_widget.shabbat.havdalah_iso }}");
+            function tick(){
+                var now = new Date();
+                var target = now < candle ? candle : (now < havdalah ? havdalah : null);
+                if (!target) { el.textContent = '--:--:--'; label.textContent = 'Shabbat has ended'; return; }
+                label.textContent = now < candle ? 'Until candle lighting' : 'Until Havdalah';
+                var diff = target - now;
+                var h = Math.floor(diff / 3600000);
+                var m = Math.floor((diff % 3600000) / 60000);
+                var s = Math.floor((diff % 60000) / 1000);
+                el.textContent = String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+            }
+            tick();
+            setInterval(tick, 1000);
+        })();
+        </script>
+
+            {% elif cal == 'parsi' and parsi_widget %}
+        <div class="ritual-panel-intro">
+            <strong>Roj &middot; Mah &middot; Gah</strong> &mdash; today's date and time-watch in the Shahenshahi calendar.
+        </div>
+        <div class="hebrew-daily-panel">
+            <div>
+                <div class="label" title="The name of today in the 30-day Roj cycle -- each day of the Parsi month has its own name rather than just a number.">Roj (day name) <span class="info-dot">?</span></div>
+                <div class="value">{{ parsi_widget.roj }}</div>
+            </div>
+            <div>
+                <div class="label" title="The current Parsi month.">Mah (month) <span class="info-dot">?</span></div>
+                <div class="value">{{ parsi_widget.mah }}</div>
+            </div>
+            <div>
+                <div class="label" title="One of 5 daily prayer watches in Zoroastrian practice -- each has its own set of prayers.">Current Gah <span class="info-dot">?</span></div>
+                <div class="value">{{ parsi_widget.gah.gah }}</div>
+                <div class="sub">{{ parsi_widget.gah_desc }}</div>
+            </div>
+        </div>
+        <div class="hindu-timeline-card">
+            <h4>Next Gah change</h4>
+            <div id="gah-change-countdown" style="font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;" data-minutes="{{ parsi_widget.gah.minutes_to_change }}">
+                {{ parsi_widget.gah.minutes_to_change }} min
+            </div>
+        </div>
+        <script>
+        (function(){
+            var el = document.getElementById('gah-change-countdown');
+            if (!el) return;
+            var remaining = parseInt(el.getAttribute('data-minutes'), 10) * 60;
+            function tick(){
+                if (remaining <= 0) { el.textContent = 'Gah is changing now'; return; }
+                remaining -= 1;
+                var m = Math.floor(remaining / 60), s = remaining % 60;
+                el.textContent = m + 'm ' + String(s).padStart(2,'0') + 's';
+            }
+            setInterval(tick, 1000);
+        })();
+        </script>
+
+            {% elif cal == 'gregorian' %}
             <!-- Add to calendar.html after the existing daily panels -->
 
 {% if show_vastu and vastu_info %}
@@ -532,144 +668,6 @@
 }
 </style>
 {% endif %}
-        </div>
-        <script>
-        (function(){
-            var boundaries = [
-                {label: 'Rahu Kalam starts', hhmm: '{{ hindu_daily.rahu_kalam.start }}'},
-                {label: 'Rahu Kalam ends', hhmm: '{{ hindu_daily.rahu_kalam.end }}'},
-                {label: 'Abhijit Muhurat starts', hhmm: '{{ hindu_daily.abhijit.start }}'},
-                {label: 'Abhijit Muhurat ends', hhmm: '{{ hindu_daily.abhijit.end }}'}
-            ];
-            function toToday(hhmm){
-                var p = hhmm.split(':').map(Number);
-                var now = new Date();
-                return new Date(now.getFullYear(), now.getMonth(), now.getDate(), p[0], p[1], 0, 0);
-            }
-            function tick(){
-                var now = new Date();
-                var upcoming = boundaries
-                    .map(function(b){ return {label: b.label, at: toToday(b.hhmm)}; })
-                    .filter(function(b){ return b.at > now; })
-                    .sort(function(a,b){ return a.at - b.at; });
-                var el = document.getElementById('muhurat-countdown');
-                var labelEl = document.getElementById('muhurat-countdown-label');
-                if (!el) return;
-                if (!upcoming.length) {
-                    el.textContent = '--:--:--';
-                    labelEl.textContent = "Today's windows have passed";
-                    return;
-                }
-                var diff = upcoming[0].at - now;
-                var h = Math.floor(diff / 3600000);
-                var m = Math.floor((diff % 3600000) / 60000);
-                var s = Math.floor((diff % 60000) / 1000);
-                el.textContent = (h ? h + 'h ' : '') + String(m).padStart(2,'0') + 'm ' + String(s).padStart(2,'0') + 's';
-                labelEl.textContent = upcoming[0].label;
-            }
-            tick();
-            setInterval(tick, 1000);
-        })();
-        </script>
-
-            {% elif cal == 'hebrew' and hebrew_widget %}
-        <div class="ritual-panel-intro">
-            <strong>Shabbat &amp; today's Zmanim</strong> &mdash; halachic (Jewish law) daily time markers.
-        </div>
-        <div class="hebrew-daily-panel">
-            <div>
-                <div class="label" id="shabbat-countdown-label" title="Countdown to candle lighting (before this week's Friday sunset) or Havdalah (after Saturday's sunset), whichever is next.">Shabbat countdown <span class="info-dot">?</span></div>
-                <div class="value" id="shabbat-countdown" style="font-variant-numeric:tabular-nums;">--:--:--</div>
-                <div class="sub">Candles {{ hebrew_widget.shabbat.candle_lighting }} &middot; Havdalah {{ hebrew_widget.shabbat.havdalah }}</div>
-            </div>
-            <div>
-                <div class="label" title="The latest time to begin Shacharit (morning prayer), per the GRA opinion -- 4 halachic hours after sunrise.">Sof zman tefila <span class="info-dot">?</span></div>
-                <div class="value">{{ hebrew_widget.zmanim.sof_zman_tefila }}</div>
-                <div class="sub">{{ 'Time still remains for Shacharit' if hebrew_widget.zmanim.shacharit_time_left else 'Shacharit window has passed for today' }}</div>
-            </div>
-            <div>
-                <div class="label" title="Halachic midday and Mincha (afternoon prayer) deadline, based on sunrise-to-sunset for today.">Sunrise / sunset <span class="info-dot">?</span></div>
-                <div class="value">{{ hebrew_widget.zmanim.sunrise }} &ndash; {{ hebrew_widget.zmanim.sunset }}</div>
-                <div class="sub">{{ 'Mincha window still open' if hebrew_widget.zmanim.mincha_time_left else 'Mincha window has closed' }}</div>
-            </div>
-        </div>
-        <div class="hindu-timeline-card">
-            <h4>Halachic day progress &middot; sunrise to sunset divided into 12 proportional hours</h4>
-            <div class="hindu-timeline-bar">
-                <div class="hindu-timeline-segment" style="left:0;width:{{ hebrew_widget.zmanim.progress_pct }}%;background:rgba(124,58,237,.3);"></div>
-                <div class="hindu-timeline-segment" style="left:{{ hebrew_widget.zmanim.tefila_marker_pct }}%;width:2px;background:#7c3aed;" title="Sof zman tefila -- {{ hebrew_widget.zmanim.sof_zman_tefila }}"></div>
-            </div>
-            <div class="hindu-timeline-legend">
-                <span><span class="hindu-legend-dot" style="background:rgba(124,58,237,.5);"></span> Elapsed today</span>
-                <span><span class="hindu-legend-dot" style="background:#7c3aed;"></span> Sof zman tefila (Shacharit deadline)</span>
-            </div>
-        </div>
-        <script>
-        (function(){
-            var el = document.getElementById('shabbat-countdown');
-            var label = document.getElementById('shabbat-countdown-label');
-            if (!el) return;
-            var candle = new Date("{{ hebrew_widget.shabbat.candle_lighting_iso }}");
-            var havdalah = new Date("{{ hebrew_widget.shabbat.havdalah_iso }}");
-            function tick(){
-                var now = new Date();
-                var target = now < candle ? candle : (now < havdalah ? havdalah : null);
-                if (!target) { el.textContent = '--:--:--'; label.textContent = 'Shabbat has ended'; return; }
-                label.textContent = now < candle ? 'Until candle lighting' : 'Until Havdalah';
-                var diff = target - now;
-                var h = Math.floor(diff / 3600000);
-                var m = Math.floor((diff % 3600000) / 60000);
-                var s = Math.floor((diff % 60000) / 1000);
-                el.textContent = String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
-            }
-            tick();
-            setInterval(tick, 1000);
-        })();
-        </script>
-
-            {% elif cal == 'parsi' and parsi_widget %}
-        <div class="ritual-panel-intro">
-            <strong>Roj &middot; Mah &middot; Gah</strong> &mdash; today's date and time-watch in the Shahenshahi calendar.
-        </div>
-        <div class="hebrew-daily-panel">
-            <div>
-                <div class="label" title="The name of today in the 30-day Roj cycle -- each day of the Parsi month has its own name rather than just a number.">Roj (day name) <span class="info-dot">?</span></div>
-                <div class="value">{{ parsi_widget.roj }}</div>
-            </div>
-            <div>
-                <div class="label" title="The current Parsi month.">Mah (month) <span class="info-dot">?</span></div>
-                <div class="value">{{ parsi_widget.mah }}</div>
-            </div>
-            <div>
-                <div class="label" title="One of 5 daily prayer watches in Zoroastrian practice -- each has its own set of prayers.">Current Gah <span class="info-dot">?</span></div>
-                <div class="value">{{ parsi_widget.gah.gah }}</div>
-                <div class="sub">{{ parsi_widget.gah_desc }}</div>
-            </div>
-        </div>
-        <div class="hindu-timeline-card">
-            <h4>Next Gah change</h4>
-            <div id="gah-change-countdown" style="font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;" data-minutes="{{ parsi_widget.gah.minutes_to_change }}">
-                {{ parsi_widget.gah.minutes_to_change }} min
-            </div>
-        </div>
-        <script>
-        (function(){
-            var el = document.getElementById('gah-change-countdown');
-            if (!el) return;
-            var remaining = parseInt(el.getAttribute('data-minutes'), 10) * 60;
-            function tick(){
-                if (remaining <= 0) { el.textContent = 'Gah is changing now'; return; }
-                remaining -= 1;
-                var m = Math.floor(remaining / 60), s = remaining % 60;
-                el.textContent = m + 'm ' + String(s).padStart(2,'0') + 's';
-            }
-            setInterval(tick, 1000);
-        })();
-        </script>
-
-            {% elif cal == 'gregorian' %}
-        <!-- Deliberately empty -- Gregorian is the secular calendar, there's
-             no ritual data that honestly belongs here. -->
             {% endif %}
     </div>
     
