@@ -10,6 +10,7 @@ from . import hijri_calendar as hc
 from . import hebrew_calendar as heb
 from . import parsi_calendar as pc
 from . import hindu_calendar as hindu
+from . import christian_calendar as cc
 from . import prayer_times as pt
 from . import prayer_times_accurate as pt
 from . import qibla as qb
