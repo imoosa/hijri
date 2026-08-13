@@ -445,7 +445,7 @@ def create_app():
         "has_toilet_northeast": False,
         "show_parsi": True,
         "show_french": True,
-        "show_personal": True,.
+        "show_personal": True,
         "alert_azaan": True,
         "alert_birthday_anniversary": True,
         "birthday_ringtone": "chime",
