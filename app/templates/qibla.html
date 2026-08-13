@@ -12,6 +12,9 @@
     <p class="sub">{{ location_name }}</p>
 
     <div class="compass-wrap">
+        <style>
+            #qibla-dial, #qibla-needle{ transition: transform 0.15s linear; }
+        </style>
         <svg id="qibla-svg" viewBox="0 0 200 200" width="220" height="220">
             <circle cx="100" cy="100" r="95" fill="none" stroke="#333" stroke-width="2"/>
             <g id="qibla-dial">
@@ -49,22 +52,28 @@
     var staticNote = document.getElementById('qibla-static-note');
 
     var live = false;
+    var smoothedHeading = null; // circular low-pass state, null until first reading
+    var SMOOTHING = 0.12;   // 0-1; lower = smoother but laggier, higher = snappier but more jitter
+    var DEAD_ZONE = 0.5;    // degrees; ignore sub-threshold changes so a still phone doesn't hunt
 
     function norm(deg){ return ((deg % 360) + 360) % 360; }
+
+    // Shortest signed delta from `from` to `to`, wrapped to [-180, 180].
+    // Prevents the 359deg -> 1deg case from being read as a 358deg forward spin.
+    function shortestDelta(from, to){
+        var d = (to - from) % 360;
+        if (d > 180) d -= 360;
+        if (d < -180) d += 360;
+        return d;
+    }
 
     function resetToStatic(){
         needle.setAttribute('transform', 'rotate(' + BEARING + ' 100 100)');
         dial.removeAttribute('transform');
+        smoothedHeading = null;
     }
 
-    var handler = function(e){
-        var heading = null;
-        if (typeof e.webkitCompassHeading === 'number') {
-            heading = e.webkitCompassHeading; // iOS -- already a true heading
-        } else if (typeof e.alpha === 'number') {
-            heading = (360 - e.alpha) % 360; // Android fallback
-        }
-        if (heading === null) return;
+    function render(heading){
         // The dial (N/E/S/W) rotates opposite the phone's heading, same as a
         // real compass housing -- so N visibly moves to show true north.
         // The arrow is fixed to the dial at its true bearing, so it inherits
@@ -74,6 +83,27 @@
         dial.setAttribute('transform', 'rotate(' + dialRotation.toFixed(2) + ' 100 100)');
         needle.setAttribute('transform', 'rotate(' + needleRotation.toFixed(2) + ' 100 100)');
         liveStatus.textContent = 'Facing ' + heading.toFixed(1) + '\u00b0 \u2014 turn until the arrow points up.';
+    }
+
+    var handler = function(e){
+        var raw = null;
+        if (typeof e.webkitCompassHeading === 'number') {
+            raw = e.webkitCompassHeading; // iOS -- already a true heading
+        } else if (typeof e.alpha === 'number') {
+            raw = (360 - e.alpha) % 360; // Android fallback
+        }
+        if (raw === null) return;
+
+        if (smoothedHeading === null) {
+            smoothedHeading = raw;
+            render(smoothedHeading);
+            return;
+        }
+
+        var delta = shortestDelta(smoothedHeading, raw);
+        if (Math.abs(delta) < DEAD_ZONE) return; // still -- don't repaint at all
+        smoothedHeading = norm(smoothedHeading + delta * SMOOTHING);
+        render(smoothedHeading);
     };
 
     function startLive(){
