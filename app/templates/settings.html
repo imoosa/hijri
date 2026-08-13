@@ -389,15 +389,171 @@
         </p>
 
         <div class="field">
-            <label for="f-home-orientation">Home Orientation (degrees from North)</label>
-            <input type="number" step="0.5" min="0" max="360" name="home_orientation" id="f-home-orientation" 
-                   value="{{ prefs.home_orientation if prefs.home_orientation is not none else 0 }}" 
+            <label>Home Orientation (degrees from North)</label>
+
+            <div class="home-compass-wrap">
+                <svg id="home-compass-svg" viewBox="0 0 200 200" width="180" height="180" style="touch-action:none;">
+                    <circle cx="100" cy="100" r="95" fill="none" stroke="#333" stroke-width="2"/>
+                    <text x="100" y="20" text-anchor="middle" font-size="14">N</text>
+                    <text x="180" y="105" text-anchor="middle" font-size="14">E</text>
+                    <text x="100" y="190" text-anchor="middle" font-size="14">S</text>
+                    <text x="20" y="105" text-anchor="middle" font-size="14">W</text>
+                    <g id="home-compass-needle">
+                        <line x1="100" y1="100" x2="100" y2="25" stroke="#b5121b" stroke-width="4"/>
+                        <polygon points="100,15 92,35 108,35" fill="#b5121b"/>
+                    </g>
+                    <circle id="home-compass-handle" cx="100" cy="25" r="14" fill="#b5121b" opacity="0"/>
+                    <circle cx="100" cy="100" r="4" fill="#333"/>
+                </svg>
+                <div class="home-compass-readout">
+                    <span id="home-orientation-degrees">0&deg;</span>
+                    <span id="home-orientation-label" class="home-compass-sub">North</span>
+                </div>
+            </div>
+
+            <input type="number" step="0.5" min="0" max="360" name="home_orientation" id="f-home-orientation"
+                   value="{{ prefs.home_orientation if prefs.home_orientation is not none else 0 }}"
                    placeholder="e.g. 90 for East facing">
+
+            <button type="button" id="home-compass-sensor-btn" class="btn-secondary" style="margin-top:8px;">
+                &#128205; Use my phone's compass
+            </button>
+            <div id="home-compass-sensor-status" class="section-hint" style="margin-top:4px;min-height:16px;"></div>
+
             <span class="section-hint" style="margin-top:4px;">
-                Measure the angle from True North (clockwise) that your main entrance wall faces.
-                Use a compass app or Google Maps to find this.
+                Drag the red needle to point the way your main entrance wall faces, type the degree directly
+                below, or tap "Use my phone's compass" while standing at your entrance facing outward.
+                The phone-compass button only works in an actual mobile browser with location/motion access
+                allowed -- it won't do anything in a desktop preview.
             </span>
         </div>
+
+        <style>
+            .home-compass-wrap{display:flex;align-items:center;gap:16px;margin:8px 0;flex-wrap:wrap;}
+            .home-compass-readout{font-size:13px;color:var(--muted);}
+            .home-compass-readout #home-orientation-degrees{font-size:22px;font-weight:700;color:#1a1a1a;display:block;}
+            .home-compass-sub{display:block;margin-top:2px;}
+            #home-compass-svg{cursor:grab;touch-action:none;}
+            #home-compass-svg:active{cursor:grabbing;}
+        </style>
+
+        <script>
+        (function(){
+            var svg = document.getElementById('home-compass-svg');
+            var needle = document.getElementById('home-compass-needle');
+            var handle = document.getElementById('home-compass-handle');
+            var numInput = document.getElementById('f-home-orientation');
+            var degreesEl = document.getElementById('home-orientation-degrees');
+            var labelEl = document.getElementById('home-orientation-label');
+            var sensorBtn = document.getElementById('home-compass-sensor-btn');
+            var sensorStatus = document.getElementById('home-compass-sensor-status');
+
+            var DIRS = [
+                [0, 'North'], [45, 'Northeast'], [90, 'East'], [135, 'Southeast'],
+                [180, 'South'], [225, 'Southwest'], [270, 'West'], [315, 'Northwest'], [360, 'North']
+            ];
+            function nearestLabel(deg){
+                var best = DIRS[0];
+                var bestDiff = 360;
+                DIRS.forEach(function(d){
+                    var diff = Math.abs(d[0] - deg);
+                    if (diff < bestDiff){ bestDiff = diff; best = d; }
+                });
+                return best[1];
+            }
+
+            function setDegrees(deg, skipInput){
+                deg = ((deg % 360) + 360) % 360;
+                needle.setAttribute('transform', 'rotate(' + deg + ' 100 100)');
+                degreesEl.innerHTML = Math.round(deg * 10) / 10 + '&deg;';
+                labelEl.textContent = nearestLabel(deg);
+                if (!skipInput) numInput.value = Math.round(deg * 10) / 10;
+            }
+
+            // Initialize from whatever's already saved.
+            setDegrees(parseFloat(numInput.value) || 0, true);
+
+            // Typing the number updates the needle too.
+            numInput.addEventListener('input', function(){
+                var v = parseFloat(numInput.value);
+                if (!isNaN(v)) setDegrees(v, true);
+            });
+
+            // Drag the needle to set the degree.
+            function angleFromEvent(e){
+                var rect = svg.getBoundingClientRect();
+                var cx = rect.left + rect.width / 2;
+                var cy = rect.top + rect.height / 2;
+                var dx = e.clientX - cx;
+                var dy = e.clientY - cy;
+                var deg = Math.atan2(dx, -dy) * 180 / Math.PI;
+                return ((deg % 360) + 360) % 360;
+            }
+            var dragging = false;
+            svg.addEventListener('pointerdown', function(e){
+                dragging = true;
+                svg.setPointerCapture(e.pointerId);
+                setDegrees(angleFromEvent(e));
+            });
+            svg.addEventListener('pointermove', function(e){
+                if (!dragging) return;
+                setDegrees(angleFromEvent(e));
+            });
+            svg.addEventListener('pointerup', function(){ dragging = false; });
+            svg.addEventListener('pointercancel', function(){ dragging = false; });
+
+            // Optional: read the phone's actual compass heading. Only ever
+            // fires from a direct button tap (required for iOS's permission
+            // prompt), takes the first reading, then stops listening.
+            function readCompassOnce(){
+                if (typeof DeviceOrientationEvent === 'undefined') {
+                    sensorStatus.textContent = "Your browser doesn't support compass access.";
+                    return;
+                }
+                var handler = function(e){
+                    var heading = null;
+                    if (typeof e.webkitCompassHeading === 'number') {
+                        // iOS Safari gives true compass heading directly.
+                        heading = e.webkitCompassHeading;
+                    } else if (e.absolute && typeof e.alpha === 'number') {
+                        // Best-effort for Android/other browsers -- alpha is
+                        // rotation around the vertical axis, not always a
+                        // true compass heading depending on device/browser.
+                        heading = (360 - e.alpha) % 360;
+                    }
+                    if (heading === null) {
+                        sensorStatus.textContent = "Couldn't read a compass heading from this device.";
+                    } else {
+                        setDegrees(heading);
+                        sensorStatus.textContent = 'Set to ' + Math.round(heading) + '\u00b0 from your phone\u2019s compass.';
+                    }
+                    window.removeEventListener('deviceorientation', handler, true);
+                };
+                sensorStatus.textContent = 'Point your phone the way your entrance faces, then hold still\u2026';
+                window.addEventListener('deviceorientation', handler, true);
+                // Stop waiting if nothing ever arrives (unsupported/blocked).
+                setTimeout(function(){
+                    window.removeEventListener('deviceorientation', handler, true);
+                }, 4000);
+            }
+
+            sensorBtn.addEventListener('click', function(){
+                if (typeof DeviceOrientationEvent !== 'undefined' &&
+                    typeof DeviceOrientationEvent.requestPermission === 'function') {
+                    // iOS 13+ requires this to be called directly from a
+                    // user gesture, which this click handler is.
+                    DeviceOrientationEvent.requestPermission().then(function(state){
+                        if (state === 'granted') readCompassOnce();
+                        else sensorStatus.textContent = 'Compass access was not allowed.';
+                    }).catch(function(){
+                        sensorStatus.textContent = 'Compass access was not allowed.';
+                    });
+                } else {
+                    readCompassOnce();
+                }
+            });
+        })();
+        </script>
 
         <div class="field" style="margin-top:14px;">
             <label for="f-home-entrance">Main Entrance Direction</label>
