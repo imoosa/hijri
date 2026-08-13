@@ -36,6 +36,7 @@
             <a href="{{ url_for('prayer_view') }}" class="{{ 'active' if active == 'prayer' else '' }}">Prayer Times</a>
             <a href="{{ url_for('qibla_view') }}" class="{{ 'active' if active == 'qibla' else '' }}">Qibla</a>
             <a href="{{ url_for('events_view') }}" class="{{ 'active' if active == 'events' else '' }}">Events</a>
+            <a href="{{ url_for('vastu_view') }}" class="{{ 'active' if active == 'vastu' else '' }}">Vastu</a>
             <a href="{{ url_for('settings_view') }}" class="{{ 'active' if active == 'settings' else '' }}">Settings</a>
         </nav>
     </header>
@@ -48,22 +49,28 @@
       {% endif %}
     {% endwith %}
 
-    {% set sidebar_content %}{% block sidebar %}{% endblock %}{% endset %}
-
     <style>
-        /* [guessing] widened from whatever style.css sets -- I don't have
-           that file, so this is an override via source order (this <style>
-           tag renders after the linked stylesheet, so it wins on equal
-           specificity). If your sidebar uses CSS grid track sizing instead
-           of flex/width, this won't take -- send style.css and I'll match
-           the real mechanism instead of overriding it from outside. */
-        .sidebar{ width: 320px; flex: 0 0 320px; }
+        /* Sidebar column removed -- main-content now has the full width
+           to itself. [guessing] mechanism: this overrides whatever
+           style.css sets via source order (this tag renders after the
+           linked stylesheet). I don't have style.css, so if layout still
+           looks off after this, that file may need a matching edit --
+           send it over and I'll match the real mechanism. */
+        .main-content{ width: 100%; max-width: none; }
 
-        .notes-widget{border-top:1px solid #e5e0da;padding:14px 16px;}
+        /* Notes widget -- now a single floating card on every page instead
+           of living inside the old collapsible sidebar. It's fixed to the
+           viewport and draggable everywhere, not just on mobile, so there's
+           exactly one notes surface in the whole app (the toolbar "Note"
+           button on calendar.html just calls openStickyNote() below to
+           reopen this same card -- no second note system anymore). */
+        .notes-widget{
+            position:fixed;
+            right:16px; bottom:16px;
+            z-index:60; /* stays under calendar.html's modal-overlay (z-index:100) so Add Event still covers it */
+            width:230px;
+        }
 
-        /* Card shell -- this is what carries the shadow/radius now, not
-           .sticky-note itself, so the header and toolbar sit inside the
-           same rounded card instead of floating above/below it. */
         .sticky-note-card{
             background:#fff8d6;border-radius:8px;
             box-shadow:0 4px 14px rgba(0,0,0,.16);
@@ -72,7 +79,10 @@
         .notes-header{
             display:flex;align-items:center;justify-content:space-between;
             padding:6px 8px;
+            cursor:grab;
+            touch-action:none; /* stops the page from scrolling under your finger while dragging the header */
         }
+        .notes-header:active{cursor:grabbing;}
         .notes-drag-dots{color:#00000045;font-size:13px;letter-spacing:2px;user-select:none;}
         .notes-header-actions{display:flex;gap:2px;}
         .notes-icon-btn{
@@ -100,8 +110,7 @@
         .sticky-note ul,.sticky-note ol{margin:4px 0 4px 18px;padding:0;}
 
         /* Collapsed -- hides body + toolbar, leaves the header bar as a
-           thin strip. Works at any screen width, per your ask for mobile
-           specifically, but there's no reason to lock it to mobile only. */
+           thin strip. */
         .sticky-note-card.collapsed .sticky-note,
         .sticky-note-card.collapsed .notes-toolbar{
             display:none;
@@ -110,112 +119,46 @@
         /* Reopen pill shown only when the card has been closed via the X --
            without this, closing the note would be a one-way trip with no
            way back short of clearing localStorage. */
-        .note-reopen-btn{margin:14px 16px 0;border:1px dashed #ccc;background:#fff;
+        .note-reopen-btn{position:fixed;right:16px;bottom:16px;z-index:60;
+            border:1px dashed #ccc;background:#fff;
             border-radius:6px;padding:6px 10px;font-size:12px;color:#777;cursor:pointer;
             display:none;}
         .note-reopen-btn:hover{background:#f4f1ea;}
-
-        /* Mobile: the note leaves the sidebar's normal flow and becomes a
-           free-floating, draggable card -- position is fixed to the
-           viewport (not the sidebar) so it can be dragged anywhere on
-           screen, including over the main content. */
-        .notes-widget.mobile-note{
-            position:fixed;
-            z-index:60; /* stays under calendar.html's modal-overlay (z-index:100) so Add Event still covers it */
-            width:230px;
-            padding:0;
-            border-top:none;
-        }
-        .notes-widget.mobile-note .notes-header{
-            cursor:grab;
-            touch-action:none; /* stops the page from scrolling under your finger while dragging the header */
-        }
-        .notes-widget.mobile-note .notes-header:active{cursor:grabbing;}
-
-        .alerts-widget{border-top:1px solid #e5e0da;padding:14px 16px;font-size:12.5px;color:#666;}
-        .alerts-widget label{display:flex;align-items:center;gap:6px;cursor:pointer;}
-        .alerts-widget .alerts-note{margin-top:6px;color:#999;font-size:11px;line-height:1.4;}
     </style>
 
     <div class="app-body">
-        <aside class="sidebar">
-            {% if sidebar_content|trim %}
-            <input type="checkbox" id="sidebar-toggle" class="sidebar-toggle-checkbox">
-            <label for="sidebar-toggle" class="sidebar-toggle-label">
-                Filters &amp; events <span class="toggle-arrow">&#9662;</span>
-            </label>
-            <div class="sidebar-inner">
-                {{ sidebar_content }}
-            </div>
-            {% endif %}
-            <!-- Add to base.html or sidebar include -->
-<div class="alerts-widget" style="border-top:1px solid #e5e0da;padding:12px 16px;font-size:12.5px;color:#666;">
-    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
-        <input type="checkbox" id="vastu-toggle" {{ 'checked' if show_vastu else '' }}>
-        🏠 Show Vastu guidance
-    </label>
-    <div class="alerts-note" style="margin-top:4px;font-size:11px;color:#999;line-height:1.4;">
-        Vastu Shastra daily guidance appears below the calendar.
-    </div>
-</div>
-
-<script>
-// Add to the bottom of base.html
-document.getElementById('vastu-toggle')?.addEventListener('change', function() {
-    fetch('/api/vastu/toggle', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({enabled: this.checked})
-    }).then(() => {
-        location.reload();
-    });
-});
-</script>
-            <div class="notes-widget">
-                <div class="sticky-note-card">
-                    <div class="notes-header">
-                        <span class="notes-drag-dots" title="Cosmetic only -- CSS can't make a page element drag around the OS desktop">::::</span>
-                        <div class="notes-header-actions">
-                            <button type="button" id="note-collapse-btn" class="notes-icon-btn" title="Collapse/expand">&minus;</button>
-                            <button type="button" id="note-new-btn" class="notes-icon-btn" title="Clear this note and start fresh">+</button>
-                            <button type="button" class="notes-icon-btn" title="Nothing to put in this menu yet" disabled>&#8942;</button>
-                            <button type="button" id="note-close-btn" class="notes-icon-btn" title="Hide">&times;</button>
-                        </div>
-                    </div>
-
-                    <div id="sticky-note" class="sticky-note" contenteditable="true"
-                         data-placeholder="Write something important&hellip;">{{ sidebar_note_content|safe }}</div>
-
-                    <div class="notes-toolbar">
-                        <button type="button" id="note-bold-btn" class="notes-icon-btn" title="Bold the selected text">B</button>
-                        <button type="button" id="note-italic-btn" class="notes-icon-btn" title="Italic the selected text">I</button>
-                        <button type="button" id="note-underline-btn" class="notes-icon-btn" title="Underline the selected text">U</button>
-                        <button type="button" id="note-bullet-btn" class="notes-icon-btn" title="Bullet list">&#9776;</button>
-                        <button type="button" id="note-number-btn" class="notes-icon-btn" title="Numbered list">1.</button>
-                        <button type="button" id="note-image-btn" class="notes-icon-btn"
-                                title="Not wired to a backend yet -- see the sanitizer note below">&#128247;</button>
-                        <span id="note-save-status" class="note-save-status"></span>
-                    </div>
-                </div>
-                <button type="button" id="note-reopen-btn" class="note-reopen-btn">+ Note</button>
-            </div>
-
-            <div class="alerts-widget">
-                <label>
-                    <input type="checkbox" id="alerts-enabled">
-                    Sound reminders (azaan times, birthdays/anniversaries, today's tradition holidays)
-                </label>
-                <div class="alerts-note">
-                    Only fires while this tab stays open on any page -- switching
-                    pages resets the timers, and closing the tab/browser stops it
-                    entirely. This is a chime + on-screen notification, not the
-                    actual azaan recitation.
-                </div>
-            </div>
-        </aside>
         <main class="main-content">
             {% block content %}{% endblock %}
         </main>
+
+        <div class="notes-widget">
+            <div class="sticky-note-card">
+                <div class="notes-header">
+                    <span class="notes-drag-dots" title="Drag to move">::::</span>
+                    <div class="notes-header-actions">
+                        <button type="button" id="note-collapse-btn" class="notes-icon-btn" title="Collapse/expand">&minus;</button>
+                        <button type="button" id="note-new-btn" class="notes-icon-btn" title="Clear this note and start fresh">+</button>
+                        <button type="button" class="notes-icon-btn" title="Nothing to put in this menu yet" disabled>&#8942;</button>
+                        <button type="button" id="note-close-btn" class="notes-icon-btn" title="Hide">&times;</button>
+                    </div>
+                </div>
+
+                <div id="sticky-note" class="sticky-note" contenteditable="true"
+                     data-placeholder="Write something important&hellip;">{{ sidebar_note_content|safe }}</div>
+
+                <div class="notes-toolbar">
+                    <button type="button" id="note-bold-btn" class="notes-icon-btn" title="Bold the selected text">B</button>
+                    <button type="button" id="note-italic-btn" class="notes-icon-btn" title="Italic the selected text">I</button>
+                    <button type="button" id="note-underline-btn" class="notes-icon-btn" title="Underline the selected text">U</button>
+                    <button type="button" id="note-bullet-btn" class="notes-icon-btn" title="Bullet list">&#9776;</button>
+                    <button type="button" id="note-number-btn" class="notes-icon-btn" title="Numbered list">1.</button>
+                    <button type="button" id="note-image-btn" class="notes-icon-btn"
+                            title="Not wired to a backend yet -- see the sanitizer note below">&#128247;</button>
+                    <span id="note-save-status" class="note-save-status"></span>
+                </div>
+            </div>
+            <button type="button" id="note-reopen-btn" class="note-reopen-btn">+ Note</button>
+        </div>
     </div>
 
     <script>
@@ -277,6 +220,10 @@ document.getElementById('vastu-toggle')?.addEventListener('change', function() {
         reopenBtn.addEventListener('click', function(){ setHidden(false); });
         setHidden(localStorage.getItem(HIDE_KEY) === '1');
 
+        // Single entry point for reopening the note from anywhere else in
+        // the app -- e.g. calendar.html's toolbar "Note" button.
+        window.openStickyNote = function(){ setHidden(false); note.focus(); };
+
         // "+" -- there's only one note slot (see database.py's Note model),
         // so this can't create a second note. What it CAN honestly do is
         // clear the current one so you're starting fresh, same as opening
@@ -315,39 +262,18 @@ document.getElementById('vastu-toggle')?.addEventListener('change', function() {
             alert('Image notes need a small backend change first (main.py: add "img" to _NOTE_ALLOWED_TAGS, plus an upload endpoint). Not done yet -- ask if you want that built.');
         });
 
-        // ---- Mobile only: drag the whole card around, position persisted.
-        // [guessing] breakpoint -- this mirrors a common mobile cutoff, but
-        // I don't have style.css, so if your real mobile breakpoint (the
-        // one #menu-toggle uses) sits at a different width, this can
-        // disagree with it visually. Tell me the real value and I'll match it.
-        var mq = window.matchMedia('(max-width: 760px)');
+        // Drag the card around on any screen size, position persisted.
         var POS_KEY = 'sticky-note-pos';
-
-        function applyMode(isMobile){
-            widget.classList.toggle('mobile-note', isMobile);
-            if (!isMobile){
-                widget.style.left = widget.style.top = widget.style.right = widget.style.bottom = '';
-                return;
-            }
-            var saved = null;
-            try { saved = JSON.parse(localStorage.getItem(POS_KEY) || 'null'); } catch(e){}
-            if (saved && typeof saved.left === 'number' && typeof saved.top === 'number'){
-                widget.style.left = saved.left + 'px';
-                widget.style.top = saved.top + 'px';
-                widget.style.right = widget.style.bottom = '';
-            } else {
-                widget.style.left = widget.style.top = '';
-                widget.style.right = '16px';
-                widget.style.bottom = '16px';
-            }
+        var saved = null;
+        try { saved = JSON.parse(localStorage.getItem(POS_KEY) || 'null'); } catch(e){}
+        if (saved && typeof saved.left === 'number' && typeof saved.top === 'number'){
+            widget.style.left = saved.left + 'px';
+            widget.style.top = saved.top + 'px';
+            widget.style.right = widget.style.bottom = '';
         }
-        applyMode(mq.matches);
-        if (mq.addEventListener) mq.addEventListener('change', function(e){ applyMode(e.matches); });
-        else mq.addListener(function(e){ applyMode(e.matches); }); // older Safari
 
         var dragging = false, startX, startY, startLeft, startTop;
         header.addEventListener('pointerdown', function(e){
-            if (!widget.classList.contains('mobile-note')) return;
             if (e.target.closest('button')) return; // header buttons still need to be tappable, not drag starters
             dragging = true;
             header.setPointerCapture(e.pointerId);
@@ -375,220 +301,6 @@ document.getElementById('vastu-toggle')?.addEventListener('change', function() {
         }
         header.addEventListener('pointerup', endDrag);
         header.addEventListener('pointercancel', endDrag);
-    })();
-    </script>
-
-    <script>
-    // ---- sound reminders: azaan times, personal events, tradition holidays ----
-    // Lives only as long as this tab does -- see the caveat text in the
-    // sidebar. No server push involved.
-    (function(){
-        var toggle = document.getElementById('alerts-enabled');
-        var STORAGE_KEY = 'alerts-enabled';
-        var playedKey = 'alerts-played-' + new Date().toISOString().slice(0,10);
-        var played = JSON.parse(localStorage.getItem(playedKey) || '{}');
-
-        function markPlayed(id){
-            played[id] = true;
-            localStorage.setItem(playedKey, JSON.stringify(played));
-        }
-
-        function beep(freqs, gapMs){
-            try{
-                var Ctx = window.AudioContext || window.webkitAudioContext;
-                var ctx = new Ctx();
-                var t = ctx.currentTime;
-                freqs.forEach(function(f, i){
-                    var osc = ctx.createOscillator();
-                    var gain = ctx.createGain();
-                    osc.frequency.value = f;
-                    osc.type = 'sine';
-                    gain.gain.setValueAtTime(0.0001, t);
-                    gain.gain.exponentialRampToValueAtTime(0.25, t + 0.02);
-                    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.45);
-                    osc.connect(gain);
-                    gain.connect(ctx.destination);
-                    osc.start(t);
-                    osc.stop(t + 0.5);
-                    t += (gapMs || 500) / 1000;
-                });
-            } catch(e){ /* Web Audio unavailable -- silently skip the chime */ }
-        }
-
-        var CHIMES = {
-            azaan: function(){ beep([392, 392], 700); },          // low double tone -- "time for namaz"
-            birthday: function(){ beep([523, 659, 784], 180); },  // bright ascending triad
-            festival: function(){ beep([440, 660], 550); },       // bell-ish two-tone
-            gah: function(){ beep([349, 440], 400); },            // soft two-tone -- Gah transition
-            shabbat: function(){ beep([494, 587, 659], 260); }    // gentle ascending triad -- candle lighting
-        };
-
-        // Optional real audio files, one per category/tradition -- drop
-        // your own licensed recordings in static/sounds/ using these exact
-        // names and the app plays them in full instead of the synthesized
-        // chime. Nothing ships here by default; see static/sounds/README.txt.
-        var SOUND_FILES = {
-            azaan: '/static/sounds/azaan.mp3',
-            christian: '/static/sounds/christian.mp3',
-            jewish: '/static/sounds/jewish.mp3',
-            hindu: '/static/sounds/hindu.mp3',
-            parsi: '/static/sounds/parsi.mp3',
-            french: '/static/sounds/french.mp3'
-        };
-
-        // Ringtone choices from Settings -- single source of truth is
-        // main.py's RINGTONE_OPTIONS, injected here so this list can't
-        // drift out of sync with the <select> options on settings.html.
-        var RINGTONE_OPTIONS = {{ ringtone_options|tojson }};
-
-        function ringtoneFile(key){
-            var opt = RINGTONE_OPTIONS[key];
-            return (opt && opt.file) ? opt.file : null;
-        }
-
-        function playSound(key, fallbackChime){
-            var path = SOUND_FILES[key];
-            if (path) {
-                var audio = new Audio(path);
-                var played = audio.play();
-                if (played && played.catch) {
-                    // 404 (no file dropped in yet), autoplay-block, or
-                    // unsupported format all land here -- fall back quietly.
-                    played.catch(function(){ fallbackChime(); });
-                }
-                return;
-            }
-            fallbackChime();
-        }
-
-        // Same idea as playSound above, but resolves through RINGTONE_OPTIONS
-        // (Settings' birthday/anniversary pickers, or a per-event override)
-        // instead of the fixed SOUND_FILES map.
-        function playRingtone(ringtoneKey, fallbackChime){
-            var file = ringtoneFile(ringtoneKey);
-            if (file) {
-                var audio = new Audio(file);
-                var played = audio.play();
-                if (played && played.catch) played.catch(function(){ fallbackChime(); });
-                return;
-            }
-            fallbackChime();
-        }
-
-        function notify(title, body){
-            if (window.Notification && Notification.permission === 'granted') {
-                new Notification(title, {body: body});
-            }
-        }
-
-        function scheduleAt(hhmm, id, soundKey, fallbackChime, title, body){
-            if (!hhmm || hhmm.indexOf(':') === -1 || played[id]) return;
-            var parts = hhmm.split(':').map(Number);
-            var now = new Date();
-            var target = new Date(now.getFullYear(), now.getMonth(), now.getDate(), parts[0], parts[1], 0, 0);
-            var ms = target.getTime() - now.getTime();
-            if (ms <= 0 || ms > 24*60*60*1000) return; // already past, or bad data
-            setTimeout(function(){
-                playSound(soundKey, fallbackChime);
-                notify(title, body);
-                markPlayed(id);
-            }, ms);
-        }
-
-        function loadAndSchedule(){
-            fetch('{{ url_for("api_alerts_today") }}').then(function(r){ return r.json(); }).then(function(data){
-                var prefsData = data.prefs || {};
-                var pt = data.prayer_times || {};
-
-                // Azaan only fires when BOTH are true: the toggle in
-                // Settings is on, AND the default calendar is Hijri-family
-                // (Bohra/Sunni/Shia). This is a hard gate, not just a
-                // display hint -- flip the calendar to Gregorian and these
-                // never get scheduled at all, even with the setting checked.
-                if (prefsData.alert_azaan && prefsData.is_hijri_family) {
-                    [['fajr','Fajr'], ['zawal','Zuhr'], ['asr','Asr'], ['maghrib','Maghrib'], ['isha','Isha']]
-                        .forEach(function(pair){
-                            scheduleAt(pt[pair[0]], 'azaan-' + pair[0], 'azaan', CHIMES.azaan,
-                                       pair[1] + ' time', pt[pair[0]] + ' -- ' + pair[1]);
-                        });
-                }
-
-                (data.personal_events || []).forEach(function(ev, i){
-                    if (prefsData.alert_birthday_anniversary === false) return;
-                    if (played['bday-' + ev.id]) return;
-
-                    // Precedence: a per-event override (ev.ringtone, set on
-                    // the event itself) beats the category default from
-                    // Settings (birthday_ringtone / anniversary_ringtone).
-                    // Settings only has those two selects -- death/religious/
-                    // other categories have no dedicated ringtone setting,
-                    // so they get the neutral synth beep rather than either
-                    // the birthday or anniversary tone (a death/memorial
-                    // event ringing a bright birthday triad would be wrong).
-                    var categoryDefault;
-                    var fallback;
-                    if (ev.category === 'anniversary') {
-                        categoryDefault = prefsData.anniversary_ringtone;
-                        fallback = CHIMES.festival;
-                    } else if (ev.category === 'birthday') {
-                        categoryDefault = prefsData.birthday_ringtone;
-                        fallback = CHIMES.birthday;
-                    } else {
-                        categoryDefault = 'beep';
-                        fallback = CHIMES.gah; // neutral soft two-tone, not celebratory
-                    }
-                    var ringtoneKey = ev.ringtone || categoryDefault;
-
-                    playRingtone(ringtoneKey, fallback);
-                    notify(ev.title, (ev.category || 'event') + ' today');
-                    markPlayed('bday-' + ev.id);
-                });
-
-                (data.interfaith_events || []).forEach(function(ev, i){
-                    var id = 'fest-' + ev.tradition + '-' + ev.title;
-                    if (!played[id]) {
-                        playSound(ev.tradition, CHIMES.festival);
-                        notify(ev.title, ev.tradition + ' today');
-                        markPlayed(id);
-                    }
-                });
-
-                // Gah Change Alert (Parsi) -- gah.minutes_to_change tells us
-                // how far off the next transition is; schedule a one-shot
-                // timer for it rather than polling, same pattern as azaan.
-                if (data.gah && data.gah.minutes_to_change != null) {
-                    var gahId = 'gah-' + data.gah.gah + '-' + new Date().toDateString();
-                    if (!played[gahId] && data.gah.minutes_to_change <= 1440) {
-                        setTimeout(function(){
-                            playSound('gah', CHIMES.gah);
-                            notify('Gah changed', 'Now entering the next Gah');
-                            markPlayed(gahId);
-                        }, Math.max(0, data.gah.minutes_to_change * 60000));
-                    }
-                }
-
-                // Shabbat candle-lighting reminder (Friday only).
-                if (data.shabbat && data.shabbat.candle_lighting_iso) {
-                    scheduleAt(data.shabbat.candle_lighting, 'shabbat-candles',
-                               'shabbat', CHIMES.shabbat,
-                               'Candle lighting', data.shabbat.candle_lighting + ' -- Shabbat begins');
-                }
-            }).catch(function(){ /* server unreachable -- skip silently */ });
-        }
-
-        function start(){
-            if (window.Notification && Notification.permission === 'default') {
-                Notification.requestPermission();
-            }
-            loadAndSchedule();
-        }
-
-        toggle.checked = localStorage.getItem(STORAGE_KEY) === '1';
-        if (toggle.checked) start();
-        toggle.addEventListener('change', function(){
-            localStorage.setItem(STORAGE_KEY, toggle.checked ? '1' : '0');
-            if (toggle.checked) start();
-        });
     })();
     </script>
 </body>
