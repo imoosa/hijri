@@ -10,7 +10,6 @@ from . import hijri_calendar as hc
 from . import hebrew_calendar as heb
 from . import parsi_calendar as pc
 from . import hindu_calendar as hindu
-from . import christian_calendar as cc
 from . import prayer_times as pt
 from . import prayer_times_accurate as pt
 from . import qibla as qb
@@ -708,7 +707,6 @@ def create_app():
         cal_month = request.args.get("m", type=int) or tm
         selected_day_num = request.args.get("day", type=int)
         loc = current_location()
-        vastu_info = compute_vastu_daily(today_g, loc, prefs)
 
         # "Goto date" -- explicit navigation, takes priority over y/m if both
         # are somehow present. Always given as a Gregorian date (the <input
@@ -893,8 +891,6 @@ def create_app():
             secondary_month_label=secondary_month_label,
             user_prefs=prefs,
             hindu_daily=hindu_daily,
-            vastu_info=vastu_info,
-            show_vastu=prefs.get("show_vastu", True),
         )
 
     @app.get("/api/vastu/today")
@@ -926,15 +922,25 @@ def create_app():
             "directional_colors": vastu_info.directional_colors
         })
 
-    @app.post("/api/vastu/toggle")
-    def api_vastu_toggle():
-        """Toggle Vastu visibility."""
-        data = request.get_json()
-        enabled = data.get('enabled', True)
-        prefs = session.get("preferences", {})
-        prefs["show_vastu"] = enabled
-        session["preferences"] = prefs
-        return jsonify({"status": "ok", "enabled": enabled})
+    @app.get("/vastu")
+    def vastu_view():
+        """Dedicated Vastu Shastra guidance page. Always shows today's
+        guidance -- there is no on/off preference for this page; anyone
+        who wants to see it just visits it from the menu."""
+        loc = current_location()
+        prefs = get_user_prefs()
+        today = date.today()
+        home_orientation = prefs.get("home_orientation")
+        vastu_info = va.get_vastu_for_day(
+            today, loc["lat"], loc["lng"], loc["tz_offset"], home_orientation
+        )
+        return render_template(
+            "vastu.html",
+            active="vastu",
+            vastu_info=vastu_info,
+            location_name=loc["name"],
+            location_is_default=location_is_default(),
+        )
     
     @app.get("/prayer-times-view")
     def prayer_view():
@@ -1011,6 +1017,10 @@ def create_app():
                     "alert_azaan": "alert_azaan" in request.form,
                     "alert_birthday_anniversary": "alert_birthday_anniversary" in request.form,
                 }
+                try:
+                    prefs["home_orientation"] = float(request.form.get("home_orientation", 0.0) or 0.0)
+                except ValueError:
+                    prefs["home_orientation"] = 0.0
                 valid_ringtones = _all_ringtone_options()
                 prefs["birthday_ringtone"] = (
                     request.form.get("birthday_ringtone", "chime")
