@@ -932,15 +932,44 @@ def create_app():
         prefs = get_user_prefs()
         today = date.today()
         home_orientation = prefs.get("home_orientation")
+        home_entrance = prefs.get("home_entrance")
+        has_toilet_northeast = prefs.get("has_toilet_northeast", False)
+
         vastu_info = va.get_vastu_for_day(
             today, loc["lat"], loc["lng"], loc["tz_offset"], home_orientation
         )
+
+        # Turn the property details saved in Settings (orientation, entrance,
+        # toilet placement) into an actual analysis instead of leaving them
+        # unused. orientation defaults to 0 (North) when not set, matching
+        # the Settings form's own default.
+        property_info = va.analyze_property(
+            home_orientation if home_orientation is not None else 0,
+            home_entrance or "northeast",
+            has_toilet_northeast,
+        )
+
+        # Explanation of what the saved orientation degree / entrance
+        # direction actually means (element, ruling deity, what to do /
+        # avoid facing that way) -- this is what the page was missing.
+        orientation_direction = va.direction_from_degrees(
+            home_orientation if home_orientation is not None else 0
+        )
+        orientation_meaning = va.get_direction_meaning(orientation_direction)
+        entrance_meaning = va.get_direction_meaning(home_entrance or "northeast")
+
         return render_template(
             "vastu.html",
             active="vastu",
             vastu_info=vastu_info,
             location_name=loc["name"],
             location_is_default=location_is_default(),
+            property_info=property_info,
+            home_orientation=home_orientation,
+            home_entrance=home_entrance,
+            has_toilet_northeast=has_toilet_northeast,
+            orientation_meaning=orientation_meaning,
+            entrance_meaning=entrance_meaning,
         )
     
     @app.get("/prayer-times-view")

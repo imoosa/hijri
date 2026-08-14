@@ -516,6 +516,29 @@ class VastuCalculator:
             remedies=remedies
         )
 
+def direction_from_degrees(degrees: float) -> str:
+    """Convert a compass degree (0-360) to a direction key, e.g. 'northeast'.
+
+    Pure function -- doesn't need lat/lng/tz, so it can be used anywhere
+    a raw orientation number needs to be turned into a direction without
+    spinning up a full VastuCalculator.
+    """
+    calc = VastuCalculator(0, 0, 0)
+    return calc._get_direction_from_degrees(degrees)
+
+
+def get_direction_meaning(direction_key: str) -> Optional[Dict]:
+    """Return the explanatory info (element, ruling deity, what's good/bad
+    to do facing this direction) for a direction key like 'northeast'.
+
+    This is what powers the "what does this direction mean" explanation --
+    it's the same DIRECTIONS table the daily guidance uses, just exposed
+    directly so a specific orientation/entrance direction can be explained
+    on its own, not only folded into a sentence.
+    """
+    return DIRECTIONS.get(direction_key)
+
+
 def get_vastu_for_day(d: date, lat: float, lng: float, tz_offset: float, home_orientation: Optional[float] = None) -> VastuDayInfo:
     """Convenience function to get daily Vastu guidance."""
     calculator = VastuCalculator(lat, lng, tz_offset)
