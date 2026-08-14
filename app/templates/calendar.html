@@ -5,10 +5,13 @@
 <style>
   :root{
     --bohra:#a31f2c;
+    --sunni:#1e8449;
+    --shia:#922b73;
     --christian:#2b6cb0;
     --french:#2d2d2d;
     --jewish:#7c3aed;
     --hindu:#d9822b;
+    --parsi:#16a085;
     --personal:#1f9d55;
     --ink:#1f1f1f;
     --muted:#6b6b6b;
@@ -122,6 +125,11 @@
   }
   .btn-primary:hover{opacity:.9}
   .pill-personal{background:var(--personal);color:#fff}
+  .pill-bohra{background:var(--bohra);color:#fff}
+  .pill-sunni{background:var(--sunni);color:#fff}
+  .pill-shia{background:var(--shia);color:#fff}
+  .pill-parsi{background:var(--parsi);color:#fff}
+  .event-src-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle;}
 
   /* Day-cell date sizing: whichever calendar is primary reads as the
      bigger number. Gregorian is secondary/small when another calendar is
@@ -274,7 +282,7 @@
                                 {% endif %}
                                 <div class="event-pills">
                                     {% set combined = [] %}
-                                    {% for e in day.events %}{% set _ = combined.append({'title': e.title, 'cls': 'bohra', 'color': e.color}) %}{% endfor %}
+                                    {% for e in day.events %}{% set _ = combined.append({'title': e.title, 'cls': e.event_source or 'bohra', 'color': e.color}) %}{% endfor %}
                                     {% for e in day.interfaith %}{% set _ = combined.append({'title': e.title, 'cls': e.tradition, 'color': e.color}) %}{% endfor %}
                                     {% for e in day.personal %}{% set _ = combined.append({'title': e.title, 'cls': 'personal', 'color': e.color}) %}{% endfor %}
                                     {% for e in combined[:2] %}
@@ -496,10 +504,12 @@
                 <h3 style="margin-top:0">{{ selected_day.hijri_day }} {{ month_name }} &middot; {{ selected_day.gregorian.strftime('%d %b %Y') }}</h3>
                 {% if selected_day.events or selected_day.interfaith or selected_day.personal %}
                 <div class="events-panel">
+                    {% set src_labels = {'bohra': 'Bohra', 'sunni': 'Sunni', 'shia': 'Shia'} %}
                     {% for e in selected_day.events %}
+                    {% set src = e.event_source or 'bohra' %}
                     <div class="event-row {{ e.color }}">
-                        <strong>{{ e.title }}</strong>
-                        {% if e.description %}<div class="event-desc">{{ e.description }}</div>{% endif %}
+                        <strong><span class="event-src-dot" style="background:var(--{{ src }});"></span>{{ e.title }}</strong>
+                        <div class="event-desc">{{ src_labels.get(src, src|capitalize) }}{% if e.description %} &middot; {{ e.description }}{% endif %}</div>
                     </div>
                     {% endfor %}
                     {% for e in selected_day.interfaith %}
