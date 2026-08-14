@@ -203,9 +203,6 @@ EID_AND_FASTING_EVENTS = [
 # 9/1 "Ramadan begins" fasting-day row.
 # Multi-day ranges (Ashara Mubaraka, Ayyam-ul-Beez) are expanded into one
 # row per day since HijriEvent has no date-range field.
-# "20th/21st Safar" (Shahadat of Imam Hasan AS) was ambiguous in the source
-# -- both days are included rather than guessing which is correct; verify
-# against your jamaat's calendar and delete whichever is wrong.
 MAJOR_OBSERVANCES = [
     # --- Moharram al-Haraam (1) ---
     {"hijri_month": 1, "hijri_day": 2, "title": "Ashara Mubaraka - Day 2 (sermons and majalis)"},
@@ -222,9 +219,8 @@ MAJOR_OBSERVANCES = [
 
     # --- Safar al-Muzaffar (2) ---
     {"hijri_month": 2, "hijri_day": 16, "title": "Commemoration of Syedna Mohammed Burhanuddin RA"},
-    {"hijri_month": 2, "hijri_day": 19, "title": "Chehlum of Imam Husain AS"},
-    {"hijri_month": 2, "hijri_day": 20, "title": "Shahadat of Imam Hasan AS (source gave 20th or 21st -- verify)"},
-    {"hijri_month": 2, "hijri_day": 21, "title": "Shahadat of Imam Hasan AS (source gave 20th or 21st -- verify)"},
+    {"hijri_month": 2, "hijri_day": 20, "title": "Chehlum of Imam Husain AS"},
+    {"hijri_month": 2, "hijri_day": 28, "title": "Wafat of Prophet Muhammad SAW and Shahadat of Imam Hasan AS"},
 
     # --- Rabi al-Awwal (3) ---
     {"hijri_month": 3, "hijri_day": 12, "title": "Eid-e-Milad-un-Nabi - Milad of Prophet Mohammed SAW", "is_holiday": True, "color": "red"},
@@ -250,6 +246,7 @@ MAJOR_OBSERVANCES = [
 
     # --- Ramadaan al-Moazzam (9) ---
     {"hijri_month": 9, "hijri_day": 16, "title": "Washek Raat"},
+    {"hijri_month": 9, "hijri_day": 17, "title": "Anniversary of the Battle of Badr"},
     {"hijri_month": 9, "hijri_day": 18, "title": "Washek Raat"},
     {"hijri_month": 9, "hijri_day": 19, "title": "Attack on Maulana Ali AS"},
     {"hijri_month": 9, "hijri_day": 20, "title": "Washek Raat"},
@@ -259,6 +256,7 @@ MAJOR_OBSERVANCES = [
     # --- Zilhaj al-Haraam (12) ---
     {"hijri_month": 12, "hijri_day": 1, "title": "Nikah of Maulana Ali AS and Maulatena Fatema az-Zahra AS"},
     {"hijri_month": 12, "hijri_day": 7, "title": "Shahadat of Imam Muhammad al-Baqir AS"},
+    {"hijri_month": 12, "hijri_day": 8, "title": "Commencement of the Hajj pilgrimage"},
     {"hijri_month": 12, "hijri_day": 9, "title": "Day of Arafah", "is_fasting_day": True},
 ]
 
