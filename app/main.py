@@ -923,11 +923,33 @@ def create_app():
             "directional_colors": vastu_info.directional_colors
         })
 
-    @app.get("/vastu")
+    @app.route("/vastu", methods=["GET", "POST"])
     def vastu_view():
         """Dedicated Vastu Shastra guidance page. Always shows today's
         guidance -- there is no on/off preference for this page; anyone
-        who wants to see it just visits it from the menu."""
+        who wants to see it just visits it from the menu.
+
+        The property fields (orientation, entrance, toilet placement) live
+        and save here now -- they used to be a section inside the big
+        Settings form, but that handler only ever read home_orientation
+        out of request.form, so home_entrance and has_toilet_northeast were
+        silently dropped on every save no matter what the user picked."""
+        if request.method == "POST":
+            prefs = get_user_prefs()
+            try:
+                prefs["home_orientation"] = float(request.form.get("home_orientation", 0.0) or 0.0)
+            except ValueError:
+                prefs["home_orientation"] = 0.0
+
+            entrance = request.form.get("home_entrance", "northeast")
+            prefs["home_entrance"] = entrance if entrance in va.DIRECTIONS else "northeast"
+
+            prefs["has_toilet_northeast"] = "has_toilet_northeast" in request.form
+
+            session["preferences"] = prefs
+            flash("Property details updated.")
+            return redirect(url_for("vastu_view"))
+
         loc = current_location()
         prefs = get_user_prefs()
         today = date.today()
@@ -939,10 +961,8 @@ def create_app():
             today, loc["lat"], loc["lng"], loc["tz_offset"], home_orientation
         )
 
-        # Turn the property details saved in Settings (orientation, entrance,
-        # toilet placement) into an actual analysis instead of leaving them
-        # unused. orientation defaults to 0 (North) when not set, matching
-        # the Settings form's own default.
+        # Turn the property details (orientation, entrance, toilet placement)
+        # into an actual analysis instead of leaving them unused.
         property_info = va.analyze_property(
             home_orientation if home_orientation is not None else 0,
             home_entrance or "northeast",
@@ -951,7 +971,7 @@ def create_app():
 
         # Explanation of what the saved orientation degree / entrance
         # direction actually means (element, ruling deity, what to do /
-        # avoid facing that way) -- this is what the page was missing.
+        # avoid facing that way).
         orientation_direction = va.direction_from_degrees(
             home_orientation if home_orientation is not None else 0
         )
