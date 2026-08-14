@@ -21,7 +21,7 @@ from . import sunni_calendar as sc
 from . import vastu as va
 from . import shia_calendar as shc
 from .database import (
-    get_session, init_db, seed_if_empty, seed_missing_sources, HijriEvent,
+    get_session, init_db, seed_if_empty, seed_missing_sources, refresh_seeded_events, HijriEvent,
     InterfaithEvent, PersonalEvent, Note, get_or_create_note, refresh_interfaith_events,
     CustomRingtone,
 )
@@ -345,6 +345,12 @@ def create_app():
     init_db()
     seed_if_empty()
     seed_missing_sources()
+    # Sunni/Shia event lists get hand-edited in database.py periodically --
+    # unlike seed_missing_sources() (which only fires once, when count==0),
+    # this wipes and rebuilds their non-custom rows on every restart, same
+    # pattern as refresh_interfaith_events() below. Bohra deliberately left
+    # out -- see refresh_seeded_events()'s docstring for why.
+    refresh_seeded_events(("sunni", "shia"))
     # Rolling window so the calendar always has interfaith dates a couple
     # years out. Regenerates on every restart -- cheap (a few hundred rows).
     this_year = date.today().year

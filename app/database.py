@@ -455,14 +455,91 @@ SUNNI_EVENTS = [
     {"hijri_month": 12, "hijri_day": 10, "title": "Eid al-Adha", "is_holiday": True, "color": "green", "event_source": "sunni"},
 ]
 
+# NOTE: "International Al-Quds Day" (last Friday of Ramadan) is intentionally
+# NOT included -- it's a floating weekday rule, not a fixed hijri_day, and this
+# table has no way to express "last Friday of month X". Would need to be
+# computed at render time from the grid function, not stored as a row here.
 SHIA_EVENTS = [
+    # Muharram (1)
     {"hijri_month": 1, "hijri_day": 1, "title": "Islamic New Year", "is_holiday": True, "color": "purple", "event_source": "shia"},
-    {"hijri_month": 1, "hijri_day": 9, "title": "Tasu'a", "is_holiday": False, "color": "purple", "event_source": "shia"},
-    {"hijri_month": 1, "hijri_day": 10, "title": "Ashura", "is_holiday": True, "color": "purple", "event_source": "shia"},
+    {"hijri_month": 1, "hijri_day": 2, "title": "Arrival of Imam Hussain in Karbala", "is_holiday": False, "color": "purple", "event_source": "shia"},
+    {"hijri_month": 1, "hijri_day": 7, "title": "Water supply blocked to Imam Hussain's camp", "is_holiday": False, "color": "purple", "event_source": "shia"},
+    {"hijri_month": 1, "hijri_day": 9, "title": "Tasu'a (Eve of Ashura)", "is_holiday": False, "color": "purple", "event_source": "shia"},
+    {"hijri_month": 1, "hijri_day": 10, "title": "Ashura (Martyrdom of Imam Husayn)", "is_holiday": True, "color": "purple", "event_source": "shia"},
+    {"hijri_month": 1, "hijri_day": 11, "title": "Captivity and movement of the Ahl al-Bayt caravan", "is_holiday": False, "color": "purple", "event_source": "shia"},
+    {"hijri_month": 1, "hijri_day": 25, "title": "Martyrdom of Imam Ali Zain-ul-Abideen", "is_holiday": False, "color": "purple", "event_source": "shia"},
+
+    # Safar (2)
+    {"hijri_month": 2, "hijri_day": 1, "title": "Entry of captives into Damascus", "is_holiday": False, "color": "purple", "event_source": "shia"},
+    {"hijri_month": 2, "hijri_day": 7, "title": "Birth of Imam Musa al-Kadhim / Martyrdom narration of Imam Hasan", "is_holiday": False, "color": "purple", "event_source": "shia"},
+    {"hijri_month": 2, "hijri_day": 17, "title": "Martyrdom of Imam Ali al-Ridha", "is_holiday": False, "color": "purple", "event_source": "shia"},
+    {"hijri_month": 2, "hijri_day": 20, "title": "Arba'een (40th day after Ashura)", "is_holiday": True, "color": "purple", "event_source": "shia"},
+    {"hijri_month": 2, "hijri_day": 28, "title": "Martyrdom of Prophet Muhammad and Imam Hasan", "is_holiday": False, "color": "purple", "event_source": "shia"},
+
+    # Rabi al-Awwal (3)
+    {"hijri_month": 3, "hijri_day": 8, "title": "Martyrdom of Imam Hasan al-Askari", "is_holiday": False, "color": "purple", "event_source": "shia"},
+    {"hijri_month": 3, "hijri_day": 9, "title": "Eid-e-Zehra (Beginning of Imam Mahdi's imamate)", "is_holiday": False, "color": "purple", "event_source": "shia"},
+    {"hijri_month": 3, "hijri_day": 17, "title": "Birth of Prophet Muhammad and Imam Ja'far al-Sadiq", "is_holiday": False, "color": "purple", "event_source": "shia"},
+
+    # Rabi al-Thani (4)
+    {"hijri_month": 4, "hijri_day": 8, "title": "Birth of Imam Hasan al-Askari", "is_holiday": False, "color": "purple", "event_source": "shia"},
+    {"hijri_month": 4, "hijri_day": 10, "title": "Demise of Fatima Masumeh of Qom", "is_holiday": False, "color": "purple", "event_source": "shia"},
+
+    # Jumada al-Awwal (5)
+    {"hijri_month": 5, "hijri_day": 5, "title": "Birth of Sayyidah Zainab", "is_holiday": False, "color": "purple", "event_source": "shia"},
+    {"hijri_month": 5, "hijri_day": 13, "title": "First narration of the martyrdom of Sayyidah Fatimah (start of Fatimiyyah)", "is_holiday": False, "color": "purple", "event_source": "shia"},
+
+    # Jumada al-Thani (6)
+    {"hijri_month": 6, "hijri_day": 3, "title": "Main narration of the martyrdom of Sayyidah Fatimah", "is_holiday": False, "color": "purple", "event_source": "shia"},
+    {"hijri_month": 6, "hijri_day": 20, "title": "Birth of Sayyidah Fatimah", "is_holiday": False, "color": "purple", "event_source": "shia"},
+
+    # Rajab (7)
+    {"hijri_month": 7, "hijri_day": 1, "title": "Birth of Imam Muhammad al-Baqir", "is_holiday": False, "color": "purple", "event_source": "shia"},
+    {"hijri_month": 7, "hijri_day": 3, "title": "Martyrdom of Imam Ali al-Hadi", "is_holiday": False, "color": "purple", "event_source": "shia"},
+    {"hijri_month": 7, "hijri_day": 10, "title": "Birth of Imam Muhammad al-Jawad", "is_holiday": False, "color": "purple", "event_source": "shia"},
+    {"hijri_month": 7, "hijri_day": 13, "title": "Birth of Imam Ali ibn Abi Talib", "is_holiday": False, "color": "purple", "event_source": "shia"},
+    {"hijri_month": 7, "hijri_day": 15, "title": "Demise of Sayyidah Zainab", "is_holiday": False, "color": "purple", "event_source": "shia"},
+    {"hijri_month": 7, "hijri_day": 25, "title": "Martyrdom of Imam Musa al-Kadhim", "is_holiday": False, "color": "purple", "event_source": "shia"},
+    {"hijri_month": 7, "hijri_day": 27, "title": "Mab'ath (Declaration of Prophethood)", "is_holiday": False, "color": "purple", "event_source": "shia"},
+
+    # Shaban (8)
+    {"hijri_month": 8, "hijri_day": 3, "title": "Birth of Imam Hussain", "is_holiday": False, "color": "purple", "event_source": "shia"},
+    {"hijri_month": 8, "hijri_day": 4, "title": "Birth of Hazrat Abbas", "is_holiday": False, "color": "purple", "event_source": "shia"},
+    {"hijri_month": 8, "hijri_day": 5, "title": "Birth of Imam Ali Zain-ul-Abideen", "is_holiday": False, "color": "purple", "event_source": "shia"},
+    {"hijri_month": 8, "hijri_day": 11, "title": "Birth of Ali Akbar", "is_holiday": False, "color": "purple", "event_source": "shia"},
+    {"hijri_month": 8, "hijri_day": 15, "title": "Birth of Imam Muhammad al-Mahdi", "is_holiday": False, "color": "purple", "event_source": "shia"},
+
+    # Ramadan (9)
     {"hijri_month": 9, "hijri_day": 1, "title": "Ramadan begins", "is_fasting_day": True, "color": "purple", "event_source": "shia"},
+    {"hijri_month": 9, "hijri_day": 10, "title": "Demise of Lady Khadijah", "is_holiday": False, "color": "purple", "event_source": "shia"},
+    {"hijri_month": 9, "hijri_day": 15, "title": "Birth of Imam Hasan ibn Ali", "is_holiday": False, "color": "purple", "event_source": "shia"},
+    {"hijri_month": 9, "hijri_day": 18, "title": "First Night of Qadr / Attack on Imam Ali", "is_holiday": False, "color": "purple", "event_source": "shia"},
+    {"hijri_month": 9, "hijri_day": 19, "title": "Wounding of Imam Ali in the mosque of Kufa", "is_holiday": False, "color": "purple", "event_source": "shia"},
+    {"hijri_month": 9, "hijri_day": 21, "title": "Martyrdom of Imam Ali ibn Abi Talib", "is_holiday": True, "color": "purple", "event_source": "shia"},
+    {"hijri_month": 9, "hijri_day": 23, "title": "Greatest estimated Night of Qadr", "is_holiday": False, "color": "purple", "event_source": "shia"},
+
+    # Shawwal (10)
     {"hijri_month": 10, "hijri_day": 1, "title": "Eid al-Fitr", "is_holiday": True, "color": "purple", "event_source": "shia"},
-    {"hijri_month": 12, "hijri_day": 10, "title": "Eid al-Adha", "is_holiday": True, "color": "purple", "event_source": "shia"},
-    {"hijri_month": 12, "hijri_day": 18, "title": "Eid al-Ghadeer", "is_holiday": True, "color": "purple", "event_source": "shia"},
+    {"hijri_month": 10, "hijri_day": 8, "title": "Youm al-Hadm (Destruction of Jannat al-Baqi shrines)", "is_holiday": False, "color": "purple", "event_source": "shia"},
+    {"hijri_month": 10, "hijri_day": 25, "title": "Martyrdom of Imam Ja'far al-Sadiq", "is_holiday": False, "color": "purple", "event_source": "shia"},
+
+    # Dhu al-Qi'dah (11)
+    {"hijri_month": 11, "hijri_day": 1, "title": "Birth of Sayyidah Fatimah Masumeh", "is_holiday": False, "color": "purple", "event_source": "shia"},
+    {"hijri_month": 11, "hijri_day": 11, "title": "Birth of Imam Ali al-Ridha", "is_holiday": False, "color": "purple", "event_source": "shia"},
+    {"hijri_month": 11, "hijri_day": 23, "title": "Martyrdom commemoration of Imam Ali al-Ridha", "is_holiday": False, "color": "purple", "event_source": "shia"},
+    {"hijri_month": 11, "hijri_day": 25, "title": "Dahw al-Ardh (Rolling of the Earth)", "is_holiday": False, "color": "purple", "event_source": "shia"},
+    {"hijri_month": 11, "hijri_day": 29, "title": "Martyrdom of Imam Muhammad al-Jawad", "is_holiday": False, "color": "purple", "event_source": "shia"},
+
+    # Dhu al-Hijjah (12)
+    {"hijri_month": 12, "hijri_day": 1, "title": "Marriage of Imam Ali and Sayyidah Fatimah", "is_holiday": False, "color": "purple", "event_source": "shia"},
+    {"hijri_month": 12, "hijri_day": 7, "title": "Martyrdom of Imam Muhammad al-Baqir", "is_holiday": False, "color": "purple", "event_source": "shia"},
+    {"hijri_month": 12, "hijri_day": 8, "title": "Tarwiyya Day / Imam Hussain departs Mecca", "is_holiday": False, "color": "purple", "event_source": "shia"},
+    {"hijri_month": 12, "hijri_day": 9, "title": "Day of Arafah / Martyrdom of Muslim ibn Aqil", "is_holiday": False, "color": "purple", "event_source": "shia"},
+    {"hijri_month": 12, "hijri_day": 10, "title": "Eid al-Adha (Festival of Sacrifice)", "is_holiday": True, "color": "purple", "event_source": "shia"},
+    {"hijri_month": 12, "hijri_day": 15, "title": "Birth of Imam Ali al-Hadi", "is_holiday": False, "color": "purple", "event_source": "shia"},
+    {"hijri_month": 12, "hijri_day": 18, "title": "Eid al-Ghadir (Appointment of Imam Ali)", "is_holiday": True, "color": "purple", "event_source": "shia"},
+    {"hijri_month": 12, "hijri_day": 24, "title": "Day of Mubahala", "is_holiday": False, "color": "purple", "event_source": "shia"},
+    {"hijri_month": 12, "hijri_day": 25, "title": "Revelation of Surah Al-Insan (Hal Ata)", "is_holiday": False, "color": "purple", "event_source": "shia"},
 ]
 
 SEED_EVENTS = EID_AND_FASTING_EVENTS + MAJOR_OBSERVANCES + URS_EVENTS
@@ -523,6 +600,42 @@ def seed_missing_sources():
                     data = dict(e)
                     data.setdefault("event_source", source)
                     db.add(HijriEvent(**data))
+        db.commit()
+    finally:
+        db.close()
+
+
+def refresh_seeded_events(sources=("sunni", "shia")):
+    """Same pattern as refresh_interfaith_events(): wipe and rebuild the
+    non-custom rows for the given event_source(s) on every startup, so
+    editing SUNNI_EVENTS / SHIA_EVENTS in this file takes effect on next
+    restart without a manual DB script.
+
+    Only deletes rows with is_custom == False -- anything a user added
+    themselves through the UI (is_custom == True) is never touched.
+
+    Deliberately does NOT default to including "bohra": Bohra events are
+    routinely hand-edited/added to by users through the events.html UI,
+    and while is_custom protects those specifically, there's no reason to
+    add churn to that source's seed rows on every deploy. Pass sources
+    explicitly (e.g. refresh_seeded_events(("bohra","sunni","shia"))) if
+    you want Bohra's seed list refreshed too.
+    """
+    source_map = {"bohra": SEED_EVENTS, "sunni": SUNNI_EVENTS, "shia": SHIA_EVENTS}
+    db = SessionLocal()
+    try:
+        for source in sources:
+            events = source_map.get(source)
+            if not events:
+                continue
+            db.query(HijriEvent).filter(
+                HijriEvent.event_source == source,
+                HijriEvent.is_custom == False,
+            ).delete(synchronize_session=False)
+            for e in events:
+                data = dict(e)
+                data.setdefault("event_source", source)
+                db.add(HijriEvent(**data))
         db.commit()
     finally:
         db.close()
