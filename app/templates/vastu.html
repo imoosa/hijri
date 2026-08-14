@@ -97,32 +97,32 @@
 <style>
 .vastu-panel {
     border: 1px solid var(--line);
-    border-radius: var(--radius-md);
+    border-radius: 12px;
     background: #fff;
-    padding: var(--sp-5);
-    margin-top: var(--sp-4);
+    padding: 20px 22px;
+    margin-top: 16px;
 }
 
 .vastu-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: var(--sp-4);
+    margin-bottom: 16px;
     flex-wrap: wrap;
-    gap: var(--sp-2);
+    gap: 8px;
 }
 
 .vastu-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: var(--sp-3);
-    margin-bottom: var(--sp-4);
+    gap: 12px;
+    margin-bottom: 16px;
 }
 
 .vastu-card {
     background: #f8f6f2;
-    border-radius: var(--radius-sm);
-    padding: var(--sp-3);
+    border-radius: 8px;
+    padding: 12px 14px;
 }
 
 .vastu-card-label {
@@ -130,7 +130,7 @@
     text-transform: uppercase;
     letter-spacing: 0.03em;
     color: var(--muted);
-    margin-bottom: 2px;
+    margin-bottom: 4px;
 }
 
 .vastu-card-value {
@@ -141,18 +141,18 @@
 .vastu-directions {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: var(--sp-2);
-    margin-bottom: var(--sp-4);
+    gap: 8px;
+    margin-bottom: 16px;
     background: #faf8f4;
-    border-radius: var(--radius-sm);
-    padding: var(--sp-3);
+    border-radius: 8px;
+    padding: 12px 14px;
 }
 
 .vastu-direction-item {
     display: flex;
     justify-content: space-between;
     font-size: 13px;
-    padding: 2px 0;
+    padding: 3px 0;
 }
 
 .vastu-dir-label {
@@ -165,9 +165,9 @@
 
 .vastu-tips {
     background: #f8f6f2;
-    border-radius: var(--radius-sm);
-    padding: var(--sp-3);
-    margin-bottom: var(--sp-3);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 12px;
 }
 
 .vastu-tips ul {
@@ -203,5 +203,92 @@
     isn't set yet. <a href="{{ url_for('settings_view') }}">Set your location</a> in Settings, then
     come back to this page.</p>
     {% endif %}
+
+{% if property_info %}
+<div class="vastu-panel">
+    <div class="vastu-header">
+        <h3 style="margin:0;display:flex;align-items:center;gap:8px;">
+            <span style="font-size:20px;">🧭</span>
+            Your Property
+        </h3>
+        <a href="{{ url_for('settings_view') }}" style="font-size:12px;">Edit in Settings</a>
+    </div>
+
+    <div class="vastu-grid">
+        <div class="vastu-card">
+            <div class="vastu-card-label">Home Orientation</div>
+            <div class="vastu-card-value">
+                {{ home_orientation if home_orientation is not none else 0 }}&deg;
+                <span style="font-size:12px;font-weight:400;color:var(--muted);display:block;margin-top:2px;">
+                    faces {{ orientation_meaning.name if orientation_meaning else 'North' }}
+                </span>
+            </div>
+        </div>
+        <div class="vastu-card">
+            <div class="vastu-card-label">Main Entrance</div>
+            <div class="vastu-card-value">
+                {{ entrance_meaning.name if entrance_meaning else 'Northeast' }}
+                <span style="font-size:12px;font-weight:400;color:var(--muted);display:block;margin-top:2px;">
+                    {{ entrance_meaning.element if entrance_meaning else '' }} element
+                </span>
+            </div>
+        </div>
+    </div>
+
+    {% if orientation_meaning %}
+    <div class="vastu-tips">
+        <h4 style="margin:0 0 8px;font-size:13px;color:var(--muted);">What {{ orientation_meaning.name }} ({{ home_orientation if home_orientation is not none else 0 }}&deg;) means</h4>
+        <p style="margin:0 0 8px;font-size:13px;color:var(--ink);">
+            Every compass degree from 0&deg; to 360&deg; falls into one of 8 directions, each 45&deg; wide,
+            0&deg; being true North. Your home's orientation is the direction its main wall/entrance faces.
+            In Vastu, each direction is tied to an element and a ruling energy that's considered to favor
+            some activities and work against others.
+        </p>
+        <p style="margin:0;font-size:13px;color:var(--ink);">
+            <strong>{{ orientation_meaning.name }}</strong> is a {{ orientation_meaning.element }} direction,
+            governed by {{ orientation_meaning.governing_deity }}. It's considered favorable for
+            {{ orientation_meaning.beneficial_activities | join(', ') | lower }}, and best avoided for
+            {{ orientation_meaning.avoid_activities | join(', ') | lower }}.
+        </p>
+    </div>
+    {% endif %}
+
+    {% if has_toilet_northeast %}
+    <p class="note" style="background:#fdecea;border:1px solid #f5b7b1;padding:10px 14px;border-radius:8px;margin:0 0 12px;">
+        You've marked a toilet in the Northeast (Ishana) corner -- considered highly inauspicious in
+        Vastu. See remedies below.
+    </p>
+    {% endif %}
+
+    {% if property_info.strengths or property_info.weaknesses or property_info.remedies %}
+    <div class="vastu-directions" style="grid-template-columns:1fr;">
+        {% if property_info.strengths %}
+        <div>
+            <div class="vastu-dir-label" style="margin-bottom:4px;">Strengths</div>
+            <ul style="margin:0 0 8px;padding-left:18px;font-size:13px;color:var(--ink);">
+                {% for s in property_info.strengths %}<li>{{ s }}</li>{% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+        {% if property_info.weaknesses %}
+        <div>
+            <div class="vastu-dir-label" style="margin-bottom:4px;">Weaknesses</div>
+            <ul style="margin:0 0 8px;padding-left:18px;font-size:13px;color:var(--ink);">
+                {% for w in property_info.weaknesses %}<li>{{ w }}</li>{% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+        {% if property_info.remedies %}
+        <div>
+            <div class="vastu-dir-label" style="margin-bottom:4px;">Remedies</div>
+            <ul style="margin:0;padding-left:18px;font-size:13px;color:var(--ink);">
+                {% for r in property_info.remedies %}<li>{{ r }}</li>{% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endif %}
 </div>
 {% endblock %}
