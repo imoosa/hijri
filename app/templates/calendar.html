@@ -220,6 +220,9 @@
     <div class="calendar-main">
         <div class="calendar-toolbar">
             <button type="button" class="toolbar-note-btn" onclick="if(window.openStickyNote) window.openStickyNote();">&#128221; Note</button>
+            {% if cal in ['hijri', 'sunni', 'shia'] %}
+            <a href="{{ url_for('qibla_view') }}" class="toolbar-note-btn" title="Qibla direction">&#129517; Qibla</a>
+            {% endif %}
             <form method="get" action="{{ url_for('calendar_view') }}" class="goto-date-inline">
                 <input type="hidden" name="cal" value="{{ cal }}">
                 <input type="date" name="goto" id="goto-date-input" aria-label="Go to date">
