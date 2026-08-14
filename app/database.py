@@ -446,13 +446,59 @@ URS_EVENTS = [
 ]
 
 # Sunni events data
+# NOTE: Shawwal's "any 6 voluntary fasting days" and Dhul-Qa'dah's "Hajj
+# travel begins" are intentionally NOT included -- neither has a fixed
+# hijri_day, same limitation as Al-Quds Day above (see note further down).
 SUNNI_EVENTS = [
+    # Muharram (1)
     {"hijri_month": 1, "hijri_day": 1, "title": "Islamic New Year", "is_holiday": True, "color": "green", "event_source": "sunni"},
+    {"hijri_month": 1, "hijri_day": 9, "title": "Fasting of Ashura (9th)", "is_fasting_day": True, "color": "green", "event_source": "sunni"},
     {"hijri_month": 1, "hijri_day": 10, "title": "Day of Ashura", "is_fasting_day": True, "color": "green", "event_source": "sunni"},
+
+    # Safar (2) -- no canonical festivals
+
+    # Rabi al-Awwal (3)
+    {"hijri_month": 3, "hijri_day": 12, "title": "Mawlid an-Nabi (Birth of the Prophet)", "is_holiday": False, "color": "green", "event_source": "sunni"},
+
+    # Rabi al-Thani (4)
+    {"hijri_month": 4, "hijri_day": 11, "title": "Giyarween Shareef (Sufi-Qadri observance, not standard Sunni practice)", "is_holiday": False, "color": "green", "event_source": "sunni"},
+
+    # Jumada al-Awwal (5) -- no specific festivals
+    # Jumada al-Thani (6) -- no specific festivals
+
+    # Rajab (7)
+    {"hijri_month": 7, "hijri_day": 27, "title": "Isra and Mi'raj (Night Journey and Ascension)", "is_holiday": False, "color": "green", "event_source": "sunni"},
+
+    # Sha'ban (8)
+    {"hijri_month": 8, "hijri_day": 15, "title": "Laylat al-Bara'ah (Night of Forgiveness)", "is_holiday": False, "color": "green", "event_source": "sunni"},
+
+    # Ramadan (9)
     {"hijri_month": 9, "hijri_day": 1, "title": "Ramadan begins", "is_fasting_day": True, "color": "green", "event_source": "sunni"},
+    {"hijri_month": 9, "hijri_day": 21, "title": "Possible Laylat al-Qadr (odd night, last 10)", "is_holiday": False, "color": "green", "event_source": "sunni"},
+    {"hijri_month": 9, "hijri_day": 23, "title": "Possible Laylat al-Qadr (odd night, last 10)", "is_holiday": False, "color": "green", "event_source": "sunni"},
+    {"hijri_month": 9, "hijri_day": 25, "title": "Possible Laylat al-Qadr (odd night, last 10)", "is_holiday": False, "color": "green", "event_source": "sunni"},
+    {"hijri_month": 9, "hijri_day": 27, "title": "Possible Laylat al-Qadr (odd night, last 10)", "is_holiday": False, "color": "green", "event_source": "sunni"},
+    {"hijri_month": 9, "hijri_day": 29, "title": "Possible Laylat al-Qadr (odd night, last 10)", "is_holiday": False, "color": "green", "event_source": "sunni"},
+
+    # Shawwal (10)
     {"hijri_month": 10, "hijri_day": 1, "title": "Eid al-Fitr", "is_holiday": True, "color": "green", "event_source": "sunni"},
+
+    # Dhul-Qi'dah (11) -- no fixed-day festivals
+
+    # Dhul-Hijjah (12)
+    {"hijri_month": 12, "hijri_day": 1, "title": "Nine Blessed Days begin", "is_holiday": False, "color": "green", "event_source": "sunni"},
+    {"hijri_month": 12, "hijri_day": 2, "title": "Nine Blessed Days", "is_holiday": False, "color": "green", "event_source": "sunni"},
+    {"hijri_month": 12, "hijri_day": 3, "title": "Nine Blessed Days", "is_holiday": False, "color": "green", "event_source": "sunni"},
+    {"hijri_month": 12, "hijri_day": 4, "title": "Nine Blessed Days", "is_holiday": False, "color": "green", "event_source": "sunni"},
+    {"hijri_month": 12, "hijri_day": 5, "title": "Nine Blessed Days", "is_holiday": False, "color": "green", "event_source": "sunni"},
+    {"hijri_month": 12, "hijri_day": 6, "title": "Nine Blessed Days", "is_holiday": False, "color": "green", "event_source": "sunni"},
+    {"hijri_month": 12, "hijri_day": 7, "title": "Nine Blessed Days", "is_holiday": False, "color": "green", "event_source": "sunni"},
+    {"hijri_month": 12, "hijri_day": 8, "title": "Nine Blessed Days", "is_holiday": False, "color": "green", "event_source": "sunni"},
     {"hijri_month": 12, "hijri_day": 9, "title": "Day of Arafah", "is_fasting_day": True, "color": "green", "event_source": "sunni"},
     {"hijri_month": 12, "hijri_day": 10, "title": "Eid al-Adha", "is_holiday": True, "color": "green", "event_source": "sunni"},
+    {"hijri_month": 12, "hijri_day": 11, "title": "Days of Tashreeq (fasting prohibited)", "is_holiday": False, "color": "green", "event_source": "sunni"},
+    {"hijri_month": 12, "hijri_day": 12, "title": "Days of Tashreeq (fasting prohibited)", "is_holiday": False, "color": "green", "event_source": "sunni"},
+    {"hijri_month": 12, "hijri_day": 13, "title": "Days of Tashreeq (fasting prohibited)", "is_holiday": False, "color": "green", "event_source": "sunni"},
 ]
 
 # NOTE: "International Al-Quds Day" (last Friday of Ramadan) is intentionally
