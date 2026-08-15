@@ -4,13 +4,27 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Today</title>
+<!--
+    NOTE: style.css itself was never uploaded (only base.html, which just
+    links to it), so the exact tokens this app's stylesheet defines are
+    still unverified [guessing]. What's below is reconstructed from what
+    IS evidenced elsewhere: qibla.html's needle/accent color (#b5121b,
+    the "Bohra maroon" base.html's own comment names), its warning-note
+    styling (#fff8e1 bg / #ffe08a border), and the sticky note's paper
+    tone (#fff8d6). Gold/amber is deliberately avoided as the primary
+    accent -- base.html already reserves it for the Christian liturgical
+    badge, so reusing it here would visually read as "today is a feast
+    day" year-round. Send style.css if you want exact hex matches instead
+    of this reconstruction.
+-->
 <style>
     :root {
-        --bg: #1c1c1e;
-        --card: #26262a;
-        --text: #f2f2f2;
-        --muted: #9a9a9f;
-        --accent: #c9a227;
+        --maroon: #b5121b;
+        --bg: #faf7f2;
+        --card: #ffffff;
+        --text: #2a2320;
+        --muted: #7a726a;
+        --border: #eadfce;
     }
     * { box-sizing: border-box; }
     body {
@@ -21,12 +35,22 @@
         padding: 14px;
         min-width: 220px;
     }
-    .date-line { font-size: 13px; color: var(--muted); margin: 0 0 2px; }
-    .native-line { font-size: 20px; font-weight: 600; margin: 0 0 10px; }
+    .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 14px;
+        box-shadow: 0 2px 10px rgba(0,0,0,.05);
+    }
+    .date-line { font-size: 12px; color: var(--muted); margin: 0 0 2px; }
+    .native-line {
+        font-size: 20px; font-weight: 700; margin: 0 0 10px;
+        color: var(--maroon);
+    }
     .prayer-row {
         display: flex; justify-content: space-between; flex-wrap: wrap;
         gap: 6px 12px; font-size: 12px; color: var(--muted);
-        border-top: 1px solid #3a3a3e; border-bottom: 1px solid #3a3a3e;
+        border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
         padding: 8px 0; margin-bottom: 10px;
     }
     .prayer-row span b { color: var(--text); font-weight: 600; }
@@ -37,40 +61,38 @@
     }
     .dot {
         width: 7px; height: 7px; border-radius: 50%; flex: none;
-        background: var(--accent);
+        background: var(--maroon);
     }
     .empty { font-size: 12px; color: var(--muted); font-style: italic; }
-    .section-label {
-        font-size: 10px; text-transform: uppercase; letter-spacing: .05em;
-        color: var(--muted); margin: 10px 0 4px;
-    }
 </style>
 </head>
 <body>
-    <p class="date-line" id="w-date">{{ today_g.strftime("%A, %d %B %Y") }} &middot; {{ location_name }}</p>
-    <p class="native-line" id="w-native">
-        {% if native %}{{ native.day }} {{ native.month_name }} {{ native.year }} &middot; {{ native.calendar_label }}{% endif %}
-    </p>
+    <div class="card">
+        <p class="date-line" id="w-date">{{ today_g.strftime("%A, %d %B %Y") }} &middot; {{ location_name }}</p>
+        <p class="native-line" id="w-native">
+            {% if native %}{{ native.day }} {{ native.month_name }} {{ native.year }} &middot; {{ native.calendar_label }}{% endif %}
+        </p>
 
-    <div class="prayer-row" id="w-prayer">
-        <span>Fajr <b>{{ prayer.fajr }}</b></span>
-        <span>Zawal <b>{{ prayer.zawal }}</b></span>
-        <span>Asr <b>{{ prayer.asr }}</b></span>
-        <span>Maghrib <b>{{ prayer.maghrib }}</b></span>
-        <span>Isha <b>{{ prayer.isha }}</b></span>
-    </div>
+        <div class="prayer-row" id="w-prayer">
+            <span>Fajr <b>{{ prayer.fajr }}</b></span>
+            <span>Zawal <b>{{ prayer.zawal }}</b></span>
+            <span>Asr <b>{{ prayer.asr }}</b></span>
+            <span>Maghrib <b>{{ prayer.maghrib }}</b></span>
+            <span>Isha <b>{{ prayer.isha }}</b></span>
+        </div>
 
-    <div id="w-events">
-        {% set all_events = hijri_events + interfaith_events + personal_events %}
-        {% if all_events %}
-        <ul class="events">
-            {% for e in all_events %}
-            <li><span class="dot" style="background: {{ e.color or '#c9a227' }};"></span>{{ e.title }}</li>
-            {% endfor %}
-        </ul>
-        {% else %}
-        <p class="empty">No events today.</p>
-        {% endif %}
+        <div id="w-events">
+            {% set all_events = hijri_events + interfaith_events + personal_events %}
+            {% if all_events %}
+            <ul class="events">
+                {% for e in all_events %}
+                <li><span class="dot" style="background: {{ e.color or '#b5121b' }};"></span>{{ e.title }}</li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="empty">No events today.</p>
+            {% endif %}
+        </div>
     </div>
 
 <script>
@@ -103,7 +125,7 @@
         }
         var html = "<ul class=\"events\">";
         all.forEach(function (e) {
-            html += "<li><span class=\"dot\" style=\"background:" + (e.color || "#c9a227") + ";\"></span>" +
+            html += "<li><span class=\"dot\" style=\"background:" + (e.color || "#b5121b") + ";\"></span>" +
                     e.title.replace(/</g, "&lt;") + "</li>";
         });
         box.innerHTML = html + "</ul>";
