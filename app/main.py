@@ -691,6 +691,72 @@ def create_app():
 
     # ==================== HTML PAGES ====================
 
+    def _today_widget_data():
+        """Everything /widget/today and /api/widget/today both need, in one
+        place -- date, native-calendar reading, prayer times, and every
+        event source landing today (Bohra/Sunni/Shia Hijri, interfaith,
+        personal). /api/alerts/today deliberately doesn't include Hijri
+        events (it's just for the sidebar chime), so this is a second,
+        wider aggregation rather than a reuse of that one."""
+        today_g = date.today()
+        prefs = get_user_prefs()
+        loc = current_location()
+        traditions = get_visible_traditions(prefs)
+
+        show_sources = {s for s in ("bohra", "sunni", "shia") if prefs.get(f"show_{s}", True)}
+        hijri_today = get_hijri_events_for_gregorian_range(today_g, today_g, show_sources).get(today_g, [])
+        interfaith_today = get_interfaith_by_date(today_g, today_g, traditions).get(today_g, [])
+        personal_today = get_personal_by_date(today_g, today_g).get(today_g, [])
+        prayer = pt.calculate(loc["lat"], loc["lng"], today_g, loc["tz_offset"])
+
+        default_cal = prefs["default_calendar"]
+        native = None
+        if default_cal in CALENDARS:
+            cal = CALENDARS[default_cal]
+            y, m, d = cal["native_of"](today_g)
+            native = {
+                "calendar_label": cal["label"],
+                "month_name": cal["month_name"](y, m),
+                "day": cal["native_label"](d) if cal["is_islamic"] else d,
+                "year": y,
+            }
+
+        return {
+            "today_g": today_g,
+            "native": native,
+            "hijri_events": hijri_today,
+            "interfaith_events": interfaith_today,
+            "personal_events": personal_today,
+            "prayer": prayer,
+            "location_name": loc["name"],
+        }
+
+    @app.get("/widget/today")
+    def widget_today():
+        """Standalone, chrome-less 'today' view -- no sidebar, no nav, no
+        month grid. Meant to be pinned as its own small window (desktop
+        first; the same route works fine added-to-home-screen on mobile
+        later, it just isn't wired up as a PWA yet). Auto-refreshes itself
+        via /api/widget/today so it stays correct if left open past
+        midnight or a prayer time."""
+        data = _today_widget_data()
+        return render_template("widget_today.html", **data)
+
+    @app.get("/api/widget/today")
+    def api_widget_today():
+        """JSON twin of /widget/today -- polled by that page's own JS to
+        refresh in place without a full reload."""
+        data = _today_widget_data()
+        return jsonify({
+            "date": data["today_g"].isoformat(),
+            "native": data["native"],
+            "hijri_events": data["hijri_events"],
+            "interfaith_events": data["interfaith_events"],
+            "personal_events": data["personal_events"],
+            "prayer_times": data["prayer"],
+            "location_name": data["location_name"],
+        })
+
     @app.get("/")
     def index():
         return redirect(url_for("calendar_view"))
