@@ -31,12 +31,10 @@
     <p class="bearing-value">{{ bearing }}&deg; from North</p>
     <p class="sub">Distance to Mecca: {{ distance_km }} km</p>
 
-    <button type="button" id="qibla-live-btn" class="btn-secondary">&#129517; Turn on live compass</button>
+    <button type="button" id="qibla-live-btn" class="btn-secondary" style="display:none;">&#129517; Turn on live compass</button>
     <p id="qibla-live-status" class="note" style="min-height:16px;"></p>
 
-    <p id="qibla-static-note" class="note">Point the top of your phone toward North to find your qibla direction.
-    Tap "Turn on live compass" above to have the whole dial (and the arrow) track your phone automatically instead --
-    N/E/S/W will move to show your real facing, and the arrow always points toward Mecca.</p>
+    <p id="qibla-static-note" class="note">Point the top of your phone toward North to find your qibla direction.</p>
 </div>
 
 <script>
@@ -114,24 +112,38 @@
         resetToStatic();
     }
 
+    function requestIOSPermission(){
+        // iOS 13+ Safari -- Apple requires this call to happen synchronously
+        // inside a real user gesture (a click). It cannot be triggered from
+        // page-load code; that's an OS-level restriction, not a bug here.
+        DeviceOrientationEvent.requestPermission().then(function(state){
+            if (state === 'granted') startLive();
+            else liveStatus.textContent = 'Compass access was not allowed. You can retry below.';
+        }).catch(function(err){
+            liveStatus.textContent = 'Compass access failed: ' + (err && err.message ? err.message : err);
+        });
+    }
+
     liveBtn.addEventListener('click', function(){
         if (live){ stopLive(); return; }
-        if (typeof DeviceOrientationEvent === 'undefined'){
-            liveStatus.textContent = "This browser doesn't support live compass access.";
+        requestIOSPermission();
+    });
+
+    // Auto-start on load wherever the platform allows it (Android, most
+    // desktop browsers, older iOS). Only iOS 13+ Safari needs a tap, because
+    // Apple gates sensor access behind requestPermission() + a user gesture --
+    // for that case alone we reveal the button instead of starting live.
+    (function autoInit(){
+        if (typeof DeviceOrientationEvent === 'undefined') {
+            return; // no sensor support at all -- stay on the static bearing
+        }
+        if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+            liveBtn.style.display = '';
+            liveStatus.textContent = 'Tap below to enable the live compass.';
             return;
         }
-        if (typeof DeviceOrientationEvent.requestPermission === 'function'){
-            // iOS 13+ -- must be called directly from this click.
-            DeviceOrientationEvent.requestPermission().then(function(state){
-                if (state === 'granted') startLive();
-                else liveStatus.textContent = 'Compass access was not allowed.';
-            }).catch(function(err){
-                liveStatus.textContent = 'Compass access failed: ' + (err && err.message ? err.message : err);
-            });
-        } else {
-            startLive();
-        }
-    });
+        startLive();
+    })();
 })();
 </script>
 {% endblock %}
