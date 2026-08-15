@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Today</title>
+<style>
+    :root {
+        --bg: #1c1c1e;
+        --card: #26262a;
+        --text: #f2f2f2;
+        --muted: #9a9a9f;
+        --accent: #c9a227;
+    }
+    * { box-sizing: border-box; }
+    body {
+        margin: 0;
+        font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        padding: 14px;
+        min-width: 220px;
+    }
+    .date-line { font-size: 13px; color: var(--muted); margin: 0 0 2px; }
+    .native-line { font-size: 20px; font-weight: 600; margin: 0 0 10px; }
+    .prayer-row {
+        display: flex; justify-content: space-between; flex-wrap: wrap;
+        gap: 6px 12px; font-size: 12px; color: var(--muted);
+        border-top: 1px solid #3a3a3e; border-bottom: 1px solid #3a3a3e;
+        padding: 8px 0; margin-bottom: 10px;
+    }
+    .prayer-row span b { color: var(--text); font-weight: 600; }
+    ul.events { list-style: none; margin: 0; padding: 0; }
+    ul.events li {
+        display: flex; align-items: baseline; gap: 6px;
+        font-size: 13px; padding: 3px 0;
+    }
+    .dot {
+        width: 7px; height: 7px; border-radius: 50%; flex: none;
+        background: var(--accent);
+    }
+    .empty { font-size: 12px; color: var(--muted); font-style: italic; }
+    .section-label {
+        font-size: 10px; text-transform: uppercase; letter-spacing: .05em;
+        color: var(--muted); margin: 10px 0 4px;
+    }
+</style>
+</head>
+<body>
+    <p class="date-line" id="w-date">{{ today_g.strftime("%A, %d %B %Y") }} &middot; {{ location_name }}</p>
+    <p class="native-line" id="w-native">
+        {% if native %}{{ native.day }} {{ native.month_name }} {{ native.year }} &middot; {{ native.calendar_label }}{% endif %}
+    </p>
+
+    <div class="prayer-row" id="w-prayer">
+        <span>Fajr <b>{{ prayer.fajr }}</b></span>
+        <span>Zawal <b>{{ prayer.zawal }}</b></span>
+        <span>Asr <b>{{ prayer.asr }}</b></span>
+        <span>Maghrib <b>{{ prayer.maghrib }}</b></span>
+        <span>Isha <b>{{ prayer.isha }}</b></span>
+    </div>
+
+    <div id="w-events">
+        {% set all_events = hijri_events + interfaith_events + personal_events %}
+        {% if all_events %}
+        <ul class="events">
+            {% for e in all_events %}
+            <li><span class="dot" style="background: {{ e.color or '#c9a227' }};"></span>{{ e.title }}</li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="empty">No events today.</p>
+        {% endif %}
+    </div>
+
+<script>
+// Keeps this correct if the window is left open (pinned on a desktop,
+// e.g. via a browser's "app mode" / borderless window). Refreshes the
+// prayer times + event list in place; if the calendar date has rolled
+// over past midnight, reloads fully so the native-calendar line updates.
+(function () {
+    var todayIso = "{{ today_g.isoformat() }}";
+    var REFRESH_MS = 5 * 60 * 1000;
+
+    function render(data) {
+        if (data.date !== todayIso) {
+            location.reload();
+            return;
+        }
+        var p = data.prayer_times;
+        document.getElementById("w-prayer").innerHTML =
+            "<span>Fajr <b>" + p.fajr + "</b></span>" +
+            "<span>Zawal <b>" + p.zawal + "</b></span>" +
+            "<span>Asr <b>" + p.asr + "</b></span>" +
+            "<span>Maghrib <b>" + p.maghrib + "</b></span>" +
+            "<span>Isha <b>" + p.isha + "</b></span>";
+
+        var all = data.hijri_events.concat(data.interfaith_events, data.personal_events);
+        var box = document.getElementById("w-events");
+        if (all.length === 0) {
+            box.innerHTML = '<p class="empty">No events today.</p>';
+            return;
+        }
+        var html = "<ul class=\"events\">";
+        all.forEach(function (e) {
+            html += "<li><span class=\"dot\" style=\"background:" + (e.color || "#c9a227") + ";\"></span>" +
+                    e.title.replace(/</g, "&lt;") + "</li>";
+        });
+        box.innerHTML = html + "</ul>";
+    }
+
+    function poll() {
+        fetch("/api/widget/today")
+            .then(function (r) { return r.json(); })
+            .then(render)
+            .catch(function () { /* stay on last-known-good render */ });
+    }
+
+    setInterval(poll, REFRESH_MS);
+})();
+</script>
+</body>
+</html>
