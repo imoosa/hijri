@@ -7,55 +7,52 @@
 <link rel="manifest" href="/static/manifest.json">
 <meta name="theme-color" content="#b5121b">
 <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
-<!--
-    NOTE: style.css itself was never uploaded (only base.html, which just
-    links to it), so the exact tokens this app's stylesheet defines are
-    still unverified [guessing]. What's below is reconstructed from what
-    IS evidenced elsewhere: qibla.html's needle/accent color (#b5121b,
-    the "Bohra maroon" base.html's own comment names), its warning-note
-    styling (#fff8e1 bg / #ffe08a border), and the sticky note's paper
-    tone (#fff8d6). Gold/amber is deliberately avoided as the primary
-    accent -- base.html already reserves it for the Christian liturgical
-    badge, so reusing it here would visually read as "today is a feast
-    day" year-round. Send style.css if you want exact hex matches instead
-    of this reconstruction.
--->
 <style>
     :root {
         --maroon: #b5121b;
         --bg: #faf7f2;
         --card: #ffffff;
-        --text: #2a2320;
-        --muted: #7a726a;
-        --border: #eadfce;
+        --text: #1a1412;
+        --muted: #6b625a;
+        --border: #e8ddd0;
+        --shadow: rgba(0,0,0,0.08);
     }
-    * { box-sizing: border-box; }
-    html, body { height: 100%; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { 
+        height: 100%; 
+        background: var(--bg);
+    }
     body {
-        margin: 0;
         font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-        background: var(--card);
         color: var(--text);
-        min-width: 220px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 280px;
+        padding: 12px;
     }
-    .card {
+    
+    .widget {
         background: var(--card);
-        padding: 16px;
+        border-radius: 16px;
+        padding: 20px 22px 18px;
         width: 100%;
-        height: 100%;
+        max-width: 380px;
+        box-shadow: 0 4px 20px var(--shadow);
+        border: 2px solid var(--maroon);
+        position: relative;
     }
+    
+    /* Titlebar overlay for WCO support */
     .titlebar-overlay {
-        display: none; /* only shown when the browser grants WCO, see media query below */
+        display: none;
         align-items: center;
         padding: 0 12px;
         font-size: 12px;
         color: var(--muted);
         background: var(--card);
     }
-    /* Chromium only [likely] -- Safari/Firefox ignore this and keep the
-       normal title bar, which is fine, they just don't get the merged
-       look. env(titlebar-area-*) are only defined when the browser has
-       actually granted window-controls-overlay for this window. */
+    
     @media (display-mode: window-controls-overlay) {
         .titlebar-overlay {
             display: flex;
@@ -67,57 +64,147 @@
             -webkit-app-region: drag;
             app-region: drag;
         }
-        .card { padding-top: calc(env(titlebar-area-height, 33px) + 12px); }
-        .card .date-line { display: none; } /* now shown in the overlay strip instead */
+        .widget { 
+            padding-top: calc(env(titlebar-area-height, 33px) + 16px); 
+            border-radius: 0;
+            max-width: 100%;
+            border: none;
+        }
+        .widget .date-line { display: none; }
     }
-    .date-line { font-size: 12px; color: var(--muted); margin: 0 0 2px; }
+    
+    .date-line {
+        font-size: 13px;
+        color: var(--muted);
+        letter-spacing: 0.2px;
+        margin-bottom: 2px;
+    }
+    
     .native-line {
-        font-size: 20px; font-weight: 700; margin: 0 0 10px;
+        font-size: 20px;
+        font-weight: 700;
         color: var(--maroon);
+        margin-bottom: 14px;
+        line-height: 1.2;
     }
-    .prayer-row {
-        display: flex; justify-content: space-between; flex-wrap: wrap;
-        gap: 6px 12px; font-size: 12px; color: var(--muted);
-        border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
-        padding: 8px 0; margin-bottom: 10px;
+    
+    .prayer-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px 16px;
+        padding: 12px 0 10px;
+        border-top: 1px solid var(--border);
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 12px;
     }
-    .prayer-row span b { color: var(--text); font-weight: 600; }
-    ul.events { list-style: none; margin: 0; padding: 0; }
-    ul.events li {
-        display: flex; align-items: baseline; gap: 6px;
-        font-size: 13px; padding: 3px 0;
+    
+    .prayer-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        font-size: 13px;
+        color: var(--muted);
+        padding: 2px 0;
     }
+    
+    .prayer-item .label {
+        font-weight: 400;
+    }
+    
+    .prayer-item .time {
+        font-weight: 600;
+        color: var(--text);
+        font-variant-numeric: tabular-nums;
+    }
+    
+    .events-section {
+        margin-top: 2px;
+    }
+    
+    .events-section ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    
+    .events-section ul li {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        padding: 4px 0;
+        line-height: 1.3;
+    }
+    
     .dot {
-        width: 7px; height: 7px; border-radius: 50%; flex: none;
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        flex-shrink: 0;
         background: var(--maroon);
     }
-    .empty { font-size: 12px; color: var(--muted); font-style: italic; }
+    
+    .empty {
+        font-size: 13px;
+        color: var(--muted);
+        font-style: italic;
+        padding: 4px 0;
+    }
+    
+    .install-btn {
+        display: none;
+        margin-top: 12px;
+        width: 100%;
+        padding: 10px;
+        border: none;
+        border-radius: 8px;
+        background: var(--maroon);
+        color: #fff;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: opacity 0.15s;
+        letter-spacing: 0.3px;
+    }
+    
+    .install-btn:hover {
+        opacity: 0.88;
+    }
+    
+    /* Responsive */
+    @media (max-width: 400px) {
+        .widget { padding: 16px; }
+        .native-line { font-size: 17px; }
+        .prayer-grid { gap: 4px 12px; }
+        .prayer-item { font-size: 12px; }
+    }
 </style>
 </head>
 <body>
     <div class="titlebar-overlay" id="w-titlebar">
         <span>{{ today_g.strftime("%A, %d %B %Y") }} &middot; {{ location_name }}</span>
     </div>
-    <div class="card">
+    
+    <div class="widget" id="widget-card">
         <p class="date-line" id="w-date">{{ today_g.strftime("%A, %d %B %Y") }} &middot; {{ location_name }}</p>
         <p class="native-line" id="w-native">
             {% if native %}{{ native.day }} {{ native.month_name }} {{ native.year }} &middot; {{ native.calendar_label }}{% endif %}
         </p>
 
-        <div class="prayer-row" id="w-prayer">
-            <span>Fajr <b id="p-fajr">{{ prayer.fajr }}</b></span>
-            <span>Zawal <b id="p-zawal">{{ prayer.zawal }}</b></span>
-            <span>Asr <b id="p-asr">{{ prayer.asr }}</b></span>
-        </div>
-        <div class="prayer-row" id="w-prayer2" style="border-top:none; padding-top:0;">
-            <span>Maghrib <b id="p-maghrib">{{ prayer.maghrib }}</b></span>
-            <span>Isha <b id="p-isha">{{ prayer.isha }}</b></span>
+        <div class="prayer-grid" id="w-prayer-grid">
+            <div class="prayer-item"><span class="label">Fajr</span> <span class="time" id="p-fajr">{{ prayer.fajr }}</span></div>
+            <div class="prayer-item"><span class="label">Zawal</span> <span class="time" id="p-zawal">{{ prayer.zawal }}</span></div>
+            <div class="prayer-item"><span class="label">Asr</span> <span class="time" id="p-asr">{{ prayer.asr }}</span></div>
+            <div class="prayer-item"><span class="label">Maghrib</span> <span class="time" id="p-maghrib">{{ prayer.maghrib }}</span></div>
+            <div class="prayer-item" style="grid-column: 1 / -1; justify-content: center; padding-top: 2px; border-top: 1px dashed var(--border); margin-top: 2px;">
+                <span class="label">Isha</span> <span class="time" id="p-isha">{{ prayer.isha }}</span>
+            </div>
         </div>
 
-        <div id="w-events">
+        <div class="events-section" id="w-events">
             {% set all_events = hijri_events + interfaith_events + personal_events %}
             {% if all_events %}
-            <ul class="events">
+            <ul>
                 {% for e in all_events %}
                 <li><span class="dot" style="background: {{ e.color or '#b5121b' }};"></span>{{ e.title }}</li>
                 {% endfor %}
@@ -127,29 +214,21 @@
             {% endif %}
         </div>
 
-        <button id="w-install-btn" style="display:none; margin-top:10px; width:100%; padding:8px; border:none; border-radius:6px; background:var(--maroon); color:#fff; font-size:13px; cursor:pointer;">
-            Install this widget
-        </button>
+        <button class="install-btn" id="w-install-btn">Install this widget</button>
     </div>
 
 <script>
-// Best-effort only [likely, not guaranteed]: browsers allow a standalone
-// PWA window to resize itself on load since it's the sole tab in that
-// context, but this can be blocked by browser/OS policy -- if it's a
-// no-op, the flex-centered .card above still keeps the layout looking
-// intentional rather than a stray card in a sea of blank page.
+// Resize for standalone PWA mode
 if (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) {
-    try { window.resizeTo(360, 400); } catch (e) {}
+    try { window.resizeTo(360, 420); } catch (e) {}
 }
 
-// Registers the service worker (required by Chrome/Edge before they'll
-// consider this page installable at all) and hooks the deferred install
-// prompt to the visible button, since relying on users to notice the
-// address-bar icon on their own is unreliable.
+// Service worker registration
 if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("/static/sw.js").catch(function () {});
 }
 
+// Install prompt handling
 var deferredPrompt = null;
 var installBtn = document.getElementById("w-install-btn");
 
@@ -172,10 +251,7 @@ window.addEventListener("appinstalled", function () {
     installBtn.style.display = "none";
 });
 
-// Keeps this correct if the window is left open (pinned on a desktop,
-// e.g. via a browser's "app mode" / borderless window). Refreshes the
-// prayer times + event list in place; if the calendar date has rolled
-// over past midnight, reloads fully so the native-calendar line updates.
+// Auto-refresh
 (function () {
     var todayIso = "{{ today_g.isoformat() }}";
     var REFRESH_MS = 5 * 60 * 1000;
@@ -198,7 +274,7 @@ window.addEventListener("appinstalled", function () {
             box.innerHTML = '<p class="empty">No events today.</p>';
             return;
         }
-        var html = "<ul class=\"events\">";
+        var html = "<ul>";
         all.forEach(function (e) {
             html += "<li><span class=\"dot\" style=\"background:" + (e.color || "#b5121b") + ";\"></span>" +
                     e.title.replace(/</g, "&lt;") + "</li>";
@@ -210,7 +286,7 @@ window.addEventListener("appinstalled", function () {
         fetch("/api/widget/today")
             .then(function (r) { return r.json(); })
             .then(render)
-            .catch(function () { /* stay on last-known-good render */ });
+            .catch(function () {});
     }
 
     setInterval(poll, REFRESH_MS);
