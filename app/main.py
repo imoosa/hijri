@@ -750,6 +750,7 @@ def create_app():
         return jsonify({
             "date": data["today_g"].isoformat(),
             "native": data["native"],
+            "events": data["hijri_events"] + data["interfaith_events"] + data["personal_events"],
             "hijri_events": data["hijri_events"],
             "interfaith_events": data["interfaith_events"],
             "personal_events": data["personal_events"],
