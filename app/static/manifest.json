@@ -5,6 +5,7 @@
   "start_url": "/widget/today",
   "scope": "/widget/",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
   "background_color": "#faf7f2",
   "theme_color": "#b5121b",
   "icons": [
