@@ -10,16 +10,19 @@
 <style>
     :root {
         --maroon: #b5121b;
-        --bg: #f5f0ea;
-        --card: #ffffff;
+        --maroon-dark: #8a0e15;
+        --bg: transparent;
+        --card-bg: #ffffff;
+        --card-shadow: 0 2px 12px rgba(0,0,0,0.10);
         --text: #1a1412;
         --muted: #7a726a;
         --border: #e0d5c8;
+        --header-text: #ffffff;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { 
         height: 100%; 
-        background: var(--bg);
+        background: transparent;
     }
     body {
         font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
@@ -28,114 +31,166 @@
         align-items: center;
         justify-content: center;
         min-width: 280px;
-        padding: 16px;
+        padding: 12px;
+        background: transparent;
     }
     
     .widget {
-        background: var(--card);
-        border-radius: 8px;
-        padding: 0;
         width: 100%;
         max-width: 380px;
+        position: relative;
+    }
+    
+    /* Card with background - default state */
+    .widget-card {
+        background: var(--card-bg);
+        border-radius: 8px;
+        padding: 0;
         border: 2px solid var(--maroon);
         position: relative;
         overflow: hidden;
-        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        box-shadow: var(--card-shadow);
+        transition: all 0.3s ease;
+    }
+    
+    /* Transparent mode */
+    .widget.transparent .widget-card {
+        background: transparent;
+        box-shadow: none;
+        border: 2px solid var(--maroon);
+    }
+    
+    .widget.transparent .widget-card .widget-body {
+        background: transparent;
     }
     
     /* RED HEADER BAR */
     .widget-header {
         background: var(--maroon);
-        padding: 8px 16px;
+        padding: 8px 14px;
         display: flex;
         justify-content: space-between;
         align-items: center;
     }
     
+    .widget.transparent .widget-header {
+        background: var(--maroon);
+    }
+    
     .widget-header .title {
-        color: #fff;
-        font-size: 13px;
+        color: var(--header-text);
+        font-size: 12px;
         font-weight: 600;
-        letter-spacing: 0.5px;
+        letter-spacing: 0.8px;
         text-transform: uppercase;
     }
     
-    .widget-header .cut-btn {
+    .widget-header .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    
+    .widget-header .header-actions button {
         background: none;
         border: none;
         color: rgba(255,255,255,0.7);
-        font-size: 18px;
+        font-size: 16px;
         cursor: pointer;
-        padding: 0 4px;
+        padding: 2px 4px;
         line-height: 1;
         transition: color 0.2s;
+        border-radius: 4px;
+        width: 26px;
+        height: 26px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
-    .widget-header .cut-btn:hover {
+    .widget-header .header-actions button:hover {
         color: #fff;
+        background: rgba(255,255,255,0.1);
+    }
+    
+    .widget-header .header-actions .bg-toggle {
+        font-size: 14px;
+        color: rgba(255,255,255,0.5);
+    }
+    .widget-header .header-actions .bg-toggle:hover {
+        color: #fff;
+    }
+    .widget-header .header-actions .bg-toggle.active {
+        color: #fff;
+        background: rgba(255,255,255,0.15);
     }
     
     /* CONTENT AREA */
     .widget-body {
         padding: 14px 18px 16px;
+        background: var(--card-bg);
+        transition: background 0.3s ease;
+    }
+    
+    .widget.transparent .widget-body {
+        background: transparent;
     }
     
     .date-line {
         font-size: 13px;
         color: var(--muted);
-        margin-bottom: 2px;
+        margin-bottom: 1px;
     }
     
     .native-line {
         font-size: 18px;
         font-weight: 700;
         color: var(--maroon);
-        margin-bottom: 12px;
+        margin-bottom: 10px;
         line-height: 1.2;
     }
     
-    /* Prayer times - table style */
-    .prayer-times {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 4px 16px;
-        padding: 10px 0 8px;
+    /* Prayer times - table style like screenshot */
+    .prayer-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 10px;
         border-top: 1px solid var(--border);
         border-bottom: 1px solid var(--border);
-        margin-bottom: 10px;
     }
     
-    .prayer-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
+    .prayer-table td {
+        padding: 4px 6px;
         font-size: 14px;
-        padding: 2px 0;
+        text-align: left;
     }
     
-    .prayer-item .label {
+    .prayer-table .label {
         color: var(--muted);
         font-weight: 400;
+        width: 30%;
     }
     
-    .prayer-item .time {
+    .prayer-table .time {
         font-weight: 600;
         color: var(--text);
         font-variant-numeric: tabular-nums;
-        font-size: 15px;
+        width: 20%;
     }
     
-    .prayer-item.isha-row {
-        grid-column: 1 / -1;
-        justify-content: center;
-        padding-top: 6px;
-        margin-top: 2px;
+    .prayer-table .spacer {
+        width: 5%;
+    }
+    
+    .prayer-table .isha-row td {
+        padding-top: 8px;
         border-top: 1px dashed var(--border);
-        gap: 6px;
+        text-align: center;
     }
-    .prayer-item.isha-row .label {
+    .prayer-table .isha-row .label {
         font-weight: 500;
+        width: auto;
     }
-    .prayer-item.isha-row .time {
+    .prayer-table .isha-row .time {
         font-size: 16px;
         font-weight: 700;
     }
@@ -212,20 +267,22 @@
             app-region: drag;
         }
         .widget { 
-            border-radius: 0;
             max-width: 100%;
+        }
+        .widget-card {
+            border-radius: 0;
             border: none;
         }
         .widget-header { display: none; }
     }
     
     @media (max-width: 420px) {
-        body { padding: 8px; }
-        .widget-body { padding: 12px 14px 14px; }
+        body { padding: 6px; }
+        .widget-body { padding: 10px 12px 12px; }
         .native-line { font-size: 16px; }
-        .prayer-item { font-size: 13px; }
-        .prayer-item .time { font-size: 14px; }
+        .prayer-table td { font-size: 13px; padding: 3px 4px; }
         .date-line { font-size: 12px; }
+        .widget-header .title { font-size: 11px; }
     }
 </style>
 </head>
@@ -234,47 +291,89 @@
         <span>{{ today_g.strftime("%A, %d %B %Y") }} &middot; {{ location_name }}</span>
     </div>
     
-    <div class="widget" id="widget-card">
-        <!-- RED HEADER BAR with Cut button -->
-        <div class="widget-header">
-            <span class="title">Today &middot; Intervals Calendar</span>
-            <button class="cut-btn" id="w-cut-btn" aria-label="Close widget">✕</button>
-        </div>
-        
-        <div class="widget-body">
-            <div class="date-line" id="w-date">{{ today_g.strftime("%A, %d %B %Y") }} &middot; {{ location_name }}</div>
-            <div class="native-line" id="w-native">
-                {% if native %}{{ native.day }} {{ native.month_name }} {{ native.year }} &middot; {{ native.calendar_label }}{% endif %}
-            </div>
-
-            <div class="prayer-times" id="w-prayer-grid">
-                <div class="prayer-item"><span class="label">Fajr</span> <span class="time" id="p-fajr">{{ prayer.fajr }}</span></div>
-                <div class="prayer-item"><span class="label">Zawal</span> <span class="time" id="p-zawal">{{ prayer.zawal }}</span></div>
-                <div class="prayer-item"><span class="label">Asr</span> <span class="time" id="p-asr">{{ prayer.asr }}</span></div>
-                <div class="prayer-item"><span class="label">Maghrib</span> <span class="time" id="p-maghrib">{{ prayer.maghrib }}</span></div>
-                <div class="prayer-item isha-row">
-                    <span class="label">Isha</span> <span class="time" id="p-isha">{{ prayer.isha }}</span>
+    <div class="widget" id="widget-container">
+        <div class="widget-card" id="widget-card">
+            <!-- RED HEADER BAR -->
+            <div class="widget-header">
+                <span class="title">Today &middot; Intervals Calendar</span>
+                <div class="header-actions">
+                    <button class="bg-toggle" id="bg-toggle" title="Toggle background" aria-label="Toggle background">◻</button>
+                    <button class="cut-btn" id="w-cut-btn" aria-label="Close widget">✕</button>
                 </div>
             </div>
+            
+            <div class="widget-body">
+                <div class="date-line" id="w-date">{{ today_g.strftime("%A, %d %B %Y") }} &middot; {{ location_name }}</div>
+                <div class="native-line" id="w-native">
+                    {% if native %}{{ native.day }} {{ native.month_name }} {{ native.year }} &middot; {{ native.calendar_label }}{% endif %}
+                </div>
 
-            <div class="events-section" id="w-events">
-                {% set all_events = hijri_events + interfaith_events + personal_events %}
-                {% if all_events %}
-                <ul>
-                    {% for e in all_events %}
-                    <li><span class="dot" style="background: {{ e.color or '#b5121b' }};"></span>{{ e.title }}</li>
-                    {% endfor %}
-                </ul>
-                {% else %}
-                <p class="empty">No events today.</p>
-                {% endif %}
+                <table class="prayer-table" id="w-prayer-table">
+                    <tr>
+                        <td class="label">Fajr</td>
+                        <td class="time" id="p-fajr">{{ prayer.fajr }}</td>
+                        <td class="spacer"></td>
+                        <td class="label">Asr</td>
+                        <td class="time" id="p-asr">{{ prayer.asr }}</td>
+                    </tr>
+                    <tr>
+                        <td class="label">Zawal</td>
+                        <td class="time" id="p-zawal">{{ prayer.zawal }}</td>
+                        <td class="spacer"></td>
+                        <td class="label">Maghrib</td>
+                        <td class="time" id="p-maghrib">{{ prayer.maghrib }}</td>
+                    </tr>
+                    <tr class="isha-row">
+                        <td colspan="5">
+                            <span class="label">Isha</span>
+                            <span class="time" id="p-isha">{{ prayer.isha }}</span>
+                        </td>
+                    </tr>
+                </table>
+
+                <div class="events-section" id="w-events">
+                    {% set all_events = hijri_events + interfaith_events + personal_events %}
+                    {% if all_events %}
+                    <ul>
+                        {% for e in all_events %}
+                        <li><span class="dot" style="background: {{ e.color or '#b5121b' }};"></span>{{ e.title }}</li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <p class="empty">No events today.</p>
+                    {% endif %}
+                </div>
+
+                <button class="install-btn" id="w-install-btn">Install this widget</button>
             </div>
-
-            <button class="install-btn" id="w-install-btn">Install this widget</button>
         </div>
     </div>
 
 <script>
+// ---- TOGGLE BACKGROUND ----
+var isTransparent = false;
+var bgToggle = document.getElementById('bg-toggle');
+var container = document.getElementById('widget-container');
+
+bgToggle.addEventListener('click', function() {
+    isTransparent = !isTransparent;
+    container.classList.toggle('transparent', isTransparent);
+    bgToggle.classList.toggle('active', isTransparent);
+    // Save preference
+    try {
+        localStorage.setItem('widget-transparent', isTransparent ? 'true' : 'false');
+    } catch(e) {}
+});
+
+// Load saved preference
+try {
+    if (localStorage.getItem('widget-transparent') === 'true') {
+        isTransparent = true;
+        container.classList.add('transparent');
+        bgToggle.classList.add('active');
+    }
+} catch(e) {}
+
 // ---- RESIZE for standalone ----
 if (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) {
     try { window.resizeTo(360, 420); } catch (e) {}
@@ -310,11 +409,12 @@ window.addEventListener("appinstalled", function () {
 
 // ---- CUT BUTTON ----
 document.getElementById("w-cut-btn").addEventListener("click", function() {
-    var widget = document.getElementById("widget-card");
-    widget.style.transition = "opacity 0.3s ease";
-    widget.style.opacity = "0";
+    var card = document.getElementById("widget-card");
+    card.style.transition = "opacity 0.3s ease, transform 0.3s ease";
+    card.style.transform = "scale(0.95)";
+    card.style.opacity = "0";
     setTimeout(function() {
-        widget.style.display = "none";
+        card.style.display = "none";
     }, 300);
 });
 
