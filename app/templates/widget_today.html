@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Today</title>
+<link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#b5121b">
+<link rel="apple-touch-icon" href="/static/icons/icon-192.png">
 <!--
     NOTE: style.css itself was never uploaded (only base.html, which just
     links to it), so the exact tokens this app's stylesheet defines are
@@ -93,9 +96,43 @@
             <p class="empty">No events today.</p>
             {% endif %}
         </div>
+
+        <button id="w-install-btn" style="display:none; margin-top:10px; width:100%; padding:8px; border:none; border-radius:6px; background:var(--maroon); color:#fff; font-size:13px; cursor:pointer;">
+            Install this widget
+        </button>
     </div>
 
 <script>
+// Registers the service worker (required by Chrome/Edge before they'll
+// consider this page installable at all) and hooks the deferred install
+// prompt to the visible button, since relying on users to notice the
+// address-bar icon on their own is unreliable.
+if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/static/sw.js").catch(function () {});
+}
+
+var deferredPrompt = null;
+var installBtn = document.getElementById("w-install-btn");
+
+window.addEventListener("beforeinstallprompt", function (e) {
+    e.preventDefault();
+    deferredPrompt = e;
+    installBtn.style.display = "block";
+});
+
+installBtn.addEventListener("click", function () {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.finally(function () {
+        deferredPrompt = null;
+        installBtn.style.display = "none";
+    });
+});
+
+window.addEventListener("appinstalled", function () {
+    installBtn.style.display = "none";
+});
+
 // Keeps this correct if the window is left open (pinned on a desktop,
 // e.g. via a browser's "app mode" / borderless window). Refreshes the
 // prayer times + event list in place; if the calendar date has rolled
