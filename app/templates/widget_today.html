@@ -10,121 +10,104 @@
 <style>
     :root {
         --maroon: #b5121b;
-        --maroon-light: #d4414a;
-        --bg: transparent;
+        --bg: #faf7f2;
+        --card: #ffffff;
         --text: #1a1412;
-        --muted: #7a726a;
+        --muted: #6b625a;
         --border: #e8ddd0;
+        --shadow: rgba(0,0,0,0.08);
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { 
         height: 100%; 
-        background: transparent;
+        background: var(--bg);
     }
     body {
         font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
         color: var(--text);
         display: flex;
-        align-items: flex-start;
-        justify-content: flex-start;
+        align-items: center;
+        justify-content: center;
         min-width: 280px;
-        padding: 8px;
-        background: transparent;
+        padding: 12px;
     }
     
     .widget {
-        background: transparent;
-        padding: 0;
+        background: var(--card);
+        border-radius: 16px;
+        padding: 20px 22px 18px;
         width: 100%;
         max-width: 380px;
+        box-shadow: 0 4px 20px var(--shadow);
+        border: 2px solid var(--maroon);
         position: relative;
     }
     
-    /* Red bar at top */
-    .red-bar {
-        background: var(--maroon);
-        height: 4px;
-        border-radius: 0;
-        margin-bottom: 12px;
-        width: 100%;
-    }
-    
-    /* CUT / CLOSE button */
-    .cut-btn {
-        position: absolute;
-        top: -4px;
-        right: 0;
-        background: none;
-        border: none;
-        font-size: 18px;
-        cursor: pointer;
-        color: #999;
-        padding: 4px 6px;
-        line-height: 1;
-        transition: color 0.2s;
-        border-radius: 50%;
-        width: 28px;
-        height: 28px;
-        display: flex;
+    /* Titlebar overlay for WCO support */
+    .titlebar-overlay {
+        display: none;
         align-items: center;
-        justify-content: center;
-        z-index: 10;
-    }
-    .cut-btn:hover {
-        color: var(--maroon);
-        background: rgba(181, 18, 27, 0.08);
+        padding: 0 12px;
+        font-size: 12px;
+        color: var(--muted);
+        background: var(--card);
     }
     
-    /* Title bar */
-    .widget-title {
-        font-size: 12px;
-        font-weight: 600;
-        color: var(--muted);
-        letter-spacing: 1px;
-        text-transform: uppercase;
-        margin-bottom: 6px;
-        padding-right: 32px;
+    @media (display-mode: window-controls-overlay) {
+        .titlebar-overlay {
+            display: flex;
+            position: fixed;
+            top: env(titlebar-area-y, 0);
+            left: env(titlebar-area-x, 0);
+            height: env(titlebar-area-height, 33px);
+            width: env(titlebar-area-width, 100%);
+            -webkit-app-region: drag;
+            app-region: drag;
+        }
+        .widget { 
+            padding-top: calc(env(titlebar-area-height, 33px) + 16px); 
+            border-radius: 0;
+            max-width: 100%;
+            border: none;
+        }
+        .widget .date-line { display: none; }
     }
     
     .date-line {
-        font-size: 14px;
-        font-weight: 500;
-        color: var(--text);
+        font-size: 13px;
+        color: var(--muted);
+        letter-spacing: 0.2px;
         margin-bottom: 2px;
-        line-height: 1.3;
-        padding-right: 32px;
     }
     
     .native-line {
-        font-size: 18px;
+        font-size: 20px;
         font-weight: 700;
         color: var(--maroon);
+        margin-bottom: 14px;
         line-height: 1.2;
-        margin-bottom: 10px;
-        padding-right: 32px;
     }
     
-    /* Prayer times - clean list */
-    .prayer-times {
+    .prayer-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 3px 20px;
-        padding: 10px 0 8px;
-        border-top: 1px solid rgba(0,0,0,0.06);
-        border-bottom: 1px solid rgba(0,0,0,0.06);
-        margin-bottom: 10px;
+        gap: 6px 16px;
+        padding: 12px 0 10px;
+        border-top: 1px solid var(--border);
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 12px;
     }
     
     .prayer-item {
         display: flex;
         justify-content: space-between;
-        align-items: center;
-        font-size: 14px;
+        align-items: baseline;
+        font-size: 13px;
+        color: var(--muted);
         padding: 2px 0;
     }
     
     .prayer-item .label {
-        color: var(--muted);
         font-weight: 400;
     }
     
@@ -132,27 +115,10 @@
         font-weight: 600;
         color: var(--text);
         font-variant-numeric: tabular-nums;
-        font-size: 15px;
-    }
-    
-    .prayer-item.isha-row {
-        grid-column: 1 / -1;
-        justify-content: center;
-        padding-top: 6px;
-        margin-top: 2px;
-        border-top: 1px dashed rgba(0,0,0,0.06);
-        gap: 6px;
-    }
-    .prayer-item.isha-row .label {
-        font-weight: 500;
-    }
-    .prayer-item.isha-row .time {
-        font-size: 16px;
-        font-weight: 700;
     }
     
     .events-section {
-        margin-top: 4px;
+        margin-top: 2px;
     }
     
     .events-section ul {
@@ -166,7 +132,7 @@
         align-items: center;
         gap: 8px;
         font-size: 13px;
-        padding: 3px 0;
+        padding: 4px 0;
         line-height: 1.3;
     }
     
@@ -198,43 +164,19 @@
         font-weight: 500;
         cursor: pointer;
         transition: opacity 0.15s;
-    }
-    .install-btn:hover { opacity: 0.88; }
-    
-    /* WCO support */
-    .titlebar-overlay {
-        display: none;
-        align-items: center;
-        padding: 0 12px;
-        font-size: 12px;
-        color: var(--muted);
-        background: transparent;
+        letter-spacing: 0.3px;
     }
     
-    @media (display-mode: window-controls-overlay) {
-        .titlebar-overlay {
-            display: flex;
-            position: fixed;
-            top: env(titlebar-area-y, 0);
-            left: env(titlebar-area-x, 0);
-            height: env(titlebar-area-height, 33px);
-            width: env(titlebar-area-width, 100%);
-            -webkit-app-region: drag;
-            app-region: drag;
-        }
-        .widget { 
-            padding-top: calc(env(titlebar-area-height, 33px) + 8px);
-        }
-        .widget .widget-title { display: none; }
-        .cut-btn { display: none; }
+    .install-btn:hover {
+        opacity: 0.88;
     }
     
-    @media (max-width: 420px) {
-        body { padding: 4px; }
-        .native-line { font-size: 16px; }
-        .prayer-item { font-size: 13px; }
-        .prayer-item .time { font-size: 14px; }
-        .date-line { font-size: 13px; }
+    /* Responsive */
+    @media (max-width: 400px) {
+        .widget { padding: 16px; }
+        .native-line { font-size: 17px; }
+        .prayer-grid { gap: 4px 12px; }
+        .prayer-item { font-size: 12px; }
     }
 </style>
 </head>
@@ -244,25 +186,17 @@
     </div>
     
     <div class="widget" id="widget-card">
-        <!-- Red bar at top -->
-        <div class="red-bar"></div>
-        
-        <!-- Cut button -->
-        <button class="cut-btn" id="w-cut-btn" aria-label="Close widget">✕</button>
-        
-        <div class="widget-title">Today &middot; Intervals Calendar</div>
-        
-        <div class="date-line" id="w-date">{{ today_g.strftime("%A, %d %B %Y") }} &middot; {{ location_name }}</div>
-        <div class="native-line" id="w-native">
+        <p class="date-line" id="w-date">{{ today_g.strftime("%A, %d %B %Y") }} &middot; {{ location_name }}</p>
+        <p class="native-line" id="w-native">
             {% if native %}{{ native.day }} {{ native.month_name }} {{ native.year }} &middot; {{ native.calendar_label }}{% endif %}
-        </div>
+        </p>
 
-        <div class="prayer-times" id="w-prayer-grid">
+        <div class="prayer-grid" id="w-prayer-grid">
             <div class="prayer-item"><span class="label">Fajr</span> <span class="time" id="p-fajr">{{ prayer.fajr }}</span></div>
             <div class="prayer-item"><span class="label">Zawal</span> <span class="time" id="p-zawal">{{ prayer.zawal }}</span></div>
             <div class="prayer-item"><span class="label">Asr</span> <span class="time" id="p-asr">{{ prayer.asr }}</span></div>
             <div class="prayer-item"><span class="label">Maghrib</span> <span class="time" id="p-maghrib">{{ prayer.maghrib }}</span></div>
-            <div class="prayer-item isha-row">
+            <div class="prayer-item" style="grid-column: 1 / -1; justify-content: center; padding-top: 2px; border-top: 1px dashed var(--border); margin-top: 2px;">
                 <span class="label">Isha</span> <span class="time" id="p-isha">{{ prayer.isha }}</span>
             </div>
         </div>
@@ -284,17 +218,17 @@
     </div>
 
 <script>
-// ---- RESIZE for standalone ----
+// Resize for standalone PWA mode
 if (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) {
-    try { window.resizeTo(360, 400); } catch (e) {}
+    try { window.resizeTo(360, 420); } catch (e) {}
 }
 
-// ---- SERVICE WORKER ----
+// Service worker registration
 if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("/static/sw.js").catch(function () {});
 }
 
-// ---- INSTALL PROMPT ----
+// Install prompt handling
 var deferredPrompt = null;
 var installBtn = document.getElementById("w-install-btn");
 
@@ -317,17 +251,7 @@ window.addEventListener("appinstalled", function () {
     installBtn.style.display = "none";
 });
 
-// ---- CUT BUTTON ----
-document.getElementById("w-cut-btn").addEventListener("click", function() {
-    var widget = document.getElementById("widget-card");
-    widget.style.transition = "opacity 0.3s ease";
-    widget.style.opacity = "0";
-    setTimeout(function() {
-        widget.style.display = "none";
-    }, 300);
-});
-
-// ---- AUTO-REFRESH ----
+// Auto-refresh
 (function () {
     var todayIso = "{{ today_g.isoformat() }}";
     var REFRESH_MS = 5 * 60 * 1000;
