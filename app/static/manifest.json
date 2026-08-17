@@ -1,0 +1,14 @@
+{
+  "name": "Today - Interfaith Calendar",
+  "short_name": "Today",
+  "description": "Today's date, native calendar reading, prayer times, and events.",
+  "start_url": "/widget/today",
+  "scope": "/widget/",
+  "display": "standalone",
+  "background_color": "#faf7f2",
+  "theme_color": "#b5121b",
+  "icons": [
+    { "src": "/static/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/static/icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
