@@ -30,6 +30,7 @@
         --border: #eadfce;
     }
     * { box-sizing: border-box; }
+    html, body { height: 100%; }
     body {
         margin: 0;
         font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
@@ -37,13 +38,18 @@
         color: var(--text);
         padding: 14px;
         min-width: 220px;
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
     }
     .card {
         background: var(--card);
         border: 1px solid var(--border);
         border-radius: 10px;
-        padding: 14px;
+        padding: 16px;
         box-shadow: 0 2px 10px rgba(0,0,0,.05);
+        width: 100%;
+        max-width: 340px;
     }
     .date-line { font-size: 12px; color: var(--muted); margin: 0 0 2px; }
     .native-line {
@@ -77,11 +83,13 @@
         </p>
 
         <div class="prayer-row" id="w-prayer">
-            <span>Fajr <b>{{ prayer.fajr }}</b></span>
-            <span>Zawal <b>{{ prayer.zawal }}</b></span>
-            <span>Asr <b>{{ prayer.asr }}</b></span>
-            <span>Maghrib <b>{{ prayer.maghrib }}</b></span>
-            <span>Isha <b>{{ prayer.isha }}</b></span>
+            <span>Fajr <b id="p-fajr">{{ prayer.fajr }}</b></span>
+            <span>Zawal <b id="p-zawal">{{ prayer.zawal }}</b></span>
+            <span>Asr <b id="p-asr">{{ prayer.asr }}</b></span>
+        </div>
+        <div class="prayer-row" id="w-prayer2" style="border-top:none; padding-top:0;">
+            <span>Maghrib <b id="p-maghrib">{{ prayer.maghrib }}</b></span>
+            <span>Isha <b id="p-isha">{{ prayer.isha }}</b></span>
         </div>
 
         <div id="w-events">
@@ -103,6 +111,15 @@
     </div>
 
 <script>
+// Best-effort only [likely, not guaranteed]: browsers allow a standalone
+// PWA window to resize itself on load since it's the sole tab in that
+// context, but this can be blocked by browser/OS policy -- if it's a
+// no-op, the flex-centered .card above still keeps the layout looking
+// intentional rather than a stray card in a sea of blank page.
+if (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) {
+    try { window.resizeTo(380, 460); } catch (e) {}
+}
+
 // Registers the service worker (required by Chrome/Edge before they'll
 // consider this page installable at all) and hooks the deferred install
 // prompt to the visible button, since relying on users to notice the
@@ -147,12 +164,11 @@ window.addEventListener("appinstalled", function () {
             return;
         }
         var p = data.prayer_times;
-        document.getElementById("w-prayer").innerHTML =
-            "<span>Fajr <b>" + p.fajr + "</b></span>" +
-            "<span>Zawal <b>" + p.zawal + "</b></span>" +
-            "<span>Asr <b>" + p.asr + "</b></span>" +
-            "<span>Maghrib <b>" + p.maghrib + "</b></span>" +
-            "<span>Isha <b>" + p.isha + "</b></span>";
+        document.getElementById("p-fajr").textContent = p.fajr;
+        document.getElementById("p-zawal").textContent = p.zawal;
+        document.getElementById("p-asr").textContent = p.asr;
+        document.getElementById("p-maghrib").textContent = p.maghrib;
+        document.getElementById("p-isha").textContent = p.isha;
 
         var all = data.hijri_events.concat(data.interfaith_events, data.personal_events);
         var box = document.getElementById("w-events");
