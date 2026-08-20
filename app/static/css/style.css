@@ -16,7 +16,7 @@
   --c-hindu: #e67e22;
   --c-bohra: var(--bohra-red);
 
-  --topbar-h: 56px;
+  --topbar-h: 64px;
   --sidebar-w: 260px;
 }
 
@@ -74,7 +74,7 @@ body {
 }
 
 .brand { font-weight: 700; font-size: 1.05rem; color: var(--bohra-red); white-space: nowrap; display: flex; align-items: center; gap: 8px; }
-.brand-icon { height: 30px; width: auto; display: block; }
+.brand-icon { height: 44px; width: auto; display: block; }
 .menu-brand { display: none; }
 
 .menu { display: flex; gap: 4px; flex-wrap: wrap; }
@@ -417,7 +417,7 @@ form button:hover { opacity: 0.9; }
 
   .topbar { gap: 10px; padding: 0 12px; position: relative; }
   .brand { font-size: 0.92rem; }
-  .brand-icon { height: 24px; }
+  .brand-icon { height: 34px; }
 
   .menu-toggle-label { display: flex; }
   .menu-toggle-checkbox:checked ~ .menu-toggle-label span:nth-child(1) { transform: translateY(6px) rotate(45deg); }
@@ -443,7 +443,7 @@ form button:hover { opacity: 0.9; }
     font-weight: 700; font-size: 0.98rem; color: var(--bohra-red);
     padding: 6px 12px 12px; border-bottom: 1px solid var(--line); margin-bottom: 6px;
   }
-  .menu-brand .brand-icon { height: 24px; }
+  .menu-brand .brand-icon { height: 30px; }
 
   .main-content { padding: 12px 12px; }
 }
