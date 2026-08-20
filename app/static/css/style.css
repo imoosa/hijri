@@ -73,7 +73,8 @@ body {
   z-index: 20;
 }
 
-.brand { font-weight: 700; font-size: 1.05rem; color: var(--bohra-red); white-space: nowrap; }
+.brand { font-weight: 700; font-size: 1.05rem; color: var(--bohra-red); white-space: nowrap; display: flex; align-items: center; gap: 8px; }
+.brand-icon { height: 30px; width: auto; display: block; }
 
 .menu { display: flex; gap: 4px; flex-wrap: wrap; }
 .menu a {
@@ -415,6 +416,7 @@ form button:hover { opacity: 0.9; }
 
   .topbar { gap: 10px; padding: 0 12px; position: relative; }
   .brand { font-size: 0.92rem; }
+  .brand-icon { height: 24px; }
 
   .menu-toggle-label { display: flex; }
   .menu-toggle-checkbox:checked ~ .menu-toggle-label span:nth-child(1) { transform: translateY(6px) rotate(45deg); }

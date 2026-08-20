@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Bohra Hijri Calendar{% endblock %}</title>
+    <title>{% block title %}Samaa Calendar{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <style>
         /* Liturgical Theme Engine -- today's Christian liturgical season sets
@@ -25,7 +25,10 @@
 </head>
 <body>
     <header class="topbar">
-        <div class="brand">Bohra Calendar</div>
+        <div class="brand">
+            <img src="{{ url_for('static', filename='img/samaa-icon.png') }}" alt="" class="brand-icon">
+            Samaa
+        </div>
         <span class="liturgical-badge" title="Christian liturgical season, sets today's accent color"><span class="dot"></span>{{ liturgical_season_name }}</span>
         <input type="checkbox" id="menu-toggle" class="menu-toggle-checkbox">
         <label for="menu-toggle" class="menu-toggle-label" aria-label="Menu">
