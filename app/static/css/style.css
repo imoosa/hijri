@@ -1,12 +1,14 @@
 :root {
-  --bohra-red: #b5121b;
+  --bohra-red: #254a45;   /* was maroon, now brand teal from logo */
+  --gold: #bf9051;        /* brand gold from logo */
+  --bohra-red-dark: #1b3733; /* hover/active shade */
   --ink: #1f2430;
   --ink-soft: #5b6270;
   --line: #e3e6ec;
-  --bg: #f6f7f9;
+  --bg: #fbf3ec;          /* cream from logo background */
   --panel: #ffffff;
-  --today-bg: #fff3e0;
-  --hover: #f0f2f6;
+  --today-bg: #f3e6cf;   /* warm gold-tinted highlight */
+  --hover: #eee4d6;
 
   --c-christian: #4b7bec;
   --c-french: #2c3e50;

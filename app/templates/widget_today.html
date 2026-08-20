@@ -5,12 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Today</title>
 <link rel="manifest" href="/static/manifest.json">
-<meta name="theme-color" content="#b5121b">
+<meta name="theme-color" content="#254a45">
 <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
 <style>
     :root {
-        --maroon: #b5121b;
-        --maroon-dark: #8a0e15;
+        --maroon: #254a45;
+        --maroon-dark: #1b3733;
         --bg: transparent;
         --card-bg: #ffffff;
         --card-shadow: 0 2px 12px rgba(0,0,0,0.10);
@@ -336,7 +336,7 @@
                     {% if all_events %}
                     <ul>
                         {% for e in all_events %}
-                        <li><span class="dot" style="background: {{ e.color or '#b5121b' }};"></span>{{ e.title }}</li>
+                        <li><span class="dot" style="background: {{ e.color or '#254a45' }};"></span>{{ e.title }}</li>
                         {% endfor %}
                     </ul>
                     {% else %}
@@ -443,7 +443,7 @@ document.getElementById("w-cut-btn").addEventListener("click", function() {
         }
         var html = "<ul>";
         all.forEach(function (e) {
-            html += "<li><span class=\"dot\" style=\"background:" + (e.color || "#b5121b") + ";\"></span>" +
+            html += "<li><span class=\"dot\" style=\"background:" + (e.color || "#254a45") + ";\"></span>" +
                     e.title.replace(/</g, "&lt;") + "</li>";
         });
         box.innerHTML = html + "</ul>";
