@@ -28,7 +28,7 @@
         <div class="brand">
             <img src="{{ url_for('static', filename='icons/samaa-icon.png') }}" alt="" class="brand-icon">
            
-    <img src="{{ url_for('static', filename='img/samaa_logo_bg.png') }}" alt="Samaa" style="height: 30px; width: auto; vertical-align: middle; margin-left: 6px;">
+    <img src="{{ url_for('static', filename='icons/samaa_logo_bg.png') }}" alt="Samaa" style="height: 30px; width: auto; vertical-align: middle; margin-left: 6px;">
 </div>
         </div>
         <span class="liturgical-badge" title="Christian liturgical season, sets today's accent color"><span class="dot"></span>{{ liturgical_season_name }}</span>
@@ -38,8 +38,8 @@
         </label>
         <nav class="menu">
             <div class="menu-brand">
-                <img src="{{ url_for('static', filename='img/samaa-icon.png') }}" alt="" class="brand-icon">
-                <img src="{{ url_for('static', filename='img/samaa_logo_bg.png') }}" alt="Samaa" style="height: 30px; width: auto; vertical-align: middle; margin-left: 6px;">
+                <img src="{{ url_for('static', filename='icons/samaa-icon.png') }}" alt="" class="brand-icon">
+                <img src="{{ url_for('static', filename='icons/samaa_logo_bg.png') }}" alt="Samaa" style="height: 30px; width: auto; vertical-align: middle; margin-left: 6px;">
             </div>
             <a href="{{ url_for('calendar_view') }}" class="{{ 'active' if active == 'calendar' else '' }}">Calendar</a>
             <a href="{{ url_for('prayer_view') }}" class="{{ 'active' if active == 'prayer' else '' }}">Prayer Times</a>
