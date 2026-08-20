@@ -26,9 +26,7 @@
 <body>
     <header class="topbar">
         <div class="brand">
-           
-    <img src="{{ url_for('static', filename='icons/samaa_logo_bg.png') }}" alt="Samaa" style="height: 90px; width: auto; vertical-align: middle; margin-left: 6px;">
-</div>
+            <img src="{{ url_for('static', filename='icons/samaa_logo_bg.png') }}" alt="Samaa" class="brand-icon">
         </div>
         <span class="liturgical-badge" title="Christian liturgical season, sets today's accent color"><span class="dot"></span>{{ liturgical_season_name }}</span>
         <input type="checkbox" id="menu-toggle" class="menu-toggle-checkbox">
@@ -37,7 +35,7 @@
         </label>
         <nav class="menu">
             <div class="menu-brand">
-                <img src="{{ url_for('static', filename='icons/samaa_logo_bg.png') }}" alt="Samaa" style="height: 30px; width: auto; vertical-align: middle; margin-left: 6px;">
+                <img src="{{ url_for('static', filename='icons/samaa_logo_bg.png') }}" alt="Samaa" class="brand-icon">
             </div>
             <a href="{{ url_for('calendar_view') }}" class="{{ 'active' if active == 'calendar' else '' }}">Calendar</a>
             <a href="{{ url_for('prayer_view') }}" class="{{ 'active' if active == 'prayer' else '' }}">Prayer Times</a>
