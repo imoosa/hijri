@@ -75,6 +75,7 @@ body {
 
 .brand { font-weight: 700; font-size: 1.05rem; color: var(--bohra-red); white-space: nowrap; display: flex; align-items: center; gap: 8px; }
 .brand-icon { height: 30px; width: auto; display: block; }
+.menu-brand { display: none; }
 
 .menu { display: flex; gap: 4px; flex-wrap: wrap; }
 .menu a {
@@ -437,6 +438,12 @@ form button:hover { opacity: 0.9; }
   }
   .menu-toggle-checkbox:checked ~ .menu { display: flex; }
   .menu a { padding: 10px 12px; font-size: 0.92rem; }
+  .menu-brand {
+    display: flex; align-items: center; gap: 8px;
+    font-weight: 700; font-size: 0.98rem; color: var(--bohra-red);
+    padding: 6px 12px 12px; border-bottom: 1px solid var(--line); margin-bottom: 6px;
+  }
+  .menu-brand .brand-icon { height: 24px; }
 
   .main-content { padding: 12px 12px; }
 }
